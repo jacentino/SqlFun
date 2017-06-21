@@ -1,0 +1,359 @@
+﻿namespace SqlFun.Tests
+
+open NUnit.Framework
+open SqlFun
+open Data
+open SqlFun.Exceptions
+open SqlFun.Transforms
+open Common
+open System
+
+type TestQueries() =    
+ 
+    static member getBlog: int -> DataContext -> Blog = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id"
+
+    static member getBlogOptional: int -> DataContext -> Blog option = 
+        sql "select * from Blog where id = @id"
+
+    static member getBlogIncomplete: int -> DataContext -> Blog = 
+        sql "select id, name, title, description from Blog where id = @id"
+
+    static member incorrect: int -> DataContext -> Blog = 
+        sql "some totally incorrect sql with @id parameter"
+
+    static member getBlogInvalidType: int -> DataContext -> BlogWithInvalidType = 
+        sql "select id, name, title, description, owner from Blog where id = @id"
+
+    static member getNumberOfPosts: int -> DataContext -> int = 
+        sql "select count(*) from post where blogId = @id"
+
+    static member getBlogOwner: int -> DataContext -> string = 
+        sql "select owner from blog where id = @id"
+
+    static member getBlogOwnerOptional: int -> DataContext -> string option = 
+        sql "select owner from blog where id = @id"
+
+    static member getPostAndItsComments: int -> DataContext -> (Post * Comment list) = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id = @id;
+             select id, postId, parentId, content, author, createdAt from comment where postId = @id"
+
+    static member getPostAndItsCommentsAsProduct: int -> DataContext -> (Post * Comment) list = 
+        sql "select p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status,
+                    c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from post p
+             left join comment c on c.postId = p.id
+             where p.id = @id"
+
+    static member getDecomposedPost: int -> DataContext -> DecomposedPost = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id = @id"
+
+    static member getPostsWithTags: int -> DataContext -> Post list = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
+             select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
+        >> join postId tagPostId (postWithTags id)
+        |> curry 
+
+    static member getPostsWithTags2: int -> DataContext -> Post list = 
+        sql "select p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status,
+                   t.postId as item_postId, t.name as item_name
+            from post p left join tag t on t.postId = p.id
+            where p.id = @id" 
+        >> group (postWithTags aliasedAsItem)       
+        |> curry
+
+    static member getPostsWithTagsAndComments: int -> DataContext -> Post list = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
+             select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
+             select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
+        >> combineJoins 
+            (join postId tagPostId (postWithTags id)) 
+            (join postId commentPostId (postWithComments Tooling.buildTree))
+        |> curry 
+
+    static member findPostsByCriteria: PostSearchCriteria -> DataContext -> Post list = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post
+             where (blogId = @blogId or @blogId is null)
+               and (title like '%' + @title + '%' or @title is null)
+               and (content like '%' + @content + '%' or @content is null)"
+
+    static member findPosts: (int option * string option * string option * string option) -> DataContext -> Post list = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post
+             where (blogId = @blogId or @blogId is null)
+               and (title like '%' + @title + '%' or @title is null)
+               and (content like '%' + @content + '%' or @content is null)
+               and (author = @author or @author is null)"
+
+    static member findPostsByMoreCriteria: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post
+             where (blogId = @blogId or @blogId is null)
+               and (title like '%' + @title + '%' or @title is null)
+               and (content like '%' + @content + '%' or @content is null)
+               and (author = @author or @author is null)
+               and (createdAt >= @createdAtFrom or @createdAtFrom is null)
+               and (createdAt <= @createdAtTo or @createdAtTo is null)
+               and (modifiedAt >= @modifiedAtFrom or @modifiedAtFrom is null)
+               and (modifiedAt <= @modifiedAtTo or @modifiedAtTo is null)
+               and (status = @status or @status is null)"
+      
+    static member getBlogAsync: int -> DataContext -> Blog Async = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id"
+        
+    static member getPostsWithTagsAsync: int -> DataContext -> Post list Async = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
+             select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
+        >> mapAsync (join postId tagPostId (postWithTags id))
+        |> curry 
+
+    static member getPostsWithTagsAndCommentsAsync: int -> DataContext -> Post list Async = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
+             select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
+             select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
+        >> mapAsync (combineJoins 
+                        (join postId tagPostId (postWithTags id)) 
+                        (join postId commentPostId (postWithComments Tooling.buildTree)))
+        |> curry 
+
+    static member insertPost: Post -> DataContext -> int Async = 
+        sql "insert into post 
+                    (blogId, name, title, content, author, createdAt, status)
+             values (@blogId, @name, @title, @content, @author, @createdAt, @status);
+             select scope_identity()"
+
+    static member insertTag: Tag -> DataContext -> unit Async = 
+        sql "insert into tag (postId, name) values (@postId, @name)"
+
+[<TestFixture>]
+type SqlQueryTests() = 
+
+    [<SetUp>]
+    member this.Setup() =
+        Tooling.cleanup |> run
+
+    [<Test>]
+    member this.``Query returning one row returns proper result when the requested row exists``() = 
+        let blog = TestQueries.getBlog 1 |> run
+        Assert.AreEqual (1, blog.id)
+
+    [<Test>]
+    member this.``Query returning one row fails when the requested row does not exist``() = 
+        Assert.Throws (fun () -> TestQueries.getBlog 10 |> run |> ignore) |> ignore
+
+    [<Test>]
+    member this.``Query returning one row optionally returns None when the requested row doesn't exist``() = 
+        let result = TestQueries.getBlogOptional 10 |> run
+        Assert.IsNull result
+
+    [<Test>]
+    member this.``Query returning to narrow result (there are no columns for some fields) fails during compilation``() = 
+        Assert.Throws<CompileTimeException>(fun () -> TestQueries.getBlogIncomplete 1 |> run |> ignore) |> ignore
+
+    [<Test>]
+    member this.``Query containing incorrect sql fails during compilation``() = 
+        Assert.Throws<CompileTimeException>(fun () -> TestQueries.incorrect 1 |> run |> ignore) |> ignore
+
+    [<Test>]
+    member this.``Query mapped to object with incompatible attributes fails in compile time``() = 
+        Assert.Throws<CompileTimeException>(fun () -> TestQueries.getBlogInvalidType 1 |> run |> ignore) |> ignore
+
+    [<Test>]
+    member this.``Query returning scalar returns proper result``() = 
+        let result = TestQueries.getNumberOfPosts 1 |> run
+        Assert.AreEqual (2, result)
+
+    [<Test>]
+    member this.``Query returning scalar fails when the requested value doesn't exist``() =
+        Assert.Throws(fun () -> TestQueries.getBlogOwner 10 |> run |> ignore) |> ignore
+
+    [<Test>]
+    member this.``Query returning scalar optionally returns None if the requested value doesn't exist``() =
+        let result = TestQueries.getBlogOwnerOptional 10 |> run 
+        Assert.IsNull result
+
+    [<Test>]
+    member this.``Two queries are mapped to two-dimensional tuple``() = 
+        let (p, c) = TestQueries.getPostAndItsComments 1 |> run
+        Assert.AreEqual(1, p.id)
+        Assert.AreEqual(3, c |> List.length)
+
+    [<Test>]
+    member this.``Query returning one result can be mapped to list of tuples of records``() =
+        let l = TestQueries.getPostAndItsCommentsAsProduct 1 |> run
+        let (p, c) = l |> List.head
+        Assert.AreEqual(1, p.id)
+        Assert.AreEqual(1, c.postId)
+        Assert.AreEqual(3, l |> List.length)
+
+    [<Test>]
+    member this.``Result type can contain substructures``() =
+        let p = TestQueries.getDecomposedPost 1 |> run
+        Assert.AreEqual("jacenty", p.signature.author)
+
+    [<Test>]
+    member this.``Two queries can be combined by key value with join``() = 
+        let pl = TestQueries.getPostsWithTags 1 |> run
+        Assert.AreEqual(2, pl |> List.length)
+        let p = pl |> List.head
+        Assert.AreEqual(1, p.blogId)
+        Assert.AreEqual(3, p.tags |> List.length)
+
+    [<Test>]
+    member this.``Query result can be mapped to list of tuples, then grouped by first tuple and combined``() = 
+        let pl = TestQueries.getPostsWithTags2 1 |> run
+        Assert.AreEqual(1, pl |> List.length)
+        let p = pl |> List.head
+        Assert.AreEqual(1, p.blogId)
+        Assert.AreEqual(3, p.tags |> List.length)
+
+    [<Test>]
+    member this.``Three queries can be combined by key value with two combined joins``() = 
+        let pl = TestQueries.getPostsWithTagsAndComments 1 |> run
+        Assert.AreEqual(2, pl |> List.length)
+        let p = pl |> List.head
+        Assert.AreEqual(1, p.blogId)
+        Assert.AreEqual(3, p.tags |> List.length)
+        Assert.AreEqual(1, p.comments |> List.length)
+
+    [<Test>]
+    member this.``Query parameters can be specified as a record``() = 
+        let p = TestQueries.findPostsByCriteria {
+                    blogId = Some 1
+                    title = Some "another"
+                    content = None
+                } |> run |> List.head     
+        Assert.AreEqual("Yet another sql framework", p.title)
+
+    [<Test>]
+    member this.``Query parameters can be specified as a tuple``() = 
+        let p = TestQueries.findPosts (Some 1, Some "another", None, None) |> run |> List.head     
+        Assert.AreEqual("Yet another sql framework", p.title)
+
+    [<Test>]
+    member this.``Query parameters can be specified as a tuple of records``() = 
+        let p = TestQueries.findPostsByMoreCriteria 
+                    ({
+                        blogId = Some 1
+                        title = Some "another"
+                        content = None
+                    }, {
+                        author = None
+                        createdAtFrom = Some <| DateTime(2017, 04, 20)
+                        createdAtTo = None
+                        modifiedAtFrom = None
+                        modifiedAtTo = None
+                        modifiedBy = None
+                        status = Some PostStatus.Published
+                    }) 
+                    |> run |> List.head     
+        Assert.AreEqual("Yet another sql framework", p.title)
+
+    [<Test>]
+    member this.``Asynchronous query returning one row returns proper result when the requested row exists``() = 
+        let blog = TestQueries.getBlogAsync 1 |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual (1, blog.id)
+
+    [<Test>]
+    member this.``Two asynchronous  queries can be combined by key value with join wrapped in mapAsync``() = 
+        let pl = TestQueries.getPostsWithTagsAsync 1 |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual(2, pl |> List.length)
+        let p = pl |> List.head
+        Assert.AreEqual(1, p.blogId)
+        Assert.AreEqual(3, p.tags |> List.length)
+
+    [<Test>]
+    member this.``Three asynchronous queries can be combined by key value with two combined joins``() = 
+        let pl = TestQueries.getPostsWithTagsAndCommentsAsync 1 |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual(2, pl |> List.length)
+        let p = pl |> List.head
+        Assert.AreEqual(1, p.blogId)
+        Assert.AreEqual(3, p.tags |> List.length)
+        Assert.AreEqual(1, p.comments |> List.length)
+
+    [<Test>]
+    member this.``Asynchronous queries can be executed on the same connection with asyncdb computation expression``() =
+        let id = (asyncdb {
+                    let post = { 
+                        id = 0 // fake value
+                        blogId = 1
+                        name = "my-expectations"
+                        title = "My expectations" 
+                        content = "What I expect from an sql framework?"
+                        author = "jacenty"
+                        createdAt = DateTime.Now
+                        modifiedAt = None
+                        modifiedBy = None
+                        status = PostStatus.New
+                        comments = []
+                        tags = []
+                    }
+                    let! postId = TestQueries.insertPost post
+
+                    let sqlTag = { postId = postId; name = "sql" }
+                    do! TestQueries.insertTag sqlTag
+
+                    let fSharpTag = { postId = postId; name = "F#" }
+                    do! TestQueries.insertTag fSharpTag
+
+                    let ormTag = { postId = postId; name = "orm" }
+                    do! TestQueries.insertTag ormTag
+
+                    return postId
+                }) |> runAsync |> Async.RunSynchronously
+        let pl = TestQueries.getPostsWithTags 1 |> run 
+        let p = pl |> List.find (fun p -> p.id = id)
+        Assert.AreEqual (3, p.tags |> List.length)
+
+    [<Test>]
+    member this.``Transaction is committed automatically``() =
+        let id = asyncdb {
+                        let post = { 
+                            id = 0 // fake value
+                            blogId = 1
+                            name = "my-expectations"
+                            title = "My expectations" 
+                            content = "What I expect from an sql framework?"
+                            author = "jacenty"
+                            createdAt = DateTime.Now
+                            modifiedAt = None
+                            modifiedBy = None
+                            status = PostStatus.New
+                            comments = []
+                            tags = []
+                        }
+                        return! TestQueries.insertPost post
+                    } 
+                    |> DataContext.inTransactionAsync
+                    |> runAsync
+                    |> Async.RunSynchronously
+        let p = Tooling.getPost id |> run
+        Assert.IsTrue (Option.isSome p)
+
+    [<Test>]
+    member this.``Exception within transaction causes rollback``() =
+        let mutable id = 0
+        asyncdb {
+            let post = { 
+                id = 0 // fake value
+                blogId = 1
+                name = "my-expectations"
+                title = "My expectations" 
+                content = "What I expect from an sql framework?"
+                author = "jacenty"
+                createdAt = DateTime.Now
+                modifiedAt = None
+                modifiedBy = None
+                status = PostStatus.New
+                comments = []
+                tags = []
+            }
+            let! postId = TestQueries.insertPost post
+            id <- postId
+            raise <| Exception "Just for rollback."
+        } 
+        |> DataContext.inTransactionAsync
+        |> runAsync
+        |> Async.Catch
+        |> Async.RunSynchronously
+        |> ignore
+        let p = Tooling.getPost id |> run
+        Assert.IsTrue (Option.isNone p)
+        
