@@ -7,7 +7,9 @@ open Microsoft.FSharp.Reflection
 open Future
 open Queries
 
-
+/// <summary>
+/// Generating insert/update/select/delete operations from a record structure.
+/// </summary>
 type Crud() =
 
     static member private isCollectionType(t: Type) =
