@@ -11,3 +11,5 @@ Principles
 
 How it works
 ------------
+### Define data structures
+### Define queries
