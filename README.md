@@ -1,2 +1,2 @@
 # SqlFun
-Idiomatic data access library for F#
+Idiomatic data access for F#
