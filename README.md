@@ -15,3 +15,6 @@ Idiomatic data access for F#
 ### Queries
 ### Result transformations
 ### Utilizing `dbaction` and `asyncdb` computation expressions
+
+## Features
+## Supported databases
