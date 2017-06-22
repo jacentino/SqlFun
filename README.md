@@ -1,15 +1,17 @@
 # SqlFun
 Idiomatic data access for F#
 
-Principles
-----------
+## Principles
+
 * Plain Old SQL
 * Type safety
 * Composability
 * Performance
 * Compliance with FP paradigm
 
-How it works
-------------
-### Define data structures
-### Define queries
+## How it works
+### Prerequisites
+### Data structures
+### Queries
+### Result transformations
+### Utilizing **asyncdb** computation expression
