@@ -14,4 +14,4 @@ Idiomatic data access for F#
 ### Data structures
 ### Queries
 ### Result transformations
-### Utilizing **asyncdb** computation expression
+### Utilizing `dbaction` and `asyncdb` computation expressions
