@@ -9,6 +9,7 @@ Idiomatic data access for F#
 * Compliance with FP paradigm
 
 ## How it works
+The idea is to create an API exposing your database, consisting of structures representing database data, and functions responsible for processing this data.
 
 ### Prerequisites
 First step is to define function creating database connection,
@@ -27,7 +28,6 @@ and for executing them:
 
     let runAsync f = DataContext.runAsync createConnection f
     
-
 ### Data structures
 Then, data structures should be defined for results of your queries.
 
@@ -77,7 +77,7 @@ The functions executing queries are generated during a first access to the modul
 
 At that stage, all the type checking is performed, so it's easy to make type checking part of automatic testing - one line of code for each module is needed.
 
-The generating process uses reflection heavily, but no reflection is used while processing a query.
+The generating process uses reflection heavily, but no reflection is used while processing a query - everything is already generated.
 
 ### Executing queries
 Since your queries have a DataContext as a last parameter, they can be passed to the `run` function after applying preceding parameters.
@@ -138,9 +138,9 @@ Records can be parameters as well:
 It's easy to execute one query with `run` function. To execute more queries in a context of one open connection, computation expression can be used:
 
     dbaction {
-        let! postId = insertPost post
-        do! insertComments postId comments
-        do! insertTags postId tags
+        let! postId = Blogging.insertPost post
+        do! Blogging.insertComments postId comments
+        do! Blogging.insertTags postId tags
     } |> run
     
 The async equivalent of this expression is `asyncdb`.
@@ -149,9 +149,9 @@ The async equivalent of this expression is `asyncdb`.
 To execute some queries in transaction, the DataContext.inTransaction should be used:
 
     dbaction {
-        let! postId = insertPost post
-        do! insertComments postId comments
-        do! insertTags postId tags
+        let! postId = Blogging.insertPost post
+        do! Blogging.insertComments postId comments
+        do! Blogging.insertTags postId tags
     } 
     |> DataContext.inTransaction
     |> run
@@ -170,6 +170,7 @@ Its async equivalent is DataContext.inTransactionAsync.
 * Support for enum types
 * Asychronous queries
 * Composable, template-based queries
+* Auto-generated CRUD operations
 * Computation expressions for connection and transaction handling
 
 ## Supported databases
