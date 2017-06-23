@@ -59,7 +59,7 @@ Then, data structures should be defined for results of your queries.
 The most preferrable way is to use F# record types.    
     
 ### Queries
-The preferrable way of defining queries is to define them as variables and place in some module.
+The preferrable way of defining queries is to define them as variables and place in some module:
 
     module Blogging =    
  
@@ -80,12 +80,12 @@ At that stage, all the type checking is performed, so it's easy to make type che
 The generating process uses reflection heavily, but no reflection is used while processing a query.
 
 ### Executing queries
-Since your queries have a DataContext as last parameter, they can be passed to the `run` function after applying preceding parameters.
+Since your queries have a DataContext as a last parameter, they can be passed to the `run` function after applying preceding parameters.
 
     let blog = Blogging.getBlog 1 |> run
 
 ### Async support
-The query can be defined as asynchronous:
+The query can be defined as asynchronous as well:
 
         let getBlog: int -> DataContext -> Blog Async = 
             sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
@@ -125,11 +125,53 @@ Since the ADO.NET allows to execute many sql commands at once, it's possible to 
 
 The `curry` function is required because the function composition operator `>>` accepts only one-arg functions.
 
+### Compound parameters
+Records can be parameters as well:
+
+    let insertPost: Post -> DataContext -> int = 
+        sql "insert into post 
+                    (blogId, name, title, content, author, createdAt, status)
+             values (@blogId, @name, @title, @content, @author, @createdAt, @status);
+             select scope_identity()"
+             
 ### Utilizing `dbaction` and `asyncdb` computation expressions
+It's easy to execute one query with `run` function. To execute more queries in a context of one open connection, computation expression can be used:
+
+    dbaction {
+        let! postId = insertPost post
+        do! insertComments postId comments
+        do! insertTags postId tags
+    } |> run
+    
+The async equivalent of this expression is `asyncdb`.
+
+### Transactions
+To execute some queries in transaction, the DataContext.inTransaction should be used:
+
+    dbaction {
+        let! postId = insertPost post
+        do! insertComments postId comments
+        do! insertTags postId tags
+    } |> DataContext.inTransaction |> run
+
+Its async equivalent is DataContext.inTransactionAsync.
 
 ## Features
+* All ADO.NET providers available
+* All SQL features available
+* Reasonable type safety
+* Reasonable performance
+* Compound, hierarchical query parameters
+* Compound, hierarchical query results
+* Support for parameter conversions
+* Support for result transformations
+* Support for enum types
+* Asychronous queries
+* Composable, template-based queries
+* Computation expressions for connection and transaction handling
+
 ## Supported databases
-In its core SqlFun does not use any features specific to some db provider, so it works with all the ADO.NET providers. There are two extension:
-* extension for MS SQL, that allows to use table valued parameters
-* extension for PostgreSQL, making use of array parameters possible
+In its core SqlFun does not use any features specific to some db provider, so it works with all the ADO.NET providers. There are two extensions:
+* for MS SQL, that allows to use table valued parameters
+* for PostgreSQL, making use of array parameters possible
 
