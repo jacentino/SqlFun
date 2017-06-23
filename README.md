@@ -68,7 +68,7 @@ The preferrable way of defining queries is to define them as variables and place
                  from Blog 
                  where id = @id"
             
-        let getPosts: int -> DataContext -> Post list) = 
+        let getPosts: int -> DataContext -> Post list = 
             sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
                  from post 
                  where blogId = @blogId"
