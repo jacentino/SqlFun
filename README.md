@@ -2,7 +2,6 @@
 Idiomatic data access for F#
 
 ## Principles
-
 * Plain Old SQL
 * Type safety
 * Composability
@@ -10,6 +9,7 @@ Idiomatic data access for F#
 * Compliance with FP paradigm
 
 ## How it works
+
 ### Prerequisites
 First step is to define function creating database connection,
 
@@ -152,7 +152,9 @@ To execute some queries in transaction, the DataContext.inTransaction should be 
         let! postId = insertPost post
         do! insertComments postId comments
         do! insertTags postId tags
-    } |> DataContext.inTransaction |> run
+    } 
+    |> DataContext.inTransaction
+    |> run
 
 Its async equivalent is DataContext.inTransactionAsync.
 
