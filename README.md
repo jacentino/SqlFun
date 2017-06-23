@@ -9,7 +9,8 @@ Idiomatic data access for F#
 * Compliance with FP paradigm
 
 ## How it works
-The idea is to create an API exposing your database, consisting of structures representing database data, and functions responsible for processing this data.
+Most of us think about data access code as a sparate layer. We don't like to spread SQL queries across all the application.
+Better way is to build an API exposing your database, consisting of structures representing database data, and functions responsible for processing this data. 
 
 ### Prerequisites
 First step is to define function creating database connection,
