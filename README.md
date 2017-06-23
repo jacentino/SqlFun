@@ -21,7 +21,7 @@ and wire it up with functions responsible for generating queries (using partial 
 
     let storedproc name = storedproc createConnection defaultParamBuilder name
 
-and executing them:
+and for executing them:
 
     let run f = DataContext.run createConnection f
 
@@ -59,7 +59,7 @@ Then, data structures should be defined for results of your queries.
 The most preferrable way is to use F# record types.    
     
 ### Queries
-The preferrable way of defining queries is to define them as variables and place in a module.
+The preferrable way of defining queries is to define them as variables and place in some module.
 
     module Blogging =    
  
@@ -111,7 +111,7 @@ Since the ADO.NET allows to execute many sql commands at once, it's possible to 
                  where blogId = @id"
  
  Since the call of `sql` returns some function, it can be composed with another function, possibly performing result transformations.
- Let extend the blog type with a `posts: Post list` property. In this case, we can combine two results using blog id as a key:
+ Let extend the blog type with a `posts: Post list` property. In this case, two results can be combined using a blog id as a key:
  
         let getBlogWithPosts: int -> DataContext -> Blog = 
             sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
@@ -123,11 +123,13 @@ Since the ADO.NET allows to execute many sql commands at once, it's possible to 
             >> join (fun b -> b.id) (fun p -> p.blogId) (fun b pl -> { b with posts = pl })
             |> curry  
 
-The `curry` function is required because the function composition operator (>>) accepts only one-arg functions.
+The `curry` function is required because the function composition operator `>>` accepts only one-arg functions.
 
 ### Utilizing `dbaction` and `asyncdb` computation expressions
 
 ## Features
 ## Supported databases
-In its core SqlFun does not use any features specific to some db provider, so it works with all the ADO.NET providers.
-There is an extension for MS SQL, that allows to use table valued parameters, and another extension for PostgreSQL, making array parameters possible. 
+In its core SqlFun does not use any features specific to some db provider, so it works with all the ADO.NET providers. There are two extension:
+* extension for MS SQL, that allows to use table valued parameters
+* extension for PostgreSQL, making use of array parameters possible
+
