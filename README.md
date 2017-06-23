@@ -15,7 +15,7 @@ First step is to define function creating database connection,
 
     let createConnection () = new SqlConnection(<your database connection string>)
 
-and wire it up by partial application of functions responsible for generating queries:
+and wire it up with functions responsible for generating queries (using partial application):
  
     let sql commandText = sql createConnection defaultParamBuilder commandText
 
@@ -74,11 +74,13 @@ The preferrable way of defining queries is to define them as variables and place
                  where blogId = @blogId"
         
 The functions executing queries are generated during a first access to the module contents.
+
+At that stage, all the type checking is performed, so it's easy to make type checking part of automatic testing - one line of code for each module is needed.
+
 The generating process uses reflection heavily, but no reflection is used while processing a query.
-At that stage, all the type checking is performed, so it's make type checking part of automatic testing - one line of code for each module is needed.
 
 ### Executing queries
-Since our queries have a DataContext as last parameter, they can be passed to the `run` function after applying preceding parameters.
+Since your queries have a DataContext as last parameter, they can be passed to the `run` function after applying preceding parameters.
 
     let blog = Blogging.getBlog 1 |> run
 
@@ -108,7 +110,7 @@ Since the ADO.NET allows to execute many sql commands at once, it's possible to 
                  from post 
                  where blogId = @id"
  
- Since the call of `sql` returns some function, it can be composed of another function, possibly performing result transformation.
+ Since the call of `sql` returns some function, it can be composed with another function, possibly performing result transformations.
  Let extend the blog type with a `posts: Post list` property. In this case, we can combine two results using blog id as a key:
  
         let getBlogWithPosts: int -> DataContext -> Blog = 
@@ -127,3 +129,5 @@ The `curry` function is required because the function composition operator (>>) 
 
 ## Features
 ## Supported databases
+In its core SqlFun does not use any features specific to some db provider, so it works with all the ADO.NET providers.
+There is an extension for MS SQL, that allows to use table valued parameters, and another extension for PostgreSQL, making array parameters possible. 
