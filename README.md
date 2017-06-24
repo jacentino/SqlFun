@@ -101,7 +101,7 @@ and then, executed as async:
     }
 
 ### Stored procedures
-The result of a stored procedure should be a three-element tuple (return code, output params, result):
+The result of a function calling stored procedure should be a three-element tuple (return code, output params, result):
 	
 	let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> (int * unit * Post list) =
 		storedproc "FindPosts"
