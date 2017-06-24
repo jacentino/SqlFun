@@ -104,14 +104,14 @@ and then, executed as async:
 The result of a function calling stored procedure should be a three-element tuple (return code, output params, result):
 	
 	let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> (int * unit * Post list) =
-		storedproc "FindPosts"
+	    storedproc "FindPosts"
 	
 but there are transformers, that allow to ignore parts of it:
 
 	let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list =
-		storedproc "FindPosts"
-		>> resultOnly id 
-		|> curry
+	    storedproc "FindPosts"
+	    >> resultOnly id 
+	    |> curry
 	
 ### Result transformations
 Since the ADO.NET allows to execute many sql commands at once, it's possible to utilize it with SqlFun. The result is a tuple:
