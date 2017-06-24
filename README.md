@@ -9,7 +9,7 @@ Idiomatic data access for F#
 * Compliance with FP paradigm
 
 ## How it works
-Most of us think about data access code as a sparate layer. We don't like to spread SQL queries across all the application.
+Most of us think about data access code as a separate layer. We don't like to spread SQL queries across all the application.
 Better way is to build an API exposing your database, consisting of structures representing database data, and functions responsible for processing this data. 
 
 ### Prerequisites
@@ -100,6 +100,19 @@ and then, executed as async:
         ...
     }
 
+### Stored procedures
+The result of a stored procedure should be a three-element tuple (return code, output params, result):
+	
+	let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> (int * unit * Post list) =
+		storedproc "FindPosts"
+	
+but there are transformers, that allow to ignore parts of it:
+
+	let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list =
+		storedproc "FindPosts"
+		>> resultOnly id 
+		|> curry
+	
 ### Result transformations
 Since the ADO.NET allows to execute many sql commands at once, it's possible to utilize it with SqlFun. The result is a tuple:
 
