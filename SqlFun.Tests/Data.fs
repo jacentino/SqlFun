@@ -15,17 +15,16 @@ module Data =
         createdAt: DateTime
         replies: Comment list
     }
-
-    let commentId (c: Comment) = c.id
-    let commentParentId (c: Comment) = c.parentId
-    let commentPostId (c: Comment) = c.postId
+    with    
+        static member ParentId (c: Comment) = c.parentId
+        static member PostId (c: Comment) = c.postId
 
     type Tag = {
         postId: int
         name: string
     }
-
-    let tagPostId (t: Tag) = t.postId
+    with 
+        static member PostId (t: Tag) = t.postId
 
     type PostStatus = 
         | [<EnumValue("N")>] New = 0
@@ -46,11 +45,11 @@ module Data =
         comments: Comment list
         tags: Tag list
     }
-
-    let postId (p: Post) = p.id
-    let postBlogId (p: Post) = p.blogId
-    let postWithTags (transform: 't list -> Tag list) (p: Post) (tags: 't list) = { p with tags = transform tags }
-    let postWithComments (transform: 't list -> Comment list) (p: Post) (comments: 't list) = { p with comments = transform comments }
+    with
+        static member Id (p: Post) = p.id
+        static member BlogId (p: Post) = p.blogId
+        static member withTags (transform: 't list -> Tag list) (p: Post) (tags: 't list) = { p with tags = transform tags }
+        static member withComments (transform: 't list -> Comment list) (p: Post) (comments: 't list) = { p with comments = transform comments }
 
     type Signature = {
         author: string
@@ -82,8 +81,6 @@ module Data =
         modifiedBy: string option
         posts: Post list
     }
-
-    let blogId (b: Blog) = b.id
 
     type BlogWithInvalidType = {
         id: string
@@ -146,7 +143,7 @@ module Tooling =
         }
 
     let buildTree (comments: Comment list) = 
-        let (roots, children) = comments |> Seq.groupBy commentParentId 
+        let (roots, children) = comments |> Seq.groupBy Comment.ParentId 
                                          |> List.ofSeq 
                                          |> List.partition (fst >> Option.isNone)
         let parenting = children |> Map.ofList

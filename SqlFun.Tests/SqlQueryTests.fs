@@ -50,7 +50,7 @@ type TestQueries() =
     static member getPostsWithTags: int -> DataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
-        >> join postId tagPostId (postWithTags id)
+        >> join Post.Id Tag.PostId (Post.withTags id)
         |> curry 
 
     static member getPostsWithTags2: int -> DataContext -> Post list = 
@@ -58,7 +58,7 @@ type TestQueries() =
                    t.postId as item_postId, t.name as item_name
             from post p left join tag t on t.postId = p.id
             where p.id = @id" 
-        >> group (postWithTags aliasedAsItem)       
+        >> group (Post.withTags aliasedAsItem)       
         |> curry
 
     static member getPostsWithTagsAndComments: int -> DataContext -> Post list = 
@@ -66,8 +66,8 @@ type TestQueries() =
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
         >> combineJoins 
-            (join postId tagPostId (postWithTags id)) 
-            (join postId commentPostId (postWithComments Tooling.buildTree))
+            (join Post.Id Tag.PostId (Post.withTags id)) 
+            (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree))
         |> curry 
 
     static member findPostsByCriteria: PostSearchCriteria -> DataContext -> Post list = 
@@ -101,7 +101,7 @@ type TestQueries() =
     static member getPostsWithTagsAsync: int -> DataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
-        >> mapAsync (join postId tagPostId (postWithTags id))
+        >> mapAsync (join Post.Id Tag.PostId (Post.withTags id))
         |> curry 
 
     static member getPostsWithTagsAndCommentsAsync: int -> DataContext -> Post list Async = 
@@ -109,8 +109,8 @@ type TestQueries() =
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
         >> mapAsync (combineJoins 
-                        (join postId tagPostId (postWithTags id)) 
-                        (join postId commentPostId (postWithComments Tooling.buildTree)))
+                        (join Post.Id Tag.PostId (Post.withTags id)) 
+                        (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree)))
         |> curry 
 
     static member insertPost: Post -> DataContext -> int Async = 

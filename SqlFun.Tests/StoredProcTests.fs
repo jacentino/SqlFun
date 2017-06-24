@@ -13,8 +13,8 @@ type StoredProcs() =
         static member GetAllPosts: int -> DataContext -> Post list Async = 
             storedproc "GetAllPosts"
             >> mapAsync (resultOnly(combineJoins 
-                            (join postId commentPostId (postWithComments Tooling.buildTree)) 
-                            (join postId tagPostId (postWithTags id))))
+                            (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree)) 
+                            (join Post.Id Tag.PostId (Post.withTags id))))
             |> curry
 
         static member FindPostsFull: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> (int * unit * Post list) =
