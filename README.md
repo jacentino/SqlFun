@@ -139,14 +139,14 @@ Records can be parameters as well:
 The result of a function calling stored procedure should be a three-element tuple (return code, output params, result):
 	
     let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> (int * unit * Post list) =
-	storedproc "FindPosts"
+        storedproc "FindPosts"
 	
 but there are transformers, that allow to ignore parts of it:
 
     let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list =
-	storedproc "FindPosts"
-	>> resultOnly id 
-	|> curry
+        storedproc "FindPosts"
+        >> resultOnly id 
+        |> curry
 	 
 ### Utilizing `dbaction` and `asyncdb` computation expressions
 It's easy to execute one query with `run` function. To execute more queries in a context of one open connection, computation expression can be used:
