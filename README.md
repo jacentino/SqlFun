@@ -60,7 +60,7 @@ Then, data structures should be defined for results of your queries.
 The most preferrable way is to use F# record types. Record fields should reflect query result columns, because they are mapped by name.
     
 ### Queries
-The preferrable way of defining queries is to define them as variables and place in some module:
+The best way of defining queries is to create variables for them and place in some module:
 
     module Blogging =    
  
@@ -111,7 +111,7 @@ Since the ADO.NET allows to execute many sql commands at once, it's possible to 
                  from post 
                  where blogId = @id"
  
- Since the call of `sql` returns some function, it can be composed with another function, possibly performing result transformations.
+ The call of `sql` returns some function, thus it can be composed with another function, possibly performing result transformations.
  Let extend the blog type with a `posts: Post list` property. In this case, two results can be combined using a blog id as a key:
  
         let getBlogWithPosts: int -> DataContext -> Blog = 
@@ -134,7 +134,9 @@ Records can be parameters as well:
                     (blogId, name, title, content, author, createdAt, status)
              values (@blogId, @name, @title, @content, @author, @createdAt, @status);
              select scope_identity()"
- 
+
+The record fields are mapped to query parameters by name.
+
 ### Stored procedures
 The result of a function calling stored procedure should be a three-element tuple (return code, output params, result):
 	
