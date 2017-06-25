@@ -81,26 +81,81 @@ module Transforms =
         else
             list1 |> List.map (fun item -> combine item (list2 |> List.filter (fun v -> (getKey2 v) = (getKey1 item))))
 
-
+    /// <summary>
+    /// Joins three lists by combining two joins.
+    /// </summary>
+    /// <param name="join1">
+    /// Function performing first join.
+    /// </param>
+    /// <param name="join2">
+    /// Function performing second join.
+    /// </param>
+    /// <param name="l1">
+    /// First list participating in join.
+    /// </param>
+    /// <param name="l2">
+    /// Second list participating in join.
+    /// </param>
+    /// <param name="l3">
+    /// Third list participating in join.
+    /// </param>
     let combineJoins (join1: ('t1 list * 't2 list) -> 'r1 list) (join2: ('r1 list * 't3 list) -> 'r2 list) (l1: 't1 list, l2: 't2 list, l3: 't3 list) = 
         (join1 (l1, l2), l3) |> join2
                             
-    let combineJoins3 (l1: 't1 list, l2: 't2 list, l3: 't3 list, l4: 't4 list) 
-                      (join1: ('t1 list * 't2 list) -> 'r1 list) 
+    /// <summary>
+    /// Joins four lists by combining three joins.
+    /// </summary>
+    /// <param name="join1">
+    /// Function performing first join.
+    /// </param>
+    /// <param name="join2">
+    /// Function performing second join.
+    /// </param>
+    /// <param name="join3">
+    /// Function performing third join.
+    /// </param>
+    /// <param name="l1">
+    /// First list participating in join.
+    /// </param>
+    /// <param name="l2">
+    /// Second list participating in join.
+    /// </param>
+    /// <param name="l3">
+    /// Third list participating in join.
+    /// </param>
+    /// <param name="l4">
+    /// Fourth list participating in join.
+    /// </param>
+    let combineJoins3 (join1: ('t1 list * 't2 list) -> 'r1 list) 
                       (join2: ('r1 list * 't3 list) -> 'r2 list) 
-                      (join3: ('r2 list * 't4 list) -> 'r3 list) = 
+                      (join3: ('r2 list * 't4 list) -> 'r3 list)
+                      (l1: 't1 list, l2: 't2 list, l3: 't3 list, l4: 't4 list) = 
         (combineJoins join1 join2 (l1, l2, l3), l4) |> join3
                             
     /// <summary>
     /// Transforms a value wrapped in Async object using a given function.
     /// </summary>
+    /// <param name="f">
+    /// Function transforming wrapped value.
+    /// </param>
+    /// <param name="x">
+    /// Source value.
+    /// </param>
     let mapAsync (f: 't -> 'v) (v: Async<'t>) =
         async {
             let! v1 = v
             return f(v1)
         }
 
-
+    /// <summary>
+    /// Transforms list of values wrapped in Async using a given mapping function.
+    /// </summary>
+    /// <param name="f">
+    /// Function transforming list element.
+    /// </param>
+    /// <param name="x">
+    /// Source value.
+    /// </param>
     let mapAsyncList (f: 't -> 'v) (x: Async<List<'t>>)  =
         mapAsync (List.map f) x
 
