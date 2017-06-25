@@ -100,19 +100,6 @@ and then, executed as async:
         ...
     }
 
-### Stored procedures
-The result of a function calling stored procedure should be a three-element tuple (return code, output params, result):
-	
-	let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> (int * unit * Post list) =
-	    storedproc "FindPosts"
-	
-but there are transformers, that allow to ignore parts of it:
-
-	let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list =
-	    storedproc "FindPosts"
-	    >> resultOnly id 
-	    |> curry
-	
 ### Result transformations
 Since the ADO.NET allows to execute many sql commands at once, it's possible to utilize it with SqlFun. The result is a tuple:
 
@@ -147,7 +134,20 @@ Records can be parameters as well:
                     (blogId, name, title, content, author, createdAt, status)
              values (@blogId, @name, @title, @content, @author, @createdAt, @status);
              select scope_identity()"
-             
+ 
+### Stored procedures
+The result of a function calling stored procedure should be a three-element tuple (return code, output params, result):
+	
+    let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> (int * unit * Post list) =
+	storedproc "FindPosts"
+	
+but there are transformers, that allow to ignore parts of it:
+
+    let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list =
+	storedproc "FindPosts"
+	>> resultOnly id 
+	|> curry
+	 
 ### Utilizing `dbaction` and `asyncdb` computation expressions
 It's easy to execute one query with `run` function. To execute more queries in a context of one open connection, computation expression can be used:
 
