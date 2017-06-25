@@ -57,7 +57,7 @@ Then, data structures should be defined for results of your queries.
         posts: Post list
     }
     
-The most preferrable way is to use F# record types.    
+The most preferrable way is to use F# record types. Record fields should reflect query result columns, because they are mapped by name.
     
 ### Queries
 The preferrable way of defining queries is to define them as variables and place in some module:
@@ -74,7 +74,7 @@ The preferrable way of defining queries is to define them as variables and place
                  from post 
                  where blogId = @blogId"
         
-The functions executing queries are generated during a first access to the module contents.
+The functions executing queries are generated during a first access to the module contents. 
 
 At that stage, all the type checking is performed, so it's easy to make type checking part of automatic testing - one line of code for each module is needed.
 
