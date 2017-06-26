@@ -2,13 +2,14 @@
 Idiomatic data access for F#
 
 SqlFun allows to write data access code in F# in functional way. 
-It's fast, type safe and gives you all powers of SQL, since you are not limited by any query DSL.
+It's fast, type safe and gives you all powers of SQL, no DSL query language constraints you.
+It's also lightweight, you nedd to know a general idea and few functions (and, of course SQL).
 
 ## Features
 * All ADO.NET providers available
 * All SQL features available
-* Reasonable type safety
-* Reasonable performance
+* Type safety
+* High performance
 * Compound, hierarchical query parameters
 * Compound, hierarchical query results
 * Support for parameter conversions
