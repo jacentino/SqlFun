@@ -1,12 +1,30 @@
 # SqlFun
 Idiomatic data access for F#
 
-## Principles
-* Plain Old SQL
-* Type safety
-* Composability
-* Performance
-* Compliance with FP paradigm
+SqlFun allows to write data access code in F# in functional way. 
+It's fast, type safe and gives you all powers of SQL, since you are not limited by any query DSL.
+
+## Features
+* All ADO.NET providers available
+* All SQL features available
+* Reasonable type safety
+* Reasonable performance
+* Compound, hierarchical query parameters
+* Compound, hierarchical query results
+* Support for parameter conversions
+* Support for result transformations
+* Support for enum types
+* Asychronous queries
+* Composable, template-based queries
+* Auto-generated CRUD operations
+* Computation expressions for connection and transaction handling
+
+## Supported databases
+In its core SqlFun does not use any features specific to some db provider, so it works with all ADO.NET providers. 
+
+There are two extensions, enabling provider-specific features:
+* the extension for MS SQL, that allows to use table valued parameters
+* the extension for PostgreSQL, making use of array parameters possible
 
 ## How it works
 Most of us think about data access code as a separate layer. We don't like to spread SQL queries across all the application.
@@ -173,24 +191,3 @@ To execute some queries in transaction, the DataContext.inTransaction should be 
     |> run
 
 Its async equivalent is DataContext.inTransactionAsync.
-
-## Features
-* All ADO.NET providers available
-* All SQL features available
-* Reasonable type safety
-* Reasonable performance
-* Compound, hierarchical query parameters
-* Compound, hierarchical query results
-* Support for parameter conversions
-* Support for result transformations
-* Support for enum types
-* Asychronous queries
-* Composable, template-based queries
-* Auto-generated CRUD operations
-* Computation expressions for connection and transaction handling
-
-## Supported databases
-In its core SqlFun does not use any features specific to some db provider, so it works with all the ADO.NET providers. There are two extensions:
-* for MS SQL, that allows to use table valued parameters
-* for PostgreSQL, making use of array parameters possible
-
