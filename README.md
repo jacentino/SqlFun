@@ -131,7 +131,7 @@ Since the ADO.NET allows to execute many sql commands at once, it's possible to 
                  where blogId = @id"
  
  The call of `sql` returns some function, thus it can be composed with another function, possibly performing result transformations.
- Let extend the blog type with a `posts: Post list` property. In this case, two results can be combined using a blog id as a key:
+ Let extend the blog type with a `posts: Post list` property. In this case, two results can be combined with simple function:
  
         let getBlogWithPosts: int -> DataContext -> Blog = 
             sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
@@ -140,10 +140,11 @@ Since the ADO.NET allows to execute many sql commands at once, it's possible to 
                  select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
                  from post 
                  where blogId = @id"
-            >> join (fun b -> b.id) (fun p -> p.blogId) (fun b pl -> { b with posts = pl })
+            >> (fun b pl -> { b with posts = pl })
             |> curry  
 
 The `curry` function is required because the function composition operator `>>` accepts only one-arg functions.
+There are functions that allow to combine multi-row results by joining many results or grouping wide results.
 
 ### Compound parameters
 Records can be parameters as well:
