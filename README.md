@@ -193,3 +193,9 @@ To execute some queries in transaction, the DataContext.inTransaction should be 
     |> run
 
 Its async equivalent is DataContext.inTransactionAsync.
+
+## Documentation & examples
+
+For more comprehensive documentation refer project [wiki](https://github.com/jacentino/SqlFun/wiki).
+
+For more examples refer [test project](https://github.com/jacentino/SqlFun/tree/master/SqlFun.Tests).
