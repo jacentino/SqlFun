@@ -129,14 +129,13 @@ type DataContext =
     /// The data context object.
     /// </param>
     static member inTransactionAsync (f: DataContext -> 't Async) (dc: DataContext) = async {
-        return! match dc.transaction with
-                | Some _ -> f dc
-                | None -> async {
-                    use t = DataContext.beginTransaction dc 
-                    let! r = f t
-                    DataContext.commit t
-                    return r
-                }
+        match dc.transaction with
+        | Some _ -> return! f dc
+        | None -> 
+            use t = DataContext.beginTransaction dc 
+            let! r = f t
+            DataContext.commit t
+            return r
     }
 
 
