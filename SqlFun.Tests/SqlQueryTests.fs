@@ -28,6 +28,9 @@ type TestQueries() =
     static member getNumberOfPosts: int -> DataContext -> int = 
         sql "select count(*) from post where blogId = @id"
 
+    static member getPostIds: int -> DataContext -> int list = 
+        sql "select id from Post where blogId = @id"
+
     static member getBlogOwner: int -> DataContext -> string = 
         sql "select owner from blog where id = @id"
 
@@ -159,6 +162,11 @@ type SqlQueryTests() =
     member this.``Query returning scalar returns proper result``() = 
         let result = TestQueries.getNumberOfPosts 1 |> run
         Assert.AreEqual (2, result)
+
+    [<Test>]
+    member this.``Query returning list of scalars returns proper result``() = 
+        let result = TestQueries.getPostIds 1 |> run
+        Assert.AreEqual (2, result.Length)
 
     [<Test>]
     member this.``Query returning scalar fails when the requested value doesn't exist``() =

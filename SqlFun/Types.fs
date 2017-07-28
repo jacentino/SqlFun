@@ -13,7 +13,7 @@ module Types =
         x
 
     let isSimpleType (t: Type) = 
-        let x = (t.FullName.StartsWith("System") && not (t.FullName.StartsWith("System.Collections"))) || t.IsEnum
+        let x = (t.FullName.StartsWith("System") && not (t.FullName.StartsWith("System.Collections")) && not (t.FullName.StartsWith("System.Tuple"))) || t.IsEnum
         x
 
     let getUnderlyingType (optionType: Type) = 

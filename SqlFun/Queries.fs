@@ -413,7 +413,9 @@ module Queries =
                 generateCall unwrappedRetType "buildOptionalResult" resultBuilder :> Expression
             elif isCollectionType returnType then
                 let unwrappedRetType = getUnderlyingType returnType
-                let resultBuilder = genRowBuilder metadata unwrappedRetType
+                let resultBuilder = if isSimpleType unwrappedRetType 
+                                    then genScalarBuilder metadata unwrappedRetType
+                                    else genRowBuilder metadata unwrappedRetType
                 generateCall unwrappedRetType "buildCollectionResult" resultBuilder :> Expression
             elif isOption returnType then
                 let unwrappedRetType = getUnderlyingType returnType
