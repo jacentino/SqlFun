@@ -3,6 +3,7 @@
 module Types = 
 
     open System
+    open FSharp.Reflection
 
     let isOption (t: Type) = 
         let x = t.Name.StartsWith("FSharpOption`1")
@@ -13,8 +14,7 @@ module Types =
         x
 
     let isSimpleType (t: Type) = 
-        let x = (t.FullName.StartsWith("System") && not (t.FullName.StartsWith("System.Collections")) && not (t.FullName.StartsWith("System.Tuple"))) || t.IsEnum
-        x
+        t.IsPrimitive || t.IsEnum || t = typeof<string> || t = typeof<DateTime> || t = typeof<Decimal> || t = typeof<byte[]>
 
     let getUnderlyingType (optionType: Type) = 
         optionType.GetGenericArguments().[0]
@@ -26,7 +26,7 @@ module Types =
         (isOption t) && isSimpleType (getUnderlyingType t)
 
     let isCollectionType (t: Type) = 
-        typeof<System.Collections.IEnumerable>.IsAssignableFrom(t) && t <> typeof<string>
+        typeof<System.Collections.IEnumerable>.IsAssignableFrom(t) && t <> typeof<string> && t <> typeof<byte[]>
 
     let isComplexType (t: Type) =
-        not (isOption t || isSimpleType t || isCollectionType t)
+        FSharpType.IsRecord t
