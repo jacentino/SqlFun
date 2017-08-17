@@ -588,6 +588,15 @@ module Queries =
 
         let customPB = wireUpPBs customParamBuilder getParamExpressions
 
+        let makeDiagnosticCall (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) = 
+            use connection = createConnection()
+            connection.Open()
+            use command = connection.CreateCommand()
+            command.CommandText <- commandText
+            for _, expr, buildParam, fakeVal in paramDefs do
+                buildParam fakeVal command |> ignore
+            command.ExecuteReader(CommandBehavior.SchemaOnly).Dispose()
+
         let getResultMetadata (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) = 
             use connection = createConnection()
             connection.Open()
@@ -606,8 +615,11 @@ module Queries =
             let queryParamDefs = paramDefs |> withoutConnectionAndTransaction
             let assignParams = genParamAssigner queryParamDefs []    
             let metadata = if returnType <> typeof<unit> && not (Types.isAsyncOf returnType typeof<unit>) // Npgsql hangs on NextResult if no first result exists
-                            then getResultMetadata queryParamDefs
-                            else [Map.empty]
+                            then 
+                                getResultMetadata queryParamDefs
+                            else 
+                                makeDiagnosticCall queryParamDefs
+                                [Map.empty]
             let connection = getConnectionExpr paramDefs
             let transaction = getTransactionExpr paramDefs
             let sql = Expression.Constant(commandText) :> Expression
@@ -737,6 +749,22 @@ module Queries =
             use reader = command.ExecuteReader()
             reader |> rmap (fun r -> (if r.GetString(0).StartsWith("@") then r.GetString(0).Substring(1) else r.GetString(0)), r.GetString(1) <> "IN", r.GetString(2))
 
+        let makeDiagnosticCall (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) (outParams: (string * string) list) = 
+            use connection = createConnection()
+            connection.Open()
+            use command = connection.CreateCommand()
+            command.CommandText <- procedureName
+            command.CommandType <- CommandType.StoredProcedure
+            for _, expr, buildParam, fakeVal in paramDefs do
+                buildParam fakeVal command |> ignore
+            for name, dbtype in outParams do
+                let param = command.CreateParameter()
+                param.ParameterName <- "@" + name
+                param.DbType <- getDbTypeEnum dbtype
+                param.Direction <- ParameterDirection.Output
+                command.Parameters.Add param |> ignore
+            command.ExecuteReader(CommandBehavior.SchemaOnly).Dispose()
+
         let getResultMetadata (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) (outParams: (string * string) list) = 
             use connection = createConnection()
             connection.Open()
@@ -763,8 +791,11 @@ module Queries =
             let queryParamDefs = paramDefs |> withoutConnectionAndTransaction
             let assignParams = genParamAssigner queryParamDefs outParams      
             let metadata = if returnType <> typeof<unit> && not (Types.isAsyncOf returnType typeof<unit>) // Npgsql hangs on NextResult if no first result exists
-                            then getResultMetadata queryParamDefs outParams
-                            else [Map.empty]
+                            then 
+                                getResultMetadata queryParamDefs outParams
+                            else 
+                                makeDiagnosticCall queryParamDefs outParams
+                                [Map.empty]
             let connection = getConnectionExpr paramDefs
             let transaction = getTransactionExpr paramDefs
             let sql = Expression.Constant(procedureName) :> Expression
