@@ -12,53 +12,93 @@ module MsSql =
     open Future
     open Microsoft.SqlServer.Server
     open System.Collections.Concurrent
+    open SqlFun.ExpressionExtensions
 
     let defaultParamBuilder = defaultParamBuilder
 
-    let private getEnumValue (value: obj) = 
-        value.GetType().GetFields()
+
+
+
+
+
+
+    let private getEnumValues (enumType: Type) = 
+        enumType.GetFields()
             |> Seq.filter (fun f -> f.IsStatic)
             |> Seq.map (fun f -> f.GetValue(null), f.GetCustomAttributes<EnumValueAttribute>() |> Seq.map (fun a -> a.Value) |> Seq.tryHead)
             |> Seq.map (fun (e, vopt) -> e, match vopt with Some x -> x | None -> e)
-            |> Seq.filter (fun (e, v) -> e = value)
-            |> Seq.map snd
-            |> Seq.head
+            |> List.ofSeq
 
-    let private convertToColumnValue value = 
-        if value <> null && isOption (value.GetType())
-        then value.GetType().GetProperty("Value").GetValue value
-        elif value <> null && value.GetType().IsEnum
-        then getEnumValue value
-        else value
+    let private getConcreteMethod concreteType methodName = 
+        let m = typeof<Toolbox>.GetMethod(methodName, BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
+        m.MakeGenericMethod([| concreteType |])
 
-    let private composeAll (f: obj -> obj) (l: (string * (obj -> obj)) seq) = 
-        l |> Seq.map (fun (n, f1) -> n, fun item -> let x = f item in if x = null then null else f1 x)
 
-    let rec private getAccessors (recType: Type): (string * (obj -> obj)) seq = 
-        if FSharpType.IsTuple recType
+    let private convertIfEnum (expr: Expression) = 
+        if expr.Type.IsEnum
+        then
+            let exprAsObj = Expression.Convert(expr, typeof<obj>) :> Expression
+            let values = getEnumValues expr.Type
+            if values |> Seq.exists (fun (e, v) -> e <> v)
+            then            
+                let comparer e = Expression.Call(Expression.Constant(e), "Equals", exprAsObj) :> Expression
+                values 
+                    |> Seq.fold (fun cexpr (e, v) -> Expression.Condition(comparer e, Expression.Constant(v, typeof<obj>), cexpr) :> Expression) exprAsObj
+            else
+                exprAsObj
+        else
+            expr
+
+    let private convertEnumOption (expr: Expression) =
+        let param = Expression.Parameter(getUnderlyingType expr.Type, "v")
+        if param.Type.IsEnum
         then 
-            FSharpType.GetTupleElements recType
-            |> Seq.mapi (fun i t -> composeAll (fun item -> recType.GetProperty("Item" + (i + 1).ToString()).GetValue item) (getAccessors t))
+            Expression.Call(getConcreteMethod param.Type "mapOption", Expression.Lambda(convertIfEnum (param), param), expr) :> Expression
+        else 
+            expr
+
+    let private convertAsNeeded (expr: Expression) =
+        if isOption expr.Type 
+        then 
+            let converter = convertEnumOption expr
+            Expression.Call(getConcreteMethod (getUnderlyingType converter.Type) "unpackOption", converter) :> Expression
+        else
+            Expression.Convert(convertIfEnum expr, typeof<obj>) :> Expression
+
+
+
+
+
+
+
+    let rec private getAccessors (root: Expression): (string * Expression) seq = 
+        if FSharpType.IsTuple root.Type
+        then
+            FSharpType.GetTupleElements root.Type
+            |> Seq.mapi (fun i t -> Expression.PropertyOrField(root, "Item" + (i + 1).ToString()) |> getAccessors)
             |> Seq.collect id
         else
-            FSharpType.GetRecordFields recType
+            FSharpType.GetRecordFields root.Type
             |> Seq.collect (fun p -> if isCollectionType p.PropertyType
                                         then Seq.empty
                                         elif isSimpleType p.PropertyType || isSimpleTypeOption p.PropertyType
-                                        then Seq.singleton (p.Name, fun item -> convertToColumnValue (p.GetValue item))
+                                        then Seq.singleton (p.Name, convertAsNeeded (Expression.Property(root, p)))
                                         elif isOption p.PropertyType
-                                        then 
-                                            let underlyingType = p.PropertyType.GetGenericArguments().[0]
-                                            composeAll 
-                                                (fun item -> 
-                                                    let opt = p.GetValue item
-                                                    let value = p.PropertyType.GetProperty("Value").GetValue opt
-                                                    value)
-                                                (getAccessors underlyingType)
-                                        else 
-                                            composeAll  (fun item -> p.GetValue item) (getAccessors p.PropertyType))
-
-
+                                        then
+                                            let propValue = Expression.Property(root, p)
+                                            let unwrappedValue = Expression.PropertyOrField(propValue, "Value")     
+                                            let nullConst = Expression.Constant(null, p.PropertyType)
+                                            getAccessors unwrappedValue
+                                            |> Seq.map (fun (name, expr) -> 
+                                                            name, 
+                                                            Expression.Condition(
+                                                                Expression.NotEqual(propValue, nullConst), 
+                                                                expr, 
+                                                                Expression.Constant(null, expr.Type)) :> Expression)
+                                        else
+                                            Expression.Property(root, p) |> getAccessors)
+                                            
+                                                                                    
     let private createMetaData name typeName (maxLen: int64) (precision: byte) (scale: byte) = 
         let dbType = Enum.Parse(typeof<SqlDbType>, typeName, true) :?> SqlDbType
         match dbType with
@@ -92,19 +132,39 @@ module MsSql =
 
     let private getRecSequenceBuilder (connection: IDbConnection) (itemType: Type) = 
         let metadata = getMetaData itemType connection
-        let record = SqlDataRecord(metadata)
-        let accessors = getAccessors itemType |> Map.ofSeq
+        let itemParam = Expression.Parameter(typeof<obj>, "itemParam")
+        let dataRecParam = Expression.Parameter(typeof<SqlDataRecord>, "dataRecParam")
+        let itemVar = Expression.Variable(itemType, "itemVar")
+        let convert = Expression.Assign(itemVar, Expression.Convert(itemParam, itemType)) :> Expression
+        let accessors = getAccessors itemVar |> Map.ofSeq
+        let updates = metadata 
+                        |> Seq.mapi (fun i m -> 
+                                        let indexExpr = Expression.Constant i
+                                        let valueExpr = accessors.[m.Name]
+                                        let setter = typeof<SqlDataRecord>.GetMethod("SetValue" (*+ valueExpr.Type.Name*))
+                                        Expression.Call(dataRecParam, setter, indexExpr, valueExpr) :> Expression)
+                        |> List.ofSeq
+        let updateBlock = Expression.Block([itemVar], convert :: updates)
+        let updaterExpr = Expression.Lambda< Action<SqlDataRecord, obj> >(updateBlock, dataRecParam, itemParam)
+        let updater = 
+            try
+                updaterExpr.Compile()
+            with ex -> 
+                Console.WriteLine(ex)
+                raise (Exception("Compile failed", ex))
+
         fun (items: obj) ->
+            let record = SqlDataRecord(metadata)
             let itemSeq = items :?> obj seq
             if itemSeq |> Seq.length = 0 then null
             else
                 seq {
                     for item in itemSeq do
-                        for i in 0..metadata.Length - 1 do
-                            let v = accessors.[metadata.[i].Name] item
-                            record.SetValue(i, v) 
+                        updater.Invoke (record, item)
                         yield record
                 }
+
+
 
     let private MsSqlParamBuilder (connectionBuilder: unit -> #IDbConnection) defaultPB prefix name (expr: Expression) names = 
         if isCollectionType expr.Type && isComplexType (getUnderlyingType expr.Type)
