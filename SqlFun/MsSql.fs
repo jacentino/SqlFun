@@ -16,12 +16,6 @@ module MsSql =
 
     let defaultParamBuilder = defaultParamBuilder
 
-
-
-
-
-
-
     let private getEnumValues (enumType: Type) = 
         enumType.GetFields()
             |> Seq.filter (fun f -> f.IsStatic)
@@ -29,75 +23,64 @@ module MsSql =
             |> Seq.map (fun (e, vopt) -> e, match vopt with Some x -> x | None -> e)
             |> List.ofSeq
 
-    let private getConcreteMethod concreteType methodName = 
-        let m = typeof<Toolbox>.GetMethod(methodName, BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
-        m.MakeGenericMethod([| concreteType |])
-
-
     let private convertIfEnum (expr: Expression) = 
         if expr.Type.IsEnum
         then
-            let exprAsObj = Expression.Convert(expr, typeof<obj>) :> Expression
-            let values = getEnumValues expr.Type
+            let exprAsInt = Expression.Convert(expr, typeof<int>) :> Expression
+            let values = getEnumValues expr.Type 
             if values |> Seq.exists (fun (e, v) -> e <> v)
-            then            
-                let comparer e = Expression.Call(Expression.Constant(e), "Equals", exprAsObj) :> Expression
-                values 
-                    |> Seq.fold (fun cexpr (e, v) -> Expression.Condition(comparer e, Expression.Constant(v, typeof<obj>), cexpr) :> Expression) exprAsObj
+            then
+                let intValues = values |> List.map (fun (e, v) -> Convert.ChangeType(e, typeof<int>), v)    
+                let (_, firstVal) = List.head values
+                let firstValExpr = Expression.Constant (firstVal) :> Expression
+                let comparer e = 
+                    Expression.Call(Expression.Constant(e), "Equals", exprAsInt) :> Expression
+                intValues 
+                |> Seq.fold (fun cexpr (e, v) -> Expression.Condition(comparer e, Expression.Constant(v), cexpr) :> Expression) firstValExpr
             else
-                exprAsObj
+                exprAsInt
         else
             expr
 
-    let private convertEnumOption (expr: Expression) =
-        let param = Expression.Parameter(getUnderlyingType expr.Type, "v")
-        if param.Type.IsEnum
-        then 
-            Expression.Call(getConcreteMethod param.Type "mapOption", Expression.Lambda(convertIfEnum (param), param), expr) :> Expression
-        else 
-            expr
-
-    let private convertAsNeeded (expr: Expression) =
-        if isOption expr.Type 
-        then 
-            let converter = convertEnumOption expr
-            Expression.Call(getConcreteMethod (getUnderlyingType converter.Type) "unpackOption", converter) :> Expression
-        else
-            Expression.Convert(convertIfEnum expr, typeof<obj>) :> Expression
-
-
-
-
-
-
-
-    let rec private getAccessors (root: Expression): (string * Expression) seq = 
+    let rec private getUpdateExpr (positions: Map<string, int>) (record: Expression) (root: Expression): Expression = 
         if FSharpType.IsTuple root.Type
         then
             FSharpType.GetTupleElements root.Type
-            |> Seq.mapi (fun i t -> Expression.PropertyOrField(root, "Item" + (i + 1).ToString()) |> getAccessors)
-            |> Seq.collect id
+            |> Seq.mapi (fun i t -> Expression.PropertyOrField(root, "Item" + (i + 1).ToString()) |> getUpdateExpr positions record)                        
+            |> Expression.Block :> Expression
         else
-            FSharpType.GetRecordFields root.Type
-            |> Seq.collect (fun p -> if isCollectionType p.PropertyType
-                                        then Seq.empty
-                                        elif isSimpleType p.PropertyType || isSimpleTypeOption p.PropertyType
-                                        then Seq.singleton (p.Name, convertAsNeeded (Expression.Property(root, p)))
-                                        elif isOption p.PropertyType
-                                        then
-                                            let propValue = Expression.Property(root, p)
-                                            let unwrappedValue = Expression.PropertyOrField(propValue, "Value")     
-                                            let nullConst = Expression.Constant(null, p.PropertyType)
-                                            getAccessors unwrappedValue
-                                            |> Seq.map (fun (name, expr) -> 
-                                                            name, 
-                                                            Expression.Condition(
-                                                                Expression.NotEqual(propValue, nullConst), 
-                                                                expr, 
-                                                                Expression.Constant(null, expr.Type)) :> Expression)
-                                        else
-                                            Expression.Property(root, p) |> getAccessors)
-                                            
+            let exprs = FSharpType.GetRecordFields root.Type
+                        |> Seq.filter (fun p -> not (isCollectionType p.PropertyType))
+                        |> Seq.filter (fun p -> not (isSimpleType p.PropertyType || isSimpleTypeOption p.PropertyType) || positions.ContainsKey p.Name)
+                        |> Seq.map (fun p -> if isSimpleType p.PropertyType 
+                                                then 
+                                                    let valueExpr = convertIfEnum (Expression.Property(root, p))
+                                                    let setter = typeof<SqlDataRecord>.GetMethod("Set" + valueExpr.Type.Name)
+                                                    Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), valueExpr)
+                                                    :> Expression
+                                                elif isSimpleTypeOption p.PropertyType
+                                                then
+                                                    let valueExpr = Expression.Property(root, p)
+                                                    let optValueExpr = convertIfEnum (Expression.Property (valueExpr, "Value"))
+                                                    let setter = typeof<SqlDataRecord>.GetMethod("Set" + optValueExpr.Type.Name)
+                                                    Expression.IfThen(
+                                                        Expression.Call(valueExpr.Type.GetMethod("get_IsSome", BindingFlags.Public ||| BindingFlags.Static), valueExpr),
+                                                        Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), optValueExpr))
+                                                    :> Expression
+                                                elif isOption p.PropertyType
+                                                then
+                                                    let valueExpr = Expression.Property(root, p)
+                                                    let optValueExpr = Expression.Property (valueExpr, "Value")
+                                                    Expression.IfThen(
+                                                        Expression.Call(valueExpr.Type.GetMethod("get_IsSome", BindingFlags.Public ||| BindingFlags.Static), valueExpr),
+                                                        getUpdateExpr positions record optValueExpr)
+                                                    :> Expression
+                                                else  
+                                                    Expression.Property(root, p) |> getUpdateExpr positions record)
+                        |> List.ofSeq
+            if exprs.IsEmpty 
+            then Expression.UnitConstant :> Expression
+            else exprs |> Expression.Block :> Expression
                                                                                     
     let private createMetaData name typeName (maxLen: int64) (precision: byte) (scale: byte) = 
         let dbType = Enum.Parse(typeof<SqlDbType>, typeName, true) :?> SqlDbType
@@ -136,22 +119,9 @@ module MsSql =
         let dataRecParam = Expression.Parameter(typeof<SqlDataRecord>, "dataRecParam")
         let itemVar = Expression.Variable(itemType, "itemVar")
         let convert = Expression.Assign(itemVar, Expression.Convert(itemParam, itemType)) :> Expression
-        let accessors = getAccessors itemVar |> Map.ofSeq
-        let updates = metadata 
-                        |> Seq.mapi (fun i m -> 
-                                        let indexExpr = Expression.Constant i
-                                        let valueExpr = accessors.[m.Name]
-                                        let setter = typeof<SqlDataRecord>.GetMethod("SetValue" (*+ valueExpr.Type.Name*))
-                                        Expression.Call(dataRecParam, setter, indexExpr, valueExpr) :> Expression)
-                        |> List.ofSeq
-        let updateBlock = Expression.Block([itemVar], convert :: updates)
-        let updaterExpr = Expression.Lambda< Action<SqlDataRecord, obj> >(updateBlock, dataRecParam, itemParam)
-        let updater = 
-            try
-                updaterExpr.Compile()
-            with ex -> 
-                Console.WriteLine(ex)
-                raise (Exception("Compile failed", ex))
+        let positions = metadata |> Seq.mapi (fun i m -> m.Name, i) |> Map.ofSeq
+        let updateBlock = Expression.Block([itemVar], [convert; getUpdateExpr positions dataRecParam itemVar])
+        let updater = Expression.Lambda< Action<SqlDataRecord, obj> >(updateBlock, dataRecParam, itemParam).Compile()
 
         fun (items: obj) ->
             let record = SqlDataRecord(metadata)
@@ -163,8 +133,6 @@ module MsSql =
                         updater.Invoke (record, item)
                         yield record
                 }
-
-
 
     let private MsSqlParamBuilder (connectionBuilder: unit -> #IDbConnection) defaultPB prefix name (expr: Expression) names = 
         if isCollectionType expr.Type && isComplexType (getUnderlyingType expr.Type)

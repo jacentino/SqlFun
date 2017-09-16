@@ -25,6 +25,26 @@ module MsSqlTestQueries =
         tagOpt: Tag option
     }
 
+    type TagStatusString = 
+        | [<EnumValue("A")>] Active = 1
+        | [<EnumValue("I")>] Inactive = 0
+
+    type Tag5 = {
+        postId: int 
+        name: string
+        status: TagStatusString
+    }
+
+    type TagStatusInt = 
+        | Active = 1
+        | Inactive = 0
+
+    type Tag6 = {
+        postId: int 
+        name: string
+        status: TagStatusInt
+    }
+
     let updateTags: Post -> DataContext -> unit = 
         sql "delete from tag where postId = @id;
              insert into tag (postId, name) select @id, name from @tags"
@@ -41,7 +61,16 @@ module MsSqlTestQueries =
         sql "delete from tag where postId = @id;
              insert into tag (postId, name) select @id, name from @tags"
 
+    let updateTags5: int -> Tag5 list -> DataContext -> unit = 
+        sql "delete from tag where postId = @id;
+             insert into tag (postId, name) select @id, name from @tags"
+
+    let updateTags6: int -> Tag6 list -> DataContext -> unit = 
+        sql "delete from tag where postId = @id;
+             insert into tag (postId, name) select @id, name from @tags"
+
 open MsSqlTestQueries
+open System.Linq.Expressions
 
 [<TestFixture>]
 type MsSqlTests() = 
@@ -94,9 +123,30 @@ type MsSqlTests() =
         updateTags4 2 tags |> run
         let result = Tooling.getTags 2 |> run |> List.map (fun t -> { tagOpt = Some t })
         Assert.AreEqual(tags |> List.sortBy (fun t -> t.tagOpt.Value.name), result |> List.sortBy (fun t -> t.tagOpt.Value.name))
+                
+    [<Test>]
+    member this.``Queries utilizing TVP-s with enums represented as strings are executed correctly.``() = 
+        let tags = [
+            { Tag5.postId = 2; name = "EntityFramework"; status = TagStatusString.Active } 
+            { Tag5.postId = 2; name = "Dapper"; status = TagStatusString.Active }
+            { Tag5.postId = 2; name = "FSharp.Data.SqlClient"; status = TagStatusString.Active }
+        ]
+        updateTags5 2 tags |> run
+        let result = Tooling.getTags 2 |> run |> List.map (fun t -> { Tag5.postId = t.postId; name = t.name; status = TagStatusString.Active })
+        Assert.AreEqual(tags |> List.sortBy (fun t -> t.name), result |> List.sortBy (fun t -> t.name))
         
+    [<Test>]
+    member this.``Queries utilizing TVP-s with enums represented as ints are executed correctly.``() = 
+        let tags = [
+            { Tag6.postId = 2; name = "EntityFramework"; status = TagStatusInt.Active } 
+            { Tag6.postId = 2; name = "Dapper"; status = TagStatusInt.Active }
+            { Tag6.postId = 2; name = "FSharp.Data.SqlClient"; status = TagStatusInt.Active }
+        ]
+        updateTags6 2 tags |> run
+        let result = Tooling.getTags 2 |> run |> List.map (fun t -> { Tag6.postId = t.postId; name = t.name; status = TagStatusInt.Active })
+        Assert.AreEqual(tags |> List.sortBy (fun t -> t.name), result |> List.sortBy (fun t -> t.name))
         
-    
+       
 
 
     
