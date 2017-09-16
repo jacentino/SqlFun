@@ -30,13 +30,18 @@ type DataContext =
     /// Starts a transaction on the connection. 
     /// Returns new data context object with a transaction field assigned to current transaction.
     /// </summary>
+    /// <param name="isolationLevel">
+    /// Transaction isolation level.
+    /// </param>
     /// <param name="dc">
     /// The data context object.
     /// </param>
-    static member beginTransaction dc = 
+    static member beginTransaction isolationLevel dc = 
         match dc.transaction with
         | Some _ -> failwith "Connection has already active transaction."
-        | None -> { connection = dc.connection; transaction = Some (dc.connection.BeginTransaction()) }
+        | None -> { dc with transaction = Some (match isolationLevel with
+                                                | Some l -> dc.connection.BeginTransaction l
+                                                | None -> dc.connection.BeginTransaction()) }
 
     /// <summary>
     /// Commits a transaction.
@@ -114,7 +119,28 @@ type DataContext =
         match dc.transaction with
         | Some _ -> f dc
         | None ->
-            use t = DataContext.beginTransaction dc
+            use t = DataContext.beginTransaction None dc 
+            let r = f t
+            DataContext.commit t
+            r
+
+    /// <summary>
+    /// Wraps a database operation in a transaction.
+    /// </summary>
+    /// <param name="isolationLevel">
+    /// Transaction isolation level.
+    /// </param>
+    /// <param name="f">
+    /// A function performing some database operation.
+    /// </param>
+    /// <param name="dc">
+    /// The data context object.
+    /// </param>
+    static member inTransactionWith (isolationLevel: IsolationLevel) (f: DataContext -> 't) (dc: DataContext) = 
+        match dc.transaction with
+        | Some _ -> f dc
+        | None ->
+            use t = DataContext.beginTransaction (Some isolationLevel) dc 
             let r = f t
             DataContext.commit t
             r
@@ -132,11 +158,32 @@ type DataContext =
         match dc.transaction with
         | Some _ -> return! f dc
         | None -> 
-            use t = DataContext.beginTransaction dc 
+            use t = DataContext.beginTransaction None dc 
             let! r = f t
             DataContext.commit t
             return r
     }
 
+    /// <summary>
+    /// Wraps a database operation in a transaction asynchronously.
+    /// </summary>
+    /// <param name="isolationLevel">
+    /// Transaction isolation level.
+    /// </param>
+    /// <param name="f">
+    /// A function performing some database operation asynchronously.
+    /// </param>
+    /// <param name="dc">
+    /// The data context object.
+    /// </param>
+    static member inTransactionAsyncWith (isolationLevel: IsolationLevel) (f: DataContext -> 't Async) (dc: DataContext) = async {
+        match dc.transaction with
+        | Some _ -> return! f dc
+        | None -> 
+            use t = DataContext.beginTransaction (Some isolationLevel) dc 
+            let! r = f t
+            DataContext.commit t
+            return r
+    }
 
 
