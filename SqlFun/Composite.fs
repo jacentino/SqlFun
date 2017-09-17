@@ -133,5 +133,5 @@ module Composite =
     type FinalQueryPart<'c when 'c :> IDbConnection>(ctx: DataContext, createConnection: unit -> 'c, paramBuilder: ParamBuilder -> ParamBuilder) = 
         interface QueryPart with
             override this.Combine (template: string) : 't =
-                let generator = sql createConnection paramBuilder
+                let generator = sql createConnection None paramBuilder
                 buildAndRunQuery ctx template generator

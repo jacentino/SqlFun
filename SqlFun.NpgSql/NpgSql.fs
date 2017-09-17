@@ -44,10 +44,10 @@ module NpgSql =
         else
             defaultPB prefix name expr names
 
-    let sql connectionBuilder paramBuilder commandText = 
-        sql connectionBuilder (fun defaultPB -> paramBuilder <| NpgsqlParamBuilder defaultPB) commandText
+    let sql connectionBuilder commandTimeout paramBuilder commandText = 
+        sql connectionBuilder commandTimeout (fun defaultPB -> paramBuilder <| NpgsqlParamBuilder defaultPB) commandText
 
-    let storedproc connectionBuilder paramBuilder procName = 
-        storedproc connectionBuilder (fun defaultPB -> paramBuilder <| NpgsqlParamBuilder defaultPB) procName
+    let storedproc connectionBuilder commandTimeout paramBuilder procName = 
+        storedproc connectionBuilder commandTimeout  (fun defaultPB -> paramBuilder <| NpgsqlParamBuilder defaultPB) procName
 
 

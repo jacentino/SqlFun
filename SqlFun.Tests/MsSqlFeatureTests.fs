@@ -10,7 +10,7 @@ open System
 
 module MsSqlTestQueries = 
     
-    let sql command = MsSql.sql createConnection defaultParamBuilder command
+    let sql command = MsSql.sql createConnection None defaultParamBuilder command
 
     type Tag2 = {
         postId: int option

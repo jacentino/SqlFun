@@ -15,7 +15,7 @@ module Common =
 
     let runAsync f = DataContext.runAsync createConnection f
 
-    let sql commandText = sql createConnection defaultParamBuilder commandText
+    let sql commandText = sql createConnection None defaultParamBuilder commandText
 
-    let storedproc name = storedproc createConnection defaultParamBuilder name
+    let storedproc name = storedproc createConnection None defaultParamBuilder name
 

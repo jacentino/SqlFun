@@ -159,11 +159,11 @@ module MsSql =
         else
             defaultPB prefix name expr names
 
-    let sql connectionBuilder paramBuilder commandText = 
-        sql connectionBuilder (fun defaultPB -> paramBuilder <| MsSqlParamBuilder connectionBuilder defaultPB) commandText
+    let sql connectionBuilder commandTimeout paramBuilder commandText = 
+        sql connectionBuilder commandTimeout (fun defaultPB -> paramBuilder <| MsSqlParamBuilder connectionBuilder defaultPB) commandText
 
-    let storedproc connectionBuilder paramBuilder procName = 
-        storedproc connectionBuilder (fun defaultPB -> paramBuilder <| MsSqlParamBuilder connectionBuilder defaultPB) procName
+    let storedproc connectionBuilder commandTimeout paramBuilder procName = 
+        storedproc connectionBuilder commandTimeout  (fun defaultPB -> paramBuilder <| MsSqlParamBuilder connectionBuilder defaultPB) procName
 
 
 
