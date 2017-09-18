@@ -36,7 +36,7 @@ module CompositeQueries =
     
 
     let buildQuery ctx = 
-        FinalQueryPart(ctx, createConnection, defaultParamBuilder)
+        FinalQueryPart(ctx, createConnection, None, defaultParamBuilder)
 
 
     type FilterPostsPart(criteria: PostCriteria list, next: QueryPart) =

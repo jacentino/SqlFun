@@ -127,11 +127,14 @@ module Composite =
     /// <param name="createConnection">
     /// The function creating a database connection.
     /// </param>
+    /// <param name="commandTimeout">
+    /// The command timeout.
+    /// </param>
     /// <param name="paramBuilder">
     /// Function creating sql parameters.
     /// </param>
-    type FinalQueryPart<'c when 'c :> IDbConnection>(ctx: DataContext, createConnection: unit -> 'c, paramBuilder: ParamBuilder -> ParamBuilder) = 
+    type FinalQueryPart<'c when 'c :> IDbConnection>(ctx: DataContext, createConnection: unit -> 'c, commandTimeout: int option, paramBuilder: ParamBuilder -> ParamBuilder) = 
         interface QueryPart with
             override this.Combine (template: string) : 't =
-                let generator = sql createConnection None paramBuilder
+                let generator = sql createConnection commandTimeout paramBuilder
                 buildAndRunQuery ctx template generator
