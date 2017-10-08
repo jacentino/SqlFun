@@ -41,10 +41,95 @@ module Composite =
             | one :: remaining -> this.CombineItem template one remaining
             | [] -> next.Combine<'t> template 
 
+        /// <summary>
+        /// Continues list processing.
+        /// </summary>
+        /// <param name="remainingItems">
+        /// Remaining list items.
+        /// </param>
+        member this.ContinueList (remainingItems: 'c list) = 
+            {
+                new QueryPart with
+                    member x.Combine<'t> template = 
+                        this.CombineList<'t> template remainingItems 
+            }
+        
         interface QueryPart with
             override this.Combine (template: string) : 't =
                 this.CombineList template (List.rev items)
             
+
+    let rec private expand<'t, 'e, 'v> (template: string) (value: 'v) (items: 'e list) (next: QueryPart): 't =
+        match items with
+        | e :: r ->
+            expand template (e, value) r next
+        | [] -> 
+            let f = next.Combine template
+            f value
+
+    /// <summary>
+    /// Adds parameters from list as hierarchical tuple to a composite query.
+    /// </summary>
+    /// <param name="template">
+    /// The query template.
+    /// </param>
+    /// <param name="items">
+    /// Query parameters.
+    /// </param>
+    /// <param name="next">
+    /// The next query part in a composition.
+    /// </param>
+    let withListAsHTuple (template: string) (items: 'e list) (next: QueryPart): 't = 
+        match items with
+        | e :: remaining -> expand<'t, 'e, 'e> template e remaining next
+        | [] -> next.Combine template
+
+
+    /// <summary>
+    /// Replaces specified placeholder with a value using a parameter.
+    /// Does not allow to further use of a placeholder.
+    /// </summary>
+    type ReplaceWithParameterQueryPart<'t>(placeholder: string, param: string, value: 't, next: QueryPart) = 
+        interface QueryPart with
+            member this.Combine template = 
+                let exp =  template.Replace("{{" + placeholder + "}}", param) 
+                let f = next.Combine exp
+                f value
+
+    /// <summary>
+    /// Replaces specified placeholder with a value using a parameter.
+    /// Does not allow to further use of a placeholder.
+    /// </summary>
+    let replaceWithParameter placeholder param value next = ReplaceWithParameterQueryPart(placeholder, param, value, next)
+
+    /// <summary>
+    /// Replaces specified placeholders with corresponding texts.
+    /// Does not allow to further use of a placeholder.
+    /// </summary>
+    type ReplaceWithValuesQueryPart(values: (string * string) list, next: QueryPart) = 
+        interface QueryPart with
+            member this.Combine template = 
+                let exp = values |> List.fold (fun (t: string) (p, v) ->  t.Replace("{{"+ p + "}}", v)) template
+                next.Combine exp
+
+    /// <summary>
+    /// Replaces specified placeholders with corresponding texts.
+    /// Does not allow to further use of a placeholder.
+    /// </summary>
+    let replaceValues values next = ReplaceWithValuesQueryPart(values, next)
+
+    /// <summary>
+    /// Starts query composition chain by providing sql command template.
+    /// </summary>
+    /// <param name="template">
+    /// The sql command template.
+    /// </param>
+    /// <param name="part">
+    /// The next query part.
+    /// </param>
+    let withTemplate<'t> (template: string) (part: QueryPart) = 
+        part.Combine<'t> template
+
 
     /// <summary>
     /// The cache of generated sql caller functions.
