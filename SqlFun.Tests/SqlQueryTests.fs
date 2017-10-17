@@ -125,6 +125,14 @@ type TestQueries() =
     static member insertTag: Tag -> DataContext -> unit Async = 
         sql "insert into tag (postId, name) values (@postId, @name)"
 
+    static member getSpid: DataContext -> int Async = 
+        sql "select @@spid"
+
+    static member statementWithDeclare: int -> DataContext -> Post list Async = 
+        sql "declare @postId int; set @postId = @p;
+             select * from post where id = @postId"
+
+
 [<TestFixture>]
 type SqlQueryTests() = 
 
@@ -364,4 +372,14 @@ type SqlQueryTests() =
         |> ignore
         let p = Tooling.getPost id |> run
         Assert.IsTrue (Option.isNone p)
+    
+    [<Test>]        
+    member this.``Statements with variables started with double monkey does not fail``() =
+        let id = TestQueries.getSpid |> runAsync |> Async.RunSynchronously
+        Assert.IsTrue(id > 0)
         
+    
+    [<Test>]        
+    member this.``Statements with variable declarations does not fail.``() =
+        let l = TestQueries.statementWithDeclare 1 |> runAsync |> Async.RunSynchronously
+        Assert.IsNotEmpty l
