@@ -490,7 +490,7 @@ module Queries =
                 Expression.Lambda(Expression.NewTuple(builders), reader) :> Expression
                
     let private extractParameterNames commandText = 
-        let cmd = Regex.Matches(commandText, "(declare\ +\@[a-zA-Z0-9_]+)|(\@\@[a-zA-Z0-9_]+)", RegexOptions.IgnoreCase).Cast<Match>()
+        let cmd = Regex.Matches(commandText, "(declare\s+\@[a-zA-Z0-9_]+)|(\@\@[a-zA-Z0-9_]+)", RegexOptions.IgnoreCase).Cast<Match>()
                     |> Seq.collect (fun m -> m.Captures.Cast<Capture>())
                     |> Seq.map (fun c -> c.Value.Split(' ').Last())
                     |> Seq.fold (fun (cmd: string) tr -> cmd.Replace(tr, "")) commandText
