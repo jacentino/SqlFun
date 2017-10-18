@@ -383,3 +383,21 @@ type SqlQueryTests() =
     member this.``Statements with variable declarations does not fail.``() =
         let l = TestQueries.statementWithDeclare 1 |> runAsync |> Async.RunSynchronously
         Assert.IsNotEmpty l
+
+    [<Test>]
+    member this.``For statements are allowed in asyncdb``() =
+        let tags = [
+            { Tag.postId= 2; name = "Testing" }
+            { Tag.postId= 2; name = "Even more testing" }
+        ]
+        asyncdb {
+            for t in tags do
+                do! TestQueries.insertTag t
+        }
+        |> DataContext.inTransactionAsync
+        |> runAsync
+        |> Async.RunSynchronously
+
+        let pl = TestQueries.getPostsWithTags 1 |> run 
+        let p = pl |> List.find (fun p -> p.id = 2)
+        Assert.AreEqual (2, p.tags |> List.length)
