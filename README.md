@@ -33,9 +33,9 @@ Better way is to build an API exposing your database, consisting of structures r
 
 ### Prerequisites
 First step is to define function creating database connection,
-
+```fsharp
     let createConnection () = new SqlConnection(<your database connection string>)
-
+```
 and wire it up with functions responsible for generating queries (using partial application):
  
     let sql commandText = sql createConnection defaultParamBuilder commandText
