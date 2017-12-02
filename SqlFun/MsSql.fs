@@ -9,7 +9,6 @@ module MsSql =
     open System
     open Microsoft.FSharp.Reflection
     open System.Reflection
-    open Future
     open Microsoft.SqlServer.Server
     open System.Collections.Concurrent
     open SqlFun.ExpressionExtensions
@@ -138,7 +137,7 @@ module MsSql =
         if isCollectionType expr.Type && isComplexType (getUnderlyingType expr.Type)
         then
             let itemType = getUnderlyingType expr.Type
-            let typeName = itemType.Name
+            let typeName = itemType.Name.Split('`').[0] // Allows for use of resolved generic types.
             use connection = connectionBuilder()
             connection.Open()
             let toSqlDataRecords = getRecSequenceBuilder connection itemType

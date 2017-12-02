@@ -12,7 +12,7 @@ type StoredProcs() =
         
         static member GetAllPosts: int -> DataContext -> Post list Async = 
             storedproc "GetAllPosts"
-            >> mapAsync (resultOnly(combineJoins 
+            >> mapAsync (resultOnly(combineTransforms 
                             (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree)) 
                             (join Post.Id Tag.PostId (Post.withTags id))))
             |> curry

@@ -4,7 +4,6 @@ open System
 open System.Reflection
 open Microsoft.FSharp.Reflection
 
-open Future
 open Queries
 
 /// <summary>

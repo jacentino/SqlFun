@@ -15,6 +15,14 @@ type EnumValueAttribute(value: obj) =
     inherit Attribute()
     member this.Value = value
 
+[<AttributeUsage(AttributeTargets.Property)>]
+type IdAttribute() =
+    inherit Attribute()
+
+[<AttributeUsage(AttributeTargets.Property)>]
+type ParentIdAttribute() =
+    inherit Attribute()
+
 type ParamBuilder = string -> string -> Expression -> string list -> (string * Expression * (obj -> IDbCommand -> int) * obj) list
 
 [<AutoOpen>]

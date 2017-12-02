@@ -6,8 +6,6 @@ open System.Linq.Expressions
 open System.Reflection
 open Microsoft.FSharp.Reflection
 
-open Future
-
 module ExpressionExtensions = 
 
     let rec findMethod (name: string) (paramTypes: Type[]) (typ: Type) = 
