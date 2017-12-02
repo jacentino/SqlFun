@@ -144,7 +144,21 @@ Since the ADO.NET allows to execute many sql commands at once, it's possible to 
             |> curry  
 ```
 The `curry` function is required because the function composition operator `>>` accepts only one-arg functions.
-There are functions that allow to combine multi-row results by joining many results or grouping wide results.
+In simple cases, when code follows conventions, transormations can be specified more declarative way:
+
+```fsharp 
+        let getBlogWithPosts: int -> DataContext -> Blog = 
+            sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
+                 from Blog 
+                 where id = @id;
+                 select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
+                 from post 
+                 where blogId = @id"
+            >> Update<Post>.Left
+            |> curry  
+```
+T
+There are also functions that allow to combine multi-row results by joining many results or grouping wide results.
 
 ### Compound parameters
 Records can be parameters as well:
