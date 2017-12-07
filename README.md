@@ -6,7 +6,7 @@ It's fast, type safe and gives you all powers of SQL, no custom query language c
 It's also lightweight, you need to know a [general idea](https://github.com/jacentino/SqlFun/wiki/Basic-concepts) and few functions (and, of course SQL).
 
 ## Features
-* All ADO.NET providers available
+* Works with any  ADO.NET provider
 * All SQL features available
 * Type safety
 * High performance
@@ -97,7 +97,7 @@ The functions executing queries are generated during a first access to the modul
 
 At that stage, all the type checking is performed, so it's easy to make type checking part of automatic testing - one line of code for each module is needed.
 
-The generating process uses reflection heavily, but no reflection is used while processing a query - everything is already generated.
+The generating process uses reflection heavily, but no reflection is used while processing a query, since generated code is executed.
 
 ### Executing queries
 Since your queries have a DataContext as a last parameter, they can be passed to the `run` function after applying preceding parameters.
