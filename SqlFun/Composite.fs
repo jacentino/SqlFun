@@ -41,7 +41,7 @@ module Composite =
         member this.Combine (template: string) : 't =
             match items with
             | e :: remaining -> this.buildHTuple<'t, 'e, 'e> (expand template) e remaining next
-            | [] -> next.Combine template
+            | [] -> next.Combine (expand template)
 
         interface IQueryPart with
             member this.Combine (template: string) : 't = this.Combine template
