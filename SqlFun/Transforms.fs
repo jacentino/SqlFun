@@ -607,9 +607,31 @@ module Transforms =
     /// <summary>
     /// Allows to compose different result transformations.
     /// </summary>
+    type Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Child6, 'Result1>(f: ('Child1 * 'Child2 * 'Child3 * 'Child4 * 'Child5 * 'Child6) -> 'Result1) = 
+    
+        member this.Compose = f
+
+
+    /// <summary>
+    /// Allows to compose different result transformations.
+    /// </summary>
     type Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Result1>(f: ('Child1 * 'Child2 * 'Child3 * 'Child4 * 'Child5) -> 'Result1) = 
     
         member this.Compose = f
+
+        /// <summary>
+        /// Adds a transformation building one result from two source results.
+        /// </summary>
+        /// <param name="f">
+        /// Function transforming results.
+        /// </param>
+        member this.Transform(f1: ('Result1 * 'Child6) -> 'Result2) = 
+            let f2 (c1, c2, c3, c4, c5, c6) = f1 (f(c1, c2, c3, c4, c5), c6)
+            Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Child6, 'Result2> (f2)
+
+        static member (>-) (r: Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Result1>, f1: ('Result1 * 'Child6) -> 'Result2) =
+            r.Transform f1
+
 
     type Results<'Child1, 'Child2, 'Child3, 'Child4, 'Result1>(f: ('Child1 * 'Child2 * 'Child3 * 'Child4) -> 'Result1) = 
     
@@ -760,6 +782,8 @@ module Transforms =
         static member Compose (r: Results<'Child1, 'Child2, 'Child3, 'Child4, 'Result1>) = r.Compose
 
         static member Compose (r: Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Result1>) = r.Compose
+
+        static member Compose (r: Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Child6, 'Result1>) = r.Compose
 
 
     type private CopyBuilder<'Source, 'Target>() = 
