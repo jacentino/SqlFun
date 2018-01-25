@@ -37,142 +37,53 @@ module Transforms =
     let aliasedAsItem (items: ItemAlias<'t> list): 't list =
         items |> List.map (fun alias -> alias.aliasedItem)
 
-
     /// <summary>
-    /// Performs grouping on tuple list, taking the first element of a tuple as a key, and the second as a value list.
+    /// Provides basic set of result transformation functions.
     /// </summary>
-    let group (combine: 't1 -> 't2 list -> 't1) (list: ('t1 * 't2 option) list) = 
-        list |> Seq.groupBy fst 
-             |> Seq.map (fun (fst, grplist) -> combine fst (grplist |> Seq.map snd |> Seq.choose id |> List.ofSeq))
-             |> List.ofSeq
+    module Standard = 
+
+        /// <summary>
+        /// Performs grouping on tuple list, taking the first element of a tuple as a key, and the second as a value list.
+        /// </summary>
+        let group (combine: 't1 -> 't2 list -> 't1) (list: ('t1 * 't2 option) list) = 
+            list |> Seq.groupBy fst 
+                 |> Seq.map (fun (fst, grplist) -> combine fst (grplist |> Seq.map snd |> Seq.choose id |> List.ofSeq))
+                 |> List.ofSeq
     
+        /// <summary>
+        /// Joins two lists by key.
+        /// </summary>
+        let join (getKey1: 't1 -> 'k) (getKey2: 't2 -> 'k) (combine: 't1 -> 't2 list -> 't1) (list1: 't1 list, list2: 't2 list) = 
+            if list1.Length > 10 then
+                let list2ByKey = list2 |> Seq.groupBy getKey2 |> Map.ofSeq
+                list1 |> List.map (fun item -> match Map.tryFind (getKey1 item) list2ByKey with
+                                                | Some values -> combine item (values |> List.ofSeq)
+                                                | None -> item)
+            else
+                list1 |> List.map (fun item -> combine item (list2 |> List.filter (fun v -> (getKey2 v) = (getKey1 item))))
 
-    /// <summary>
-    /// Performs grouping on tuple list, taking the first element of a tuple as a key, and the second and third as value lists.
-    /// </summary>
-    let group3 (combine: 't1 -> 't2 list -> 't3 list -> 't1)  (list: ('t1 * 't2 * 't3) list)  = 
-        list |> Seq.groupBy (fun (a, _, _) -> a)
-             |> Seq.map (fun (fst, grplist) -> 
-                         let (_, lb, lc) = grplist |> List.ofSeq |> List.unzip3 
-                         combine fst (lb |> List.distinct) (lc |> List.distinct))
-             |> List.ofSeq
-    
-
-    let private unzip4 (list: ('t1 * 't2 * 't3 * 't4) list): 't1 list * 't2 list * 't3 list * 't4 list =
-        let l1, l2, l3, l4 = List.fold (fun (l1, l2, l3, l4) (a1, a2, a3, a4) -> a1 :: l1, a2 :: l2, a3 :: l3, a4 :: l4) ([], [], [], []) list
-        List.rev l1, List.rev l2, List.rev l3, List.rev l4
-
-    /// <summary>
-    /// Performs grouping on tuple list, taking the first element of a tuple as a key, and the second and third and fourth as value lists.
-    /// </summary>
-    let group4 (combine: 't1 -> 't2 list -> 't3 list -> 't4 list -> 't1)  (list: ('t1 * 't2 * 't3 * 't4) list)  = 
-        list |> Seq.groupBy (fun (a, _, _, _) -> a)
-             |> Seq.map (fun (fst, grplist) -> 
-                         let (_, lb, lc, ld) = grplist |> List.ofSeq |> unzip4
-                         combine fst (lb |> List.distinct) (lc |> List.distinct))
-             |> List.ofSeq
-    
-
-    /// <summary>
-    /// Joins two lists by key.
-    /// </summary>
-    let join (getKey1: 't1 -> 'k) (getKey2: 't2 -> 'k) (combine: 't1 -> 't2 list -> 't1) (list1: 't1 list, list2: 't2 list) = 
-        if list1.Length > 10 then
-            let list2ByKey = list2 |> Seq.groupBy getKey2 |> Map.ofSeq
-            list1 |> List.map (fun item -> match Map.tryFind (getKey1 item) list2ByKey with
-                                            | Some values -> combine item (values |> List.ofSeq)
-                                            | None -> item)
-        else
-            list1 |> List.map (fun item -> combine item (list2 |> List.filter (fun v -> (getKey2 v) = (getKey1 item))))
-
-    /// <summary>
-    /// Joins three results by combining two joins.
-    /// </summary>
-    /// <param name="join1">
-    /// Function performing first join.
-    /// </param>
-    /// <param name="join2">
-    /// Function performing second join.
-    /// </param>
-    /// <param name="l1">
-    /// First list participating in join.
-    /// </param>
-    /// <param name="l2">
-    /// Second list participating in join.
-    /// </param>
-    /// <param name="l3">
-    /// Third list participating in join.
-    /// </param>
-    let combineTransforms (join1: ('t1 * 't2) -> 'r1) (join2: ('r1 * 't3) -> 'r2) (l1: 't1, l2: 't2, l3: 't3) = 
-        (join1 (l1, l2), l3) |> join2
+        /// <summary>
+        /// Joins three results by combining two joins.
+        /// </summary>
+        /// <param name="join1">
+        /// Function performing first join.
+        /// </param>
+        /// <param name="join2">
+        /// Function performing second join.
+        /// </param>
+        /// <param name="l1">
+        /// First list participating in join.
+        /// </param>
+        /// <param name="l2">
+        /// Second list participating in join.
+        /// </param>
+        /// <param name="l3">
+        /// Third list participating in join.
+        /// </param>
+        let combineTransforms (join1: ('t1 * 't2) -> 'r1) (join2: ('r1 * 't3) -> 'r2) (l1: 't1, l2: 't2, l3: 't3) = 
+            (join1 (l1, l2), l3) |> join2
                             
-    /// <summary>
-    /// Joins four results by combining three joins.
-    /// </summary>
-    /// <param name="join1">
-    /// Function performing first join.
-    /// </param>
-    /// <param name="join2">
-    /// Function performing second join.
-    /// </param>
-    /// <param name="join3">
-    /// Function performing third join.
-    /// </param>
-    /// <param name="l1">
-    /// First list participating in join.
-    /// </param>
-    /// <param name="l2">
-    /// Second list participating in join.
-    /// </param>
-    /// <param name="l3">
-    /// Third list participating in join.
-    /// </param>
-    /// <param name="l4">
-    /// Fourth list participating in join.
-    /// </param>
-    let combineTransforms3 (join1: ('t1 * 't2) -> 'r1) 
-                           (join2: ('r1 * 't3) -> 'r2) 
-                           (join3: ('r2 * 't4) -> 'r3)
-                           (l1: 't1 , l2: 't2, l3: 't3, l4: 't4) = 
-        (combineTransforms join1 join2 (l1, l2, l3), l4) |> join3
-                            
-    /// <summary>
-    /// Joins four results by combining three joins.
-    /// </summary>
-    /// <param name="join1">
-    /// Function performing first join.
-    /// </param>
-    /// <param name="join2">
-    /// Function performing second join.
-    /// </param>
-    /// <param name="join3">
-    /// Function performing third join.
-    /// </param>
-    /// <param name="join4">
-    /// Function performing fourth join.
-    /// </param>
-    /// <param name="l1">
-    /// First list participating in join.
-    /// </param>
-    /// <param name="l2">
-    /// Second list participating in join.
-    /// </param>
-    /// <param name="l3">
-    /// Third list participating in join.
-    /// </param>
-    /// <param name="l4">
-    /// Fourth list participating in join.
-    /// </param>
-    /// <param name="l4">
-    /// Fifth list participating in join.
-    /// </param>
-    let combineTransforms4 (join1: ('t1 * 't2) -> 'r1) 
-                           (join2: ('r1 * 't3) -> 'r2) 
-                           (join3: ('r2 * 't4) -> 'r3)
-                           (join4: ('r3 * 't5) -> 'r4)
-                           (l1: 't1 , l2: 't2, l3: 't3, l4: 't4, l5: 't5) = 
-        (combineTransforms3 join1 join2 join3 (l1, l2, l3, l4), l5) |> join4
-                            
+
     /// <summary>
     /// Transforms a value wrapped in Async object using a given function.
     /// </summary>
@@ -219,7 +130,6 @@ module Transforms =
     /// Converts four-arg tupled function to its curried form.
     /// </summary>
     let curry4 f x y z t = f(x, y, z, t)
-
 
             
     type private RelationshipBuilder<'Parent, 'Child, 'Key when 'Key: comparison>() = 
@@ -268,7 +178,7 @@ module Transforms =
                                              (RelationshipBuilder<'Parent, 'Child>.ChildKeyNames |> String.concat ", ")
             | _, _, Choice2Of2 err -> failwith err
             | Some pkGetter, Some ckGetter, Choice1Of2 combiner ->
-                join pkGetter ckGetter combiner (p, cs)
+                Standard.join pkGetter ckGetter combiner (p, cs)
 
         static member combine (p: 'Parent, cs:'Child list) = 
             match combiner with
@@ -318,12 +228,48 @@ module Transforms =
                             Expression.Call(null, combineMethod, parent, children), parent, children).Compile()                        
             combine.Invoke
 
+    /// <summary>
+    /// Combines two functions transforming query results into one function with more parameters.
+    /// The return value of the first function becomes a first parameter of the second function.
+    /// </summary>
+    /// <param name="f">
+    /// The first result transformation function.
+    /// </param>
+    /// <param name="g">
+    /// The second result transformation function.
+    /// </param>
+    /// <param name="t1">
+    /// The first argument of constructed function.
+    /// </param>
+    /// <param name="t2">
+    /// The second argument of constructed function.
+    /// </param>
+    let (>->) (f: 't1 -> 'r1) (g: 'r1 * 't2 -> 'r2) = fun (t1, t2) -> g(f t1, t2)
 
     /// <summary>
-    /// Provides methods for joining two results when code follows conventions.
+    /// Combines two functions transforming query results into one function with more parameters.
+    /// The return value of the second function becomes a second parameter of the first function.
     /// </summary>
-    type Join<'Child>() = 
-        
+    /// <param name="f">
+    /// The first result transformation function.
+    /// </param>
+    /// <param name="g">
+    /// The second result transformation function.
+    /// </param>
+    /// <param name="t1">
+    /// The first argument of constructed function.
+    /// </param>
+    /// <param name="t2">
+    /// The second argument of constructed function.
+    /// </param>
+    let (>>-) (f: 't1 * 'r1 -> 'r2) (g: 't2 -> 'r1) = fun (t1, t2) -> f(t1, g(t2))
+
+
+    /// <summary>
+    /// Provides result transformation functions based on conventions.
+    /// <summary>
+    module Conventions =         
+
         /// <summary>
         /// Joins collections of parent and child records by key.
         /// </summary>
@@ -333,458 +279,35 @@ module Transforms =
         /// - key in child record has <parent-name>Id or <parent-name>_id name,
         /// - parent has a property of child list type.
         ///</remarks>
-        /// <param name="ps">
+        /// <param name="p">
         /// Perent record list.
         /// </param>
-        /// <param name="cs">
+        /// <param name="c">
         /// Child record list.
         /// </param>
-        static member Left (ps: 'Parent list, cs: 'Child list): 'Parent list = 
-            RelationshipBuilder<'Parent, 'Child>.joiner (ps, cs)
-        
+        let join<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.joiner(p, c)
+
         /// <summary>
-        /// Joins collections of parent and child records by key.
+        /// Combines a parent record with child record list.
         /// </summary>
-        /// <remarks>
-        /// Join can be used when:
-        /// - parent record's key has one of id, <parent-name>Id or <parent-name>_id names, 
-        /// - key in child record has <parent-name>Id or <parent-name>_id name,
-        /// - parent has a property of child list type.
-        ///</remarks>
-        /// <param name="cs">
+        /// <param name="p">
+        /// Parent record.
+        /// </param>
+        /// <param name="c">
         /// Child record list.
         /// </param>
-        /// <param name="ps">
-        /// Perent record list.
-        /// </param>
-        static member Right (cs: 'Child list, ps: 'Parent list): 'Parent list = 
-            RelationshipBuilder<'Parent, 'Child>.joiner (ps, cs)
+        let update<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.combiner(p, c)
 
-
-    /// <summary>
-    /// Provides methods for joining three results when code follows conventions.
-    /// </summary>
-    type Join<'Child1, 'Child2>() = 
-        /// <summary>
-        /// Joins collections of parent, child1 and child2 records by key.
-        /// </summary>
-        /// <remarks>
-        /// Join can be used when:
-        /// - parent record's key has one of id, <parent-name>Id or <parent-name>_id names, 
-        /// - key in child record has <parent-name>Id or <parent-name>_id name,
-        /// - parent has a property of child list type.
-        ///</remarks>
-        /// <param name="ps">
-        /// Perent record list.
-        /// </param>
-        /// <param name="cs1">
-        /// First child record list.
-        /// </param>
-        /// <param name="cs2">
-        /// Second child record list.
-        /// </param>
-        static member Left (ps: 'Parent list, cs1: 'Child1 list, cs2: 'Child2 list): 'Parent list = 
-            let ps1 = Join<'Child1>.Left (ps, cs1)            
-            RelationshipBuilder<'Parent, 'Child2>.joiner (ps1, cs2)
-
-        /// <summary>
-        /// Joins collections of parent, child1 and child1 records by key, 
-        /// although the childs lists are leading parameters.
-        /// </summary>
-        /// <remarks>
-        /// Join can be used when:
-        /// - parent record's key has one of id, <parent-name>Id or <parent-name>_id names, 
-        /// - key in child record has <parent-name>Id or <parent-name>_id name,
-        /// - parent has a property of child list type.
-        ///</remarks>
-        /// <param name="ps">
-        /// Parent record list.
-        /// </param>
-        /// <param name="cs1">
-        /// First child record list.
-        /// </param>
-        /// <param name="cs2">
-        /// Second child record list.
-        /// </param>
-        static member Right (cs1: 'Child1 list, cs2: 'Child2 list, ps: 'Parent list): 'Parent list = 
-            let ps1 = Join<'Child1>.Left (ps, cs1)            
-            RelationshipBuilder<'Parent, 'Child2>.joiner (ps1, cs2)
-
-
-    /// <summary>
-    /// Provides methods for joining three results when code follows conventions.
-    /// </summary>
-    type Join<'Child1, 'Child2, 'Child3>() = 
-        
-        /// <summary>
-        /// Joins collections of parent, child1, child2 and child3 records by key.
-        /// </summary>
-        /// <remarks>
-        /// Join can be used when:
-        /// - parent record's key has one of id, <parent-name>Id or <parent-name>_id names, 
-        /// - key in child record has <parent-name>Id or <parent-name>_id name,
-        /// - parent has a property of child list type.
-        ///</remarks>
-        /// <param name="ps">
-        /// Perent record list.
-        /// </param>
-        /// <param name="cs1">
-        /// First child record list.
-        /// </param>
-        /// <param name="cs2">
-        /// Second child record list.
-        /// </param>
-        /// <param name="cs3">
-        /// Third child record list.
-        /// </param>
-        static member Left (ps: 'Parent list, cs1: 'Child1 list, cs2: 'Child2 list, cs3: 'Child3 list): 'Parent list = 
-            let ps1 = Join<'Child1, 'Child2>.Left (ps, cs1, cs2)            
-            RelationshipBuilder<'Parent, 'Child3>.joiner (ps1, cs3)
-
-        /// <summary>
-        /// Joins collections of parent, and three child records by key, 
-        /// although the child list are leading parameters.
-        /// </summary>
-        /// <remarks>
-        /// Join can be used when:
-        /// - parent record's key has one of id, <parent-name>Id or <parent-name>_id names, 
-        /// - key in child record has <parent-name>Id or <parent-name>_id name,
-        /// - parent has a property of child list type.
-        ///</remarks>
-        /// <param name="ps">
-        /// Parent record list.
-        /// </param>
-        /// <param name="cs1">
-        /// First child record list.
-        /// </param>
-        /// <param name="cs2">
-        /// Second child record list.
-        /// </param>
-        /// <param name="cs3">
-        /// Third child record list.
-        /// </param>
-        static member Right (cs1: 'Child1 list, cs2: 'Child2 list, cs3: 'Child3 list, ps: 'Parent list): 'Parent list = 
-            let ps1 = Join<'Child1, 'Child2>.Left (ps, cs1, cs2)            
-            RelationshipBuilder<'Parent, 'Child3>.joiner (ps1, cs3)
-
-    /// <summary>
-    /// Provides methods for combining two results when code follows conventions.
-    /// </summary>
-    type Update<'Child>() = 
-        
-        /// <summary>
-        /// Combines a parent record with child record list.
-        /// </summary>
-        /// <param name="p">
-        /// Parent record.
-        /// </param>
-        /// <param name="cs">
-        /// Child record list.
-        /// </param>
-        static member Left (p: 'Parent, cs: 'Child list): 'Parent = 
-            RelationshipBuilder<'Parent, 'Child>.combiner (p, cs)
-        
-        /// <summary>
-        /// Combines a parent record with child record list.
-        /// </summary>
-        /// <param name="p">
-        /// Parent record.
-        /// </param>
-        /// <param name="cs">
-        /// Child record list.
-        /// </param>
-        static member Right (cs: 'Child list, p: 'Parent): 'Parent = 
-            RelationshipBuilder<'Parent, 'Child>.combiner (p, cs)
-
-    /// <summary>
-    /// Provides methods for combining three results when code follows conventions.
-    /// </summary>
-    type Update<'Child1, 'Child2>() = 
-        
-        /// <summary>
-        /// Combines a parent record with child record list.
-        /// </summary>
-        /// <param name="p">
-        /// Parent record.
-        /// </param>
-        /// <param name="cs1">
-        /// First child record list.
-        /// </param>
-        /// <param name="cs2">
-        /// Second child record list.
-        /// </param>
-        static member Left (p: 'Parent, cs1: 'Child1 list, cs2: 'Child2 list): 'Parent = 
-            let p1 = RelationshipBuilder<'Parent, 'Child1>.combiner (p, cs1)
-            let p2 = RelationshipBuilder<'Parent, 'Child2>.combiner (p1, cs2)
-            p2
-        
-        /// <summary>
-        /// Combines a parent record with child record list.
-        /// </summary>
-        /// <param name="p">
-        /// Parent record.
-        /// </param>
-        /// <param name="cs1">
-        /// First child record list.
-        /// </param>
-        /// <param name="cs2">
-        /// Second child record list.
-        /// </param>
-        static member Right (cs1: 'Child1 list, cs2: 'Child2 list, p: 'Parent): 'Parent = 
-            let p1 = RelationshipBuilder<'Parent, 'Child1>.combiner (p, cs1)
-            let p2 = RelationshipBuilder<'Parent, 'Child2>.combiner (p, cs2)
-            p2
-
-    /// <summary>
-    /// Provides methods for combining four results when code follows conventions.
-    /// </summary>
-    type Update<'Child1, 'Child2, 'Child3>() = 
-        
-        /// <summary>
-        /// Combines a parent record with child record list.
-        /// </summary>
-        /// <param name="p">
-        /// Parent record.
-        /// </param>
-        /// <param name="cs1">
-        /// First child record list.
-        /// </param>
-        /// <param name="cs2">
-        /// Second child record list.
-        /// </param>
-        /// <param name="cs3">
-        /// Third child record list.
-        /// </param>
-        static member Left (p: 'Parent, cs1: 'Child1 list, cs2: 'Child2 list, cs3: 'Child3 list): 'Parent = 
-            let p2 = Update<'Child1, 'Child2>.Left (p, cs1, cs2)
-            let p3 = RelationshipBuilder<'Parent, 'Child3>.combiner (p2, cs3)
-            p3
-        
-        /// <summary>
-        /// Combines a parent record with child record list.
-        /// </summary>
-        /// <param name="p">
-        /// Parent record.
-        /// </param>
-        /// <param name="cs1">
-        /// First child record list.
-        /// </param>
-        /// <param name="cs2">
-        /// Second child record list.
-        /// </param>
-        /// <param name="cs3">
-        /// Third child record list.
-        /// </param>
-        static member Right (cs1: 'Child1 list, cs2: 'Child2 list, cs3: 'Child3 list, p: 'Parent): 'Parent = 
-            let p2 = Update<'Child1, 'Child2>.Left (p, cs1, cs2)
-            let p3 = RelationshipBuilder<'Parent, 'Child3>.combiner (p2, cs3)
-            p3
-
-    /// <summary>
-    /// Provides methods for building hierarchical result from flat one by grouping when code follows conventions.
-    /// </summary>
-    type Group<'Child>() = 
-        
         /// <summary>
         /// Builds parent record list from list of parent * child tuples.
         /// </summary>
-        /// <param name="pcs">
+        /// <param name="pc">
         /// List of parent * child tuples.
         /// </param>
-        static member Left (pcs: ('Parent * 'Child option) list): 'Parent list = 
-            pcs |> group (RelationshipBuilder<'Parent, 'Child>.combiner |> curry)
-        
-        /// <summary>
-        /// Builds parent record list from list of child * parent tuples.
-        /// </summary>
-        /// <param name="pcs">
-        /// List of parent * child tuples.
-        /// </param>
-        static member Right (pcs: ('Child option * 'Parent) list): 'Parent list = 
-            pcs |> List.map (fun (x, y) -> y, x) |> group (RelationshipBuilder<'Parent, 'Child>.combiner |> curry)
+        let group<'p, 'c when 'p: equality>(pc) = 
+            pc |> Standard.group (RelationshipBuilder<'p, 'c>.combiner |> curry)
 
-
-    /// <summary>
-    /// Allows to compose different result transformations.
-    /// </summary>
-    type Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Child6, 'Result1>(f: ('Child1 * 'Child2 * 'Child3 * 'Child4 * 'Child5 * 'Child6) -> 'Result1) = 
     
-        member this.Compose = f
-
-
-    /// <summary>
-    /// Allows to compose different result transformations.
-    /// </summary>
-    type Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Result1>(f: ('Child1 * 'Child2 * 'Child3 * 'Child4 * 'Child5) -> 'Result1) = 
-    
-        member this.Compose = f
-
-        /// <summary>
-        /// Adds a transformation building one result from two source results.
-        /// </summary>
-        /// <param name="f">
-        /// Function transforming results.
-        /// </param>
-        member this.Transform(f1: ('Result1 * 'Child6) -> 'Result2) = 
-            let f2 (c1, c2, c3, c4, c5, c6) = f1 (f(c1, c2, c3, c4, c5), c6)
-            Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Child6, 'Result2> (f2)
-
-        static member (>-) (r: Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Result1>, f1: ('Result1 * 'Child6) -> 'Result2) =
-            r.Transform f1
-
-
-    type Results<'Child1, 'Child2, 'Child3, 'Child4, 'Result1>(f: ('Child1 * 'Child2 * 'Child3 * 'Child4) -> 'Result1) = 
-    
-        member this.Compose = f
-
-        /// <summary>
-        /// Adds a transformation building one result from two source results.
-        /// </summary>
-        /// <param name="f">
-        /// Function transforming results.
-        /// </param>
-        member this.Transform(f1: ('Result1 * 'Child5) -> 'Result2) = 
-            let f2 (c1, c2, c3, c4, c5) = f1 (f(c1, c2, c3, c4), c5)
-            Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Result2> (f2)
-
-        static member (>-) (r: Results<'Child1, 'Child2, 'Child3, 'Child4, 'Result1>, f1: ('Result1 * 'Child5) -> 'Result2) =
-            r.Transform f1
-
-
-
-    /// <summary>
-    /// Allows to compose different result transformations.
-    /// </summary>
-    type Results<'Child1, 'Child2, 'Child3, 'Result1>(f: ('Child1 * 'Child2 * 'Child3) -> 'Result1) = 
-    
-        member this.Compose = f
-
-        /// <summary>
-        /// Adds a transformation building one result from two source results.
-        /// </summary>
-        /// <param name="f">
-        /// Function transforming results.
-        /// </param>
-        member this.Transform(f1: ('Result1 * 'Child4) -> 'Result2) = 
-            let f2 (c1, c2, c3, c4) = f1 (f(c1, c2, c3), c4)
-            Results<'Child1, 'Child2, 'Child3, 'Child4, 'Result2> (f2)
-
-        static member (>-) (r: Results<'Child1, 'Child2, 'Child3, 'Result1>, f1: ('Result1 * 'Child4) -> 'Result2) =
-            r.Transform f1
-
-        /// <summary>
-        /// Adds a transformation building one result from three source results.
-        /// </summary>
-        /// <param name="f">
-        /// Function transforming results.
-        /// </param>
-        member this.Transform(f1: ('Result1 * 'Child4 * 'Child5) -> 'Result2) = 
-            let f2 (c1, c2, c3, c4, c5) = f1 (f(c1, c2, c3), c4, c5)
-            Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Result2> (f2)
-
-        static member (>-) (r: Results<'Child1, 'Child2, 'Child3, 'Result1>, f1: ('Result1 * 'Child4 * 'Child5) -> 'Result2) =
-            r.Transform f1
-
-
-    /// <summary>
-    /// Allows to compose different result transformations.
-    /// </summary>
-    type Results<'Child1, 'Child2, 'Result1>(f: ('Child1 * 'Child2) -> 'Result1) = 
-    
-        member this.Compose = f
-
-        /// <summary>
-        /// Adds a transformation building one result from two source results.
-        /// </summary>
-        /// <param name="f">
-        /// Function transforming results.
-        /// </param>
-        member this.Transform(f1: ('Result1 * 'Child3) -> 'Result2) = 
-            let f2 (c1, c2, c3) = f1 (f(c1, c2), c3)
-            Results<'Child1, 'Child2, 'Child3, 'Result2> (f2)
-
-        static member (>-) (r: Results<'Child1, 'Child2, 'Result1>, f1: ('Result1 * 'Child3) -> 'Result2) = 
-            r.Transform f1
-
-        /// <summary>
-        /// Adds a transformation building one result from three source results.
-        /// </summary>
-        /// <param name="f">
-        /// Function transforming results.
-        /// </param>
-        member this.Transform(f1: ('Result1 * 'Child3 * 'Child4) -> 'Result2) = 
-            let f2 (c1, c2, c3, c4) = f1 (f(c1, c2), c3, c4)
-            Results<'Child1, 'Child2, 'Child3, 'Child4, 'Result2> (f2)
-            
-        static member (>-) (r: Results<'Child1, 'Child2, 'Result1>, f1: ('Result1 * 'Child3 * 'Child4) -> 'Result2) = 
-            r.Transform f1
-
-        /// <summary>
-        /// Adds a transformation building one result from four source results.
-        /// </summary>
-        /// <param name="f">
-        /// Function transforming results.
-        /// </param>
-        member this.Transform(f1: ('Result1 * 'Child3 * 'Child4 * 'Child5) -> 'Result2) = 
-            let f2 (c1, c2, c3, c4, c5) = f1 (f(c1, c2), c3, c4, c5)
-            Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Result2> (f2)
-
-        static member (>-) (r: Results<'Child1, 'Child2, 'Result1>, f1: ('Result1 * 'Child3 * 'Child4 * 'Child5) -> 'Result2) = 
-            r.Transform f1
-
-
-
-    /// <summary>
-    /// Allows to compose different result transformations.
-    /// </summary>
-    type Results() = 
-    
-        /// <summary>
-        /// Adds a transformation building one result from two source results.
-        /// </summary>
-        /// <param name="f">
-        /// Function transforming results.
-        /// </param>
-        static member Transform(f: ('Child1 * 'Child2) -> 'Parent) = 
-            Results<'Child1, 'Child2, 'Parent>(f)
-
-        static member (>-) (r: Results, f: ('Child1 * 'Child2) -> 'Parent) = 
-            Results.Transform(f)
-
-        /// <summary>
-        /// Adds a transformation building one result from three source results.
-        /// </summary>
-        /// <param name="f">
-        /// Function transforming results.
-        /// </param>
-        static member Transform(f: ('Child1 * 'Child2 * 'Child3) -> 'Parent) = 
-            Results<'Child1, 'Child2, 'Child3, 'Parent>(f)
-
-        static member (>-) (r: Results, f: ('Child1 * 'Child2 * 'Child3) -> 'Parent) = 
-            Results.Transform(f)
-
-        /// <summary>
-        /// Adds a transformation building one result from four source results.
-        /// </summary>
-        /// <param name="f">
-        /// Function transforming results.
-        /// </param>
-        static member Transform(f: ('Child1 * 'Child2 * 'Child3 * 'Child4) -> 'Parent) = 
-            Results<'Child1, 'Child2, 'Child3, 'Child4, 'Parent>(f)
-
-        static member (>-) (r: Results, f: ('Child1 * 'Child2 * 'Child3 * 'Child4) -> 'Parent) = 
-            Results.Transform(f)
-
-        static member Compose (r: Results<'Child1, 'Child2, 'Result1>) = r.Compose
-
-        static member Compose (r: Results<'Child1, 'Child2, 'Child3, 'Result1>) = r.Compose
-
-        static member Compose (r: Results<'Child1, 'Child2, 'Child3, 'Child4, 'Result1>) = r.Compose
-
-        static member Compose (r: Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Result1>) = r.Compose
-
-        static member Compose (r: Results<'Child1, 'Child2, 'Child3, 'Child4, 'Child5, 'Child6, 'Result1>) = r.Compose
-
 
     type private CopyBuilder<'Source, 'Target>() = 
 

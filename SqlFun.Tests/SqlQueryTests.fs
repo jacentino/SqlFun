@@ -5,8 +5,10 @@ open SqlFun
 open Data
 open SqlFun.Exceptions
 open SqlFun.Transforms
+open SqlFun.Transforms.Standard
 open Common
 open System
+
 
 type TestQueries() =    
 
@@ -122,14 +124,22 @@ type TestQueries() =
     static member getPostsWithTagsRel: int -> DataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
-        >> Join<Tag>.Left
+        >> Conventions.join<_, Tag>
         |> curry 
 
-    static member getPostsWithTagsAndCommentsAsyncRel: int -> DataContext -> Post list Async = 
+    static member getPostsWithTagsAndCommentsAsyncTOps: int -> DataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
-        >> mapAsync (Results() >- Join<Tag>.Left >- (mapSnd Tooling.buildTree >> Join<Comment>.Left) |> Results.Compose)
+        >> mapAsync (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment>))
+        |> curry 
+
+    static member getBlogWithPostsWithTagsAndCommentsAsyncTOps: int -> DataContext -> Blog Async = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id
+             select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
+             select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
+             select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
+        >> mapAsync (Conventions.update<_, Post> >>- (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment>)))
         |> curry 
 
     static member insertPost: Post -> DataContext -> int Async = 
@@ -309,10 +319,19 @@ type SqlQueryTests() =
         Assert.AreEqual(1, p.comments |> List.length)
 
     [<Test>]
-    member this.``Three asynchronous queries can be combined by key value with two combined joins by convention``() = 
-        let pl = TestQueries.getPostsWithTagsAndCommentsAsyncRel 1 |> runAsync |> Async.RunSynchronously
+    member this.``Three asynchronous queries can be combined by key value with two joins combined with transform operators``() = 
+        let pl = TestQueries.getPostsWithTagsAndCommentsAsyncTOps 1 |> runAsync |> Async.RunSynchronously
         Assert.AreEqual(2, pl |> List.length)
         let p = pl |> List.head
+        Assert.AreEqual(1, p.blogId)
+        Assert.AreEqual(3, p.tags |> List.length)
+        Assert.AreEqual(1, p.comments |> List.length)
+
+    [<Test>]
+    member this.``Both types of transform operators work correctly``() = 
+        let b = TestQueries.getBlogWithPostsWithTagsAndCommentsAsyncTOps 1 |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual(2, b.posts |> List.length)
+        let p = b.posts |> List.head
         Assert.AreEqual(1, p.blogId)
         Assert.AreEqual(3, p.tags |> List.length)
         Assert.AreEqual(1, p.comments |> List.length)

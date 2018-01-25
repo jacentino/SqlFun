@@ -444,7 +444,28 @@ module Queries =
     let private nextResult (reader: IDataReader) =
         reader.NextResult() |> ignore
 
-    let private generateResultBuilder metadata returnType isAsync = 
+    type StructuredMetadata = 
+        | Direct of Map<string, (int * Type)>
+        | Nested of StructuredMetadata list
+
+    let adaptToReturnType metadata returnType = 
+
+        let rec makeTree metadata returnType = 
+            if FSharpType.IsTuple returnType
+            then
+                FSharpType.GetTupleElements returnType
+                |> Seq.map (makeTree metadata)
+                |> List.ofSeq
+                |> Nested
+            else
+                let head = List.head !metadata 
+                metadata := List.tail !metadata
+                Direct head  
+
+        makeTree (ref metadata) returnType        
+        
+
+    let private generateResultBuilder (metadata: StructuredMetadata) returnType isAsync = 
 
         let generateCall returnType methodName resultBuilder = 
             let concreteMethod = getConcreteMethod returnType (methodName + if isAsync then "Async" else "")
@@ -475,16 +496,16 @@ module Queries =
                 let resultBuilder = genRowBuilder metadata returnType
                 generateCall returnType "buildSingleResult" resultBuilder :> Expression
 
-        let genResultBuilderCall resultBuilder readerExpr tupleIndex = 
-            if tupleIndex = 0 
+        let genResultBuilderCall resultBuilder readerExpr firstResultProcessed = 
+            if firstResultProcessed 
             then
                 Expression.Invoke(resultBuilder, [readerExpr]) :> Expression
             else
                 let nextResultExpr = Expression.Call(readerExpr, "NextResult")
                 Expression.Block(nextResultExpr, Expression.Invoke(resultBuilder, [readerExpr])) :> Expression
 
-        let genResultBuilderCallAsync resultBuilder reader tupleIndex itemType = 
-            if tupleIndex = 0 
+        let genResultBuilderCallAsync resultBuilder reader firstResultProcessed itemType = 
+            if firstResultProcessed
             then
                 Expression.Invoke(resultBuilder, [reader]) :> Expression
             else
@@ -492,33 +513,52 @@ module Queries =
                 let adaptedBuilder = Expression.Lambda(Expression.Invoke(resultBuilder, reader), Expression.Parameter(typeof<bool>))
                 Expression.Call(getConcreteMethodN [| typeof<bool>; itemType |] "taskBind", nextResultExpr, adaptedBuilder) :> Expression
 
-        if (List.length metadata) = 1 
-        then
-            buildOneResultSet (Seq.head metadata) returnType
-        else
+        let rec buildMultiResultSetAsync isFirst metadata returnType = 
+            let reader = Expression.Parameter(typeof<DbDataReader>, "reader")
+            let builders = FSharpType.GetTupleElements returnType 
+                            |> Seq.zip metadata
+                            |> Seq.mapi (fun i (md, rt) -> 
+                                match md with
+                                | Direct md -> 
+                                    Expression.Parameter(rt, "item" + i.ToString()), genResultBuilderCallAsync (buildOneResultSet md rt) reader (i = 0 && isFirst) rt
+                                | Nested md ->
+                                    Expression.Parameter(rt, "item" + i.ToString()), genResultBuilderCallAsync (buildMultiResultSetAsync (i = 0 && isFirst) md rt) reader true (* TODO: hack *) rt)
+                            |> List.ofSeq                            
+            let parameters = builders |> List.map fst
+            let tupleBuilder = Expression.Call(getConcreteMethod returnType "asyncReturn", Expression.NewTuple(parameters |> List.map (fun p -> p:> Expression))) :> Expression   
+            
+            let bindParam (bld: Expression) (param: ParameterExpression, itemExpr: Expression) = 
+                Expression.Call(getConcreteMethodN [| param.Type; returnType |] "asyncBind", itemExpr, Expression.Lambda(bld, param)) :> Expression
+                                    
+            Expression.Lambda(builders |> List.rev |> List.fold bindParam tupleBuilder, reader) :> Expression
+
+        let rec buildMultiResultSet isFirst metadata returnType = 
+            let reader = Expression.Parameter(typeof<IDataReader>, "reader")
+            let builders = FSharpType.GetTupleElements returnType 
+                            |> Seq.zip metadata
+                            |> Seq.mapi (fun i (md, rt) -> 
+                                match md with
+                                | Direct md ->
+                                    genResultBuilderCall (buildOneResultSet md rt) reader (i = 0 && isFirst)
+                                | Nested md -> 
+                                    genResultBuilderCall (buildMultiResultSet (i = 0 && isFirst) md rt) reader true (* TODO: hack *))
+                            |> List.ofSeq
+            Expression.Lambda(Expression.NewTuple(builders), reader) :> Expression
+
+
+
+        match metadata with
+        | Direct md ->
+            buildOneResultSet md returnType
+        | Nested md ->
             if not (FSharpType.IsTuple returnType) then
                 failwith "Function return type for multiple result queries must be a tuple."
             if isAsync 
             then
-                let reader = Expression.Parameter(typeof<DbDataReader>, "reader")
-                let builders = FSharpType.GetTupleElements returnType 
-                                |> Seq.zip metadata
-                                |> Seq.mapi (fun i (md, rt) -> Expression.Parameter(rt, "item" + i.ToString()), genResultBuilderCallAsync (buildOneResultSet md rt) reader i rt)
-                                |> List.ofSeq                            
-                let parameters = builders |> List.map fst
-                let tupleBuilder = Expression.Call(getConcreteMethod returnType "asyncReturn", Expression.NewTuple(parameters |> List.map (fun p -> p:> Expression))) :> Expression   
-            
-                let bindParam (bld: Expression) (param: ParameterExpression, itemExpr: Expression) = 
-                    Expression.Call(getConcreteMethodN [| param.Type; returnType |] "asyncBind", itemExpr, Expression.Lambda(bld, param)) :> Expression
-                                    
-                Expression.Lambda(builders |> List.rev |> List.fold bindParam tupleBuilder, reader) :> Expression
+                buildMultiResultSetAsync true md returnType
             else
-                let reader = Expression.Parameter(typeof<IDataReader>, "reader")
-                let builders = FSharpType.GetTupleElements returnType 
-                                |> Seq.zip metadata
-                                |> Seq.mapi (fun i (md, rt) -> genResultBuilderCall (buildOneResultSet md rt) reader i)
-                                |> List.ofSeq
-                Expression.Lambda(Expression.NewTuple(builders), reader) :> Expression
+                buildMultiResultSet true md returnType
+
                
     let private extractParameterNames commandText = 
         let cmd = Regex.Matches(commandText, "(declare\s+\@[a-zA-Z0-9_]+)|(\@\@[a-zA-Z0-9_]+)", RegexOptions.IgnoreCase).Cast<Match>()
@@ -669,7 +709,7 @@ module Queries =
             let assignParams = genParamAssigner queryParamDefs []    
             let metadata = if returnType <> typeof<unit> && not (Types.isAsyncOf returnType typeof<unit>) // Npgsql hangs on NextResult if no first result exists
                             then 
-                                getResultMetadata queryParamDefs
+                                getResultMetadata queryParamDefs                                
                             else 
                                 makeDiagnosticCall queryParamDefs
                                 [Map.empty]
@@ -680,10 +720,15 @@ module Queries =
             if isAsync returnType
             then
                 let underlyingType = getUnderlyingType returnType
-                let buildResult = generateResultBuilder metadata underlyingType true
+                let adaptedMetadata = adaptToReturnType metadata underlyingType
+                let buildResult = generateResultBuilder adaptedMetadata underlyingType true
+
+                printf "%O" buildResult
+                
                 Expression.Call(getConcreteMethod underlyingType "executeSqlAsync", [ connection; transaction; sql; timeout; assignParams; buildResult ])
             else 
-                let buildResult = generateResultBuilder metadata returnType false
+                let adaptedMetadata = adaptToReturnType metadata returnType
+                let buildResult = generateResultBuilder adaptedMetadata returnType false
                 Expression.Call(getConcreteMethod returnType "executeSql", [ connection; transaction; sql; timeout; assignParams; buildResult ])
 
         let rec generateCaller t paramNames paramDefs = 
@@ -862,14 +907,16 @@ module Queries =
             let timeout = Expression.Constant(commandTimeout, typeof<int option>) :> Expression
             if isAsync returnType
             then
-                let underlyingType = getUnderlyingType returnType
+                let underlyingType = getUnderlyingType returnType 
                 let (outParamsType, resultType) = getStoredProcElementTypes underlyingType
-                let buildResult = generateResultBuilder metadata resultType true
+                let adaptedMetadata = adaptToReturnType metadata resultType 
+                let buildResult = generateResultBuilder adaptedMetadata resultType true
                 let outParamBuilder = genOutParamsBuilder outParams outParamsType
                 Expression.Call(getConcreteMethodN [| resultType; outParamsType |] "executeProcedureAsync", [ connection; transaction; sql; timeout; assignParams; buildResult; outParamBuilder ])
             else 
                 let (outParamsType, resultType) = getStoredProcElementTypes returnType
-                let buildResult = generateResultBuilder metadata resultType false
+                let adaptedMetadata = adaptToReturnType metadata resultType 
+                let buildResult = generateResultBuilder adaptedMetadata resultType false
                 let outParamBuilder = genOutParamsBuilder outParams outParamsType
                 Expression.Call(getConcreteMethodN [| resultType; outParamsType |] "executeProcedure", [ connection; transaction; sql; timeout; assignParams; buildResult; outParamBuilder ])
 

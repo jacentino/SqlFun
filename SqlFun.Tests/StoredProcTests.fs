@@ -5,6 +5,7 @@ open SqlFun
 open Data
 open SqlFun.Exceptions
 open SqlFun.Transforms
+open SqlFun.Transforms.Standard
 open Common
 open System
 
