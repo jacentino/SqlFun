@@ -154,7 +154,7 @@ In simple cases, when code follows conventions, transormations can be specified 
                  select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
                  from post 
                  where blogId = @id"
-            >> Update<Post>.Left
+            >> update<_, Post>
             |> curry  
 ```
 There are also functions that allow to combine multi-row results by joining many results or grouping wide results.
