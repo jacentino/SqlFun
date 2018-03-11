@@ -31,7 +31,7 @@ module ComputationBuilder =
                     }                    
             member this.Zero(x) = fun ctx -> async { return () }
             member this.Combine(x: AsyncDbAction<'t1>, y: AsyncDbAction<'t2>): AsyncDbAction<'t2> = this.Bind(x, fun x' -> y)
-            member this.Delay(f: unit-> 't) = fun ctx -> async { return! f () ctx }
+            member this.Delay(f: unit-> DataContext -> 't Async) = fun ctx -> async { return! f () ctx }
             member this.For (items: seq<'t>,  f: 't -> AsyncDbAction<unit>): AsyncDbAction<unit> = 
                 fun ctx -> async {
                     for x in items do 

@@ -9,12 +9,8 @@ open SqlFun.Transforms.Standard
 open Common
 open System
 
-
 type TestQueries() =    
 
-    static let mapFst f (x, y) = f x, y
-    static let mapSnd f (x, y) = x, f y
- 
     static member getBlog: int -> DataContext -> Blog = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id"
 

@@ -722,9 +722,6 @@ module Queries =
                 let underlyingType = getUnderlyingType returnType
                 let adaptedMetadata = adaptToReturnType metadata underlyingType
                 let buildResult = generateResultBuilder adaptedMetadata underlyingType true
-
-                printf "%O" buildResult
-                
                 Expression.Call(getConcreteMethod underlyingType "executeSqlAsync", [ connection; transaction; sql; timeout; assignParams; buildResult ])
             else 
                 let adaptedMetadata = adaptToReturnType metadata returnType
