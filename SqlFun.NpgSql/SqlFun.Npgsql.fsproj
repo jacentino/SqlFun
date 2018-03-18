@@ -10,7 +10,7 @@
     <RootNamespace>SqlFun.Npgsql</RootNamespace>
     <AssemblyName>SqlFun.NpgSql</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
-    <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
+    <TargetFSharpCoreVersion>4.4.3.0</TargetFSharpCoreVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Name>SqlFun.NpgSql</Name>
     <TargetFrameworkProfile />
