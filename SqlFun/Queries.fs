@@ -522,7 +522,7 @@ module Queries =
                                 | Direct md -> 
                                     Expression.Parameter(rt, "item" + i.ToString()), genResultBuilderCallAsync (buildOneResultSet md rt) reader (i = 0 && isFirst) rt
                                 | Nested md ->
-                                    Expression.Parameter(rt, "item" + i.ToString()), genResultBuilderCallAsync (buildMultiResultSetAsync (i = 0 && isFirst) md rt) reader true (* TODO: hack *) rt)
+                                    Expression.Parameter(rt, "item" + i.ToString()), genResultBuilderCallAsync (buildMultiResultSetAsync (i = 0 && isFirst) md rt) reader true rt)
                             |> List.ofSeq                            
             let parameters = builders |> List.map fst
             let tupleBuilder = Expression.Call(getConcreteMethod returnType "asyncReturn", Expression.NewTuple(parameters |> List.map (fun p -> p:> Expression))) :> Expression   
