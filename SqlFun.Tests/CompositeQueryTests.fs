@@ -173,7 +173,7 @@ type CompositeQueryTests() =
                 |> Async.RunSynchronously
         Assert.AreEqual(1, l |> List.length)        
 
-    [<Test>]
+    (*[<Test>]
     member this.``Composie queries can be tested with FsCheck``() = 
         
         let property criteria ordering = 
@@ -186,4 +186,4 @@ type CompositeQueryTests() =
             |> ignore
 
         let cfg = { Config.QuickThrowOnFailure with Arbitrary = [ typeof<Arbs> ] }
-        Check.One(cfg, property)
+        Check.One(cfg, property)*)

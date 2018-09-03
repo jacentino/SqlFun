@@ -10,7 +10,6 @@ module MsSql =
     open Microsoft.FSharp.Reflection
     open System.Reflection
     open Microsoft.SqlServer.Server
-    open System.Collections.Concurrent
     open SqlFun.ExpressionExtensions
 
     let defaultParamBuilder = defaultParamBuilder
@@ -42,40 +41,38 @@ module MsSql =
             expr
 
     let rec private getUpdateExpr (positions: Map<string, int>) (record: Expression) (root: Expression): Expression = 
-        if FSharpType.IsTuple root.Type
-        then
-            FSharpType.GetTupleElements root.Type
+        match root.Type with
+        | Tuple elts -> 
+            elts
             |> Seq.mapi (fun i t -> Expression.PropertyOrField(root, "Item" + (i + 1).ToString()) |> getUpdateExpr positions record)                        
             |> Expression.Block :> Expression
-        else
+        | _ ->
             let exprs = FSharpType.GetRecordFields root.Type
                         |> Seq.filter (fun p -> not (isCollectionType p.PropertyType))
                         |> Seq.filter (fun p -> not (isSimpleType p.PropertyType || isSimpleTypeOption p.PropertyType) || positions.ContainsKey p.Name)
-                        |> Seq.map (fun p -> if isSimpleType p.PropertyType 
-                                                then 
-                                                    let valueExpr = convertIfEnum (Expression.Property(root, p))
-                                                    let setter = typeof<SqlDataRecord>.GetMethod("Set" + valueExpr.Type.Name)
-                                                    Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), valueExpr)
-                                                    :> Expression
-                                                elif isSimpleTypeOption p.PropertyType
-                                                then
-                                                    let valueExpr = Expression.Property(root, p)
-                                                    let optValueExpr = convertIfEnum (Expression.Property (valueExpr, "Value"))
-                                                    let setter = typeof<SqlDataRecord>.GetMethod("Set" + optValueExpr.Type.Name)
-                                                    Expression.IfThen(
-                                                        Expression.Call(valueExpr.Type.GetMethod("get_IsSome", BindingFlags.Public ||| BindingFlags.Static), valueExpr),
-                                                        Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), optValueExpr))
-                                                    :> Expression
-                                                elif isOption p.PropertyType
-                                                then
-                                                    let valueExpr = Expression.Property(root, p)
-                                                    let optValueExpr = Expression.Property (valueExpr, "Value")
-                                                    Expression.IfThen(
-                                                        Expression.Call(valueExpr.Type.GetMethod("get_IsSome", BindingFlags.Public ||| BindingFlags.Static), valueExpr),
-                                                        getUpdateExpr positions record optValueExpr)
-                                                    :> Expression
-                                                else  
-                                                    Expression.Property(root, p) |> getUpdateExpr positions record)
+                        |> Seq.map (fun p -> match p.PropertyType with
+                                             | SimpleType -> 
+                                                let valueExpr = convertIfEnum (Expression.Property(root, p))
+                                                let setter = typeof<SqlDataRecord>.GetMethod("Set" + valueExpr.Type.Name)
+                                                Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), valueExpr)
+                                                :> Expression
+                                             | SimpleTypeOption ->
+                                                let valueExpr = Expression.Property(root, p)
+                                                let optValueExpr = convertIfEnum (Expression.Property (valueExpr, "Value"))
+                                                let setter = typeof<SqlDataRecord>.GetMethod("Set" + optValueExpr.Type.Name)
+                                                Expression.IfThen(
+                                                    Expression.Call(valueExpr.Type.GetMethod("get_IsSome", BindingFlags.Public ||| BindingFlags.Static), valueExpr),
+                                                    Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), optValueExpr))
+                                                :> Expression
+                                             | OptionOf _ ->
+                                                let valueExpr = Expression.Property(root, p)
+                                                let optValueExpr = Expression.Property (valueExpr, "Value")
+                                                Expression.IfThen(
+                                                    Expression.Call(valueExpr.Type.GetMethod("get_IsSome", BindingFlags.Public ||| BindingFlags.Static), valueExpr),
+                                                    getUpdateExpr positions record optValueExpr)
+                                                :> Expression
+                                             | _ ->  
+                                                Expression.Property(root, p) |> getUpdateExpr positions record)
                         |> List.ofSeq
             if exprs.IsEmpty 
             then Expression.UnitConstant :> Expression
@@ -104,7 +101,7 @@ module MsSql =
                                 where tt.name = @name"
         let param = command.CreateParameter()
         param.ParameterName <- "@name"
-        param.Value <- t.Name
+        param.Value <- t.Name.Split('`').[0] // Allows for use of resolved generic types.
         command.Parameters.Add(param) |> ignore
         use reader = command.ExecuteReader()
         [| 
@@ -134,9 +131,8 @@ module MsSql =
                 }
 
     let private MsSqlParamBuilder (connectionBuilder: unit -> #IDbConnection) defaultPB prefix name (expr: Expression) names = 
-        if isCollectionType expr.Type && isComplexType (getUnderlyingType expr.Type)
-        then
-            let itemType = getUnderlyingType expr.Type
+        match expr.Type with 
+        | CollectionOf itemType when isComplexType itemType ->
             let typeName = itemType.Name.Split('`').[0] // Allows for use of resolved generic types.
             use connection = connectionBuilder()
             connection.Open()
@@ -155,14 +151,14 @@ module MsSql =
                 ,
                 null
             ]       
-        else
+        | _ ->
             defaultPB prefix name expr names
 
     let sql connectionBuilder commandTimeout paramBuilder commandText = 
         sql connectionBuilder commandTimeout (fun defaultPB -> paramBuilder <| MsSqlParamBuilder connectionBuilder defaultPB) commandText
 
     let storedproc connectionBuilder commandTimeout paramBuilder procName = 
-        storedproc connectionBuilder commandTimeout  (fun defaultPB -> paramBuilder <| MsSqlParamBuilder connectionBuilder defaultPB) procName
+        storedproc connectionBuilder commandTimeout (fun defaultPB -> paramBuilder <| MsSqlParamBuilder connectionBuilder defaultPB) procName
 
 
 

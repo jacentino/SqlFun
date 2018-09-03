@@ -291,11 +291,11 @@ module Queries =
             expr
 
     let private convertAsNeeded (expr: Expression) =
-        if isOption expr.Type 
-        then 
+        match expr.Type with
+        | OptionOf _ ->
             let converter = convertEnumOption expr
             Expression.Call(getConcreteMethod (getUnderlyingType converter.Type) "unpackOption", converter) :> Expression
-        else
+        | _ ->
             Expression.Convert(convertIfEnum expr, typeof<obj>) :> Expression
 
     let private createInParam (command: Expression) (name: string, getter: Expression, assigner: (obj -> IDbCommand -> int), fakeVal: obj) =
@@ -369,65 +369,68 @@ module Queries =
         |> Seq.map (fun a -> if a.Name <> "" then a.Name else field.Name)
         |> Seq.fold (fun last next -> next) ""
 
+    let typeNotSupported t = 
+        failwithf "Type not supported: %O" t
+
     let rec private genRowNullCheck reader metadata prefix returnType: Expression = 
-        if isOption returnType
-        then genRowNullCheck reader metadata prefix (getUnderlyingType returnType)
-        elif FSharpType.IsTuple returnType
-        then
-            FSharpType.GetTupleElements returnType
-                |> Seq.map (genRowNullCheck reader metadata prefix)
-                |> Seq.reduce (fun left right -> Expression.And(left, right) :> Expression) 
-        elif isCollectionType returnType
-        then Expression.Constant(true) :> Expression
-        else
-            FSharpType.GetRecordFields returnType
-                |> Seq.map (genRecFieldValueCheck reader metadata prefix)
-                |> Seq.reduce (fun left right -> Expression.And(left, right) :> Expression) 
+        match returnType with
+        | OptionOf t -> 
+            genRowNullCheck reader metadata prefix t
+        | Tuple items -> 
+            items |> Seq.map (genRowNullCheck reader metadata prefix)
+                  |> Seq.reduce (fun left right -> Expression.And(left, right) :> Expression)
+        | CollectionOf _ ->
+            Expression.Constant(true) :> Expression
+        | Record fields ->
+            fields |> Seq.map (genRecFieldValueCheck reader metadata prefix)
+                   |> Seq.reduce (fun left right -> Expression.And(left, right) :> Expression) 
+        | t -> typeNotSupported t
     and
         private genRecFieldValueCheck (reader: Expression) (metadata: Map<string, int * Type>) (prefix: string) (field: PropertyInfo) = 
-            if isComplexType field.PropertyType || FSharpType.IsTuple field.PropertyType || isCollectionType field.PropertyType
-            then
+            match field.PropertyType with
+            | Record _ | Tuple _ | CollectionOf _ ->
                 genRowNullCheck reader metadata (prefix + getFieldPrefix field) field.PropertyType
-            else
+            | SimpleType -> 
                 try
                     let (ordinal, colType) = metadata |> Map.find (prefix.ToLower() + field.Name.ToLower())
                     Expression.Call(reader, "IsDBNull", Expression.Constant(ordinal)) :> Expression        
                 with ex ->
                     raise (Exception(sprintf "No column found for %s field. Expected: %s%s" field.Name prefix field.Name, ex))
+            | t -> typeNotSupported t
 
 
     let rec private genRowBuilderExpr reader metadata prefix returnType =
-        if isOption returnType
-        then
+        match returnType with
+        | OptionOf _ ->
             Expression.Condition(
                 genRowNullCheck reader metadata prefix returnType,
                 getNoneUnionCase returnType, 
                 getSomeUnionCase returnType (genRowBuilderExpr reader metadata prefix (getUnderlyingType returnType))) :> Expression
-        elif FSharpType.IsTuple returnType
-        then
-            let accessors = FSharpType.GetTupleElements returnType 
+        | Tuple elts ->
+            let accessors = elts 
                             |> Seq.map (genRowBuilderExpr reader metadata prefix) 
                             |> List.ofSeq                
             Expression.NewTuple(accessors)
-        elif isCollectionType returnType
-        then
-            Expression.Call(getConcreteMethod (getUnderlyingType returnType) "newList", []) :> Expression
-        else
-            let accessors = FSharpType.GetRecordFields returnType
+        | CollectionOf t ->
+            Expression.Call(getConcreteMethod t "newList", []) :> Expression
+        | Record fields ->
+            let accessors = fields
                             |> Seq.map (genRecFieldValueExpr reader metadata prefix)
                             |> List.ofSeq
             Expression.NewRecord(returnType, accessors)
+        | t -> typeNotSupported t
     and
         private genRecFieldValueExpr (reader: ParameterExpression) (metadata: Map<string, int * Type>) (prefix: string) (field: PropertyInfo) = 
-            if isComplexType field.PropertyType || FSharpType.IsTuple field.PropertyType || isCollectionType field.PropertyType
-            then
+            match field.PropertyType with
+            | Record _ | Tuple _ | CollectionOf _ ->
                 genRowBuilderExpr reader metadata (prefix + getFieldPrefix field) field.PropertyType
-            else
+            | SimpleType | SimpleTypeOption ->
                 try 
                     let (ordinal, colType) = metadata |> Map.find (prefix.ToLower() + field.Name.ToLower())
                     getColumnAccessExpr reader colType ordinal field.PropertyType
                 with ex ->
                     raise (Exception(sprintf "No column found for %s field. Expected: %s%s" field.Name prefix field.Name, ex))
+            | t -> typeNotSupported t
 
     let private genRowBuilder metadata returnType =     
         let reader = Expression.Parameter(typeof<IDataReader>, "reader")
@@ -441,9 +444,6 @@ module Queries =
         let getter = getColumnAccessExpr reader colType 0 returnType
         Expression.Lambda(getter, reader)
 
-    let private nextResult (reader: IDataReader) =
-        reader.NextResult() |> ignore
-
     type StructuredMetadata = 
         | Direct of Map<string, (int * Type)>
         | Nested of StructuredMetadata list
@@ -451,13 +451,12 @@ module Queries =
     let adaptToReturnType metadata returnType = 
 
         let rec makeTree metadata returnType = 
-            if FSharpType.IsTuple returnType
-            then
-                FSharpType.GetTupleElements returnType
-                |> Seq.map (makeTree metadata)
-                |> List.ofSeq
-                |> Nested
-            else
+            match returnType with
+            | Tuple elts ->
+                elts |> Seq.map (makeTree metadata)
+                     |> List.ofSeq
+                     |> Nested
+            | _ ->
                 let head = List.head !metadata 
                 metadata := List.tail !metadata
                 Direct head  
@@ -472,27 +471,25 @@ module Queries =
             Expression.Call(concreteMethod, [resultBuilder])
 
         let buildOneResultSet metadata returnType = 
-            if returnType = typeof<unit> then     
+            match returnType with
+            | Unit ->
                 let result = if isAsync then Expression.UnitAsyncConstant else Expression.UnitConstant           
                 Expression.Lambda(result, Expression.Parameter(typeof<IDataReader>)) :> Expression
-            elif isSimpleType returnType then
+            | SimpleType ->
                 let resultBuilder = genScalarBuilder metadata returnType
                 generateCall returnType "buildSingleResult" resultBuilder :> Expression
-            elif isSimpleTypeOption returnType then
-                let unwrappedRetType = getUnderlyingType returnType
-                let resultBuilder = genScalarBuilder metadata unwrappedRetType
-                generateCall unwrappedRetType "buildOptionalResult" resultBuilder :> Expression
-            elif isCollectionType returnType then
-                let unwrappedRetType = getUnderlyingType returnType
-                let resultBuilder = if isSimpleType unwrappedRetType 
-                                    then genScalarBuilder metadata unwrappedRetType
-                                    else genRowBuilder metadata unwrappedRetType
-                generateCall unwrappedRetType "buildCollectionResult" resultBuilder :> Expression
-            elif isOption returnType then
-                let unwrappedRetType = getUnderlyingType returnType
-                let resultBuilder = genRowBuilder metadata unwrappedRetType
-                generateCall unwrappedRetType "buildOptionalResult" resultBuilder :> Expression
-            else
+            | OptionOf t when isSimpleType t ->               
+                let resultBuilder = genScalarBuilder metadata t
+                generateCall t "buildOptionalResult" resultBuilder :> Expression
+            | CollectionOf t ->
+                let resultBuilder = if isSimpleType t 
+                                    then genScalarBuilder metadata t
+                                    else genRowBuilder metadata t
+                generateCall t "buildCollectionResult" resultBuilder :> Expression
+            | OptionOf t ->
+                let resultBuilder = genRowBuilder metadata t
+                generateCall t "buildOptionalResult" resultBuilder :> Expression
+            | _ ->
                 let resultBuilder = genRowBuilder metadata returnType
                 generateCall returnType "buildSingleResult" resultBuilder :> Expression
 
@@ -520,12 +517,14 @@ module Queries =
                             |> Seq.mapi (fun i (md, rt) -> 
                                 match md with
                                 | Direct md -> 
-                                    Expression.Parameter(rt, "item" + i.ToString()), genResultBuilderCallAsync (buildOneResultSet md rt) reader (i = 0 && isFirst) rt
+                                    let innerRs = buildOneResultSet md rt
+                                    Expression.Parameter(rt, "item" + i.ToString()), genResultBuilderCallAsync innerRs reader (i = 0 && isFirst) rt
                                 | Nested md ->
-                                    Expression.Parameter(rt, "item" + i.ToString()), genResultBuilderCallAsync (buildMultiResultSetAsync (i = 0 && isFirst) md rt) reader true rt)
+                                    let innerRs = buildMultiResultSetAsync (i = 0 && isFirst) md rt
+                                    Expression.Parameter(rt, "item" + i.ToString()), genResultBuilderCallAsync innerRs reader true rt)
                             |> List.ofSeq                            
             let parameters = builders |> List.map fst
-            let tupleBuilder = Expression.Call(getConcreteMethod returnType "asyncReturn", Expression.NewTuple(parameters |> List.map (fun p -> p:> Expression))) :> Expression   
+            let tupleBuilder = Expression.Call(getConcreteMethod returnType "asyncReturn", Expression.NewTuple(parameters |> List.map (fun p -> p :> Expression))) :> Expression   
             
             let bindParam (bld: Expression) (param: ParameterExpression, itemExpr: Expression) = 
                 Expression.Call(getConcreteMethodN [| param.Type; returnType |] "asyncBind", itemExpr, Expression.Lambda(bld, param)) :> Expression
@@ -551,13 +550,13 @@ module Queries =
         | Direct md ->
             buildOneResultSet md returnType
         | Nested md ->
-            if not (FSharpType.IsTuple returnType) then
+            match returnType with
+            | Tuple _ ->
+                if isAsync 
+                then buildMultiResultSetAsync true md returnType
+                else buildMultiResultSet true md returnType
+            | _ ->
                 failwith "Function return type for multiple result queries must be a tuple."
-            if isAsync 
-            then
-                buildMultiResultSetAsync true md returnType
-            else
-                buildMultiResultSet true md returnType
 
                
     let private extractParameterNames commandText = 
@@ -571,11 +570,11 @@ module Queries =
         |> Seq.distinct
         |> List.ofSeq
     
-    let private isConnection (expr: Expression) = 
-        typeof<IDbConnection>.IsAssignableFrom(expr.Type)
+    let (|Connection|_|) (t: Type) =
+        if typeof<IDbConnection>.IsAssignableFrom(t) then Some () else None
 
-    let private isTransactionOption (expr: Expression) = 
-        typeof<IDbTransaction option>.IsAssignableFrom(expr.Type)
+    let (|TransactionOption|_|) (t: Type) =
+        if typeof<IDbTransaction option>.IsAssignableFrom(t) then Some () else None
 
 
     let private buildInParam (name: string, expr: Expression) value (command: IDbCommand) =
@@ -596,14 +595,17 @@ module Queries =
         else Activator.CreateInstance(dataType)
 
     let private skipUsedParamNames paramExprs paramNames = 
-        let usedNames = paramExprs |> Seq.map (fun (name, _, _, _) -> name) |> Seq.except ["<connection>"; "<transaction>"] |> List.ofSeq
+        let usedNames = paramExprs 
+                        |> Seq.map (fun (name, _, _, _) -> name) 
+                        |> Seq.except ["<connection>"; "<transaction>"] 
+                        |> List.ofSeq
         let length = List.length usedNames
         if paramNames |> Seq.take length |> Seq.except usedNames |> Seq.isEmpty
         then paramNames |> List.skip length
         else failwith "Inconsistent parameter list."
 
     let rec private getTupleParamExpressions (customPB: ParamBuilder) (expr: Expression) (index: int) (paramNames: string list) = 
-        let tupleItemTypes = FSharpType.GetTupleElements (expr.Type)
+        let tupleItemTypes = FSharpType.GetTupleElements expr.Type
         if index = tupleItemTypes.Length
         then
             []
@@ -612,22 +614,21 @@ module Queries =
             let paramExprs = customPB "" (Seq.head paramNames) param paramNames
             List.append paramExprs (getTupleParamExpressions customPB expr (index + 1) (skipUsedParamNames paramExprs paramNames))
 
-    let rec private getParamExpressions (customPB: ParamBuilder) (prefix: string) (name: string) (expr: Expression) (paramNames: string list) = 
-        if isConnection expr
-        then ["<connection>", expr, (fun _ _ -> 0), null :> obj] 
-        elif isTransactionOption expr
-        then ["<transaction>", expr, (fun _ _ -> 0), null :> obj] 
-        elif isComplexType expr.Type 
-        then
-            expr.Type.GetProperties()
+    let rec private getParamExpressions (customPB: ParamBuilder) (prefix: string) (name: string) (expr: Expression) (paramNames: string list) =         
+        match expr.Type with
+        | Connection ->
+            ["<connection>", expr, (fun _ _ -> 0), null :> obj]
+        | TransactionOption ->
+            ["<transaction>", expr, (fun _ _ -> 0), null :> obj] 
+        | Record fields ->
+            fields
             |> Seq.collect (fun p -> customPB (prefix + getFieldPrefix p) p.Name (Expression.Property(expr, p)) paramNames)
             |> Seq.filter (fun (name, _, _, _) -> ("<connection>" :: "<transaction>" :: paramNames) |> Seq.exists ((=) name))
             |> List.ofSeq
-        elif FSharpType.IsTuple expr.Type
-        then
+        | Tuple _ ->
             getTupleParamExpressions customPB expr 0 paramNames
-        else
-            [prefix + name, expr, buildInParam (prefix + name, expr), getFakeValue expr.Type]        
+        | _ ->
+            [prefix + name, expr, buildInParam (prefix + name, expr), getFakeValue expr.Type]
         
 
     let private compileCaller (paramDefs: ParameterExpression list) (caller: Expression) = 
@@ -649,33 +650,12 @@ module Queries =
         | Some (_, texpr, _, _) -> texpr
         | None -> getNoneUnionCase typeof<IDbTransaction option> :> Expression
 
-    let private getTableTypeName (collectionType: Type) = 
-        (getUnderlyingType collectionType).Name
-
-
     let private wireUpPBs (customPB: ParamBuilder -> ParamBuilder) (defaultPB: ParamBuilder -> ParamBuilder): ParamBuilder = 
         let emptyPB: ParamBuilder = fun _ _ _ _ -> []        
         let boundDefault = ref emptyPB
         let boundCustom = (fun prefix name expr names -> customPB boundDefault.Value prefix name expr names)
         boundDefault.Value <- (fun prefix name expr names -> defaultPB boundCustom prefix name expr names)
         boundCustom
-    
-    let private unfoldFunction (t: Type) =     
-        if not (FSharpType.IsFunction t)
-        then
-            [], t
-        else
-            let args, rets = List.unfold (fun f -> 
-                                if FSharpType.IsFunction f
-                                then Some (let a, r = FSharpType.GetFunctionElements f in (a, r), r)
-                                else None) t
-                             |> List.unzip
-            args, Seq.last rets
-
-    let private foldFunction (args: Type list, ret: Type) = 
-       args 
-       |> List.rev 
-       |> List.fold (fun f t -> FSharpType.MakeFunctionType (t, f)) ret
 
     let private generateSqlCommandCaller<'c when 'c :> IDbConnection> (createConnection: unit -> 'c)  (commandTimeout: int option) (customParamBuilder: ParamBuilder -> ParamBuilder) (commandText: string)  (t: Type): obj = 
 
@@ -686,7 +666,7 @@ module Queries =
             connection.Open()
             use command = connection.CreateCommand()
             command.CommandText <- commandText
-            for _, expr, buildParam, fakeVal in paramDefs do
+            for _, _, buildParam, fakeVal in paramDefs do
                 buildParam fakeVal command |> ignore
             command.ExecuteReader(CommandBehavior.SchemaOnly).Dispose()
 
@@ -717,29 +697,25 @@ module Queries =
             let transaction = getTransactionExpr paramDefs
             let sql = Expression.Constant commandText :> Expression
             let timeout = Expression.Constant(commandTimeout, typeof<int option>) :> Expression
-            if isAsync returnType
-            then
-                let underlyingType = getUnderlyingType returnType
-                let adaptedMetadata = adaptToReturnType metadata underlyingType
-                let buildResult = generateResultBuilder adaptedMetadata underlyingType true
-                Expression.Call(getConcreteMethod underlyingType "executeSqlAsync", [ connection; transaction; sql; timeout; assignParams; buildResult ])
-            else 
+            match returnType with
+            | AsyncOf t ->
+                let adaptedMetadata = adaptToReturnType metadata t
+                let buildResult = generateResultBuilder adaptedMetadata t true
+                Expression.Call(getConcreteMethod t "executeSqlAsync", [ connection; transaction; sql; timeout; assignParams; buildResult ])
+            | _ ->
                 let adaptedMetadata = adaptToReturnType metadata returnType
                 let buildResult = generateResultBuilder adaptedMetadata returnType false
                 Expression.Call(getConcreteMethod returnType "executeSql", [ connection; transaction; sql; timeout; assignParams; buildResult ])
 
-        let rec generateCaller t paramNames paramDefs = 
-            if not (FSharpType.IsFunction t)
-            then 
-                [], genExecutor paramDefs t
-            else 
-                let firstParamType, remainingParams = FSharpType.GetFunctionElements t
+        let rec generateCaller t paramNames paramDefs =             
+            match t with
+            | Function (firstParamType, remainingParams) ->
                 let param = Expression.Parameter(firstParamType, Seq.head paramNames)
-                let paramGetters = if FSharpType.IsTuple firstParamType 
-                                    then getTupleParamExpressions customPB param 0 paramNames
-                                    else customPB "" param.Name param paramNames
+                let paramGetters = customPB "" param.Name param paramNames
                 let (paramExprs, caller) = generateCaller remainingParams (skipUsedParamNames paramGetters paramNames) (List.append paramDefs paramGetters)
                 (param :: paramExprs), caller
+            | _ ->
+                [], genExecutor paramDefs t
 
         try
             let parameterNames = extractParameterNames commandText
@@ -770,14 +746,10 @@ module Queries =
         generateSqlCommandCaller createConnection commandTimeout customParamBuilder commandText typeof<'t> :?> 't
 
     let getStoredProcElementTypes returnType =
-        if FSharpType.IsTuple returnType
-        then
-            let elementTypes = FSharpType.GetTupleElements returnType
-            if elementTypes.Length = 3 then
-                elementTypes.[1], elementTypes.[2]
-            else
-                failwith "StoredProcedure return type must be 3-element tuple."
-        else 
+        match returnType with
+        | Tuple elts when elts.Length = 3 ->
+            elts.[1], elts.[2]
+        | _ -> 
             failwith "StoredProcedure return type must be 3-element tuple."
 
     let genOutParamsBuilder (outParams: (string * string) list) (outParamsType: Type) = 
@@ -799,17 +771,19 @@ module Queries =
                             then getUnderlyingType outParamsType 
                             else outParamsType       
         let expr = 
-            if isSimpleType outParamsType
-            then wrapInOption (getParamExpr (outParams |> Seq.map fst |> Seq.head)) (coerce typeof<obj> outParamsType)
-            elif FSharpType.IsTuple outParamsType 
-            then Expression.NewTuple (FSharpType.GetTupleElements outParamsType 
-                                        |> Seq.mapi (fun i t -> wrapInOption (getParamExpr (fst outParams.[i])) (coerce typeof<obj> t)) 
-                                        |> Seq.toList)
-            elif FSharpType.IsRecord outParamsType
-            then Expression.NewRecord(outParamsType, FSharpType.GetRecordFields outParamsType 
-                                                        |> Seq.map (fun p -> wrapInOption (getParamExpr p.Name) (coerce typeof<obj> p.PropertyType)) 
-                                                        |> Seq.toList)
-            else Expression.UnitConstant :> Expression
+            match outParamsType with
+            | SimpleType ->
+                wrapInOption (getParamExpr (outParams |> Seq.map fst |> Seq.head)) (coerce typeof<obj> outParamsType)
+            | Tuple elts -> 
+                Expression.NewTuple 
+                    (elts |> Seq.mapi (fun i t -> wrapInOption (getParamExpr (fst outParams.[i])) (coerce typeof<obj> t)) 
+                          |> Seq.toList)
+            | Record fields ->
+                Expression.NewRecord
+                    (outParamsType, 
+                     fields |> Seq.map (fun p -> wrapInOption (getParamExpr p.Name) (coerce typeof<obj> p.PropertyType)) 
+                            |> Seq.toList)
+            | _ -> Expression.UnitConstant :> Expression
         Expression.Lambda(expr, command) :> Expression
         
 
@@ -902,15 +876,14 @@ module Queries =
             let transaction = getTransactionExpr paramDefs
             let sql = Expression.Constant(procedureName) :> Expression
             let timeout = Expression.Constant(commandTimeout, typeof<int option>) :> Expression
-            if isAsync returnType
-            then
-                let underlyingType = getUnderlyingType returnType 
+            match returnType with
+            | AsyncOf underlyingType ->
                 let (outParamsType, resultType) = getStoredProcElementTypes underlyingType
                 let adaptedMetadata = adaptToReturnType metadata resultType 
                 let buildResult = generateResultBuilder adaptedMetadata resultType true
                 let outParamBuilder = genOutParamsBuilder outParams outParamsType
                 Expression.Call(getConcreteMethodN [| resultType; outParamsType |] "executeProcedureAsync", [ connection; transaction; sql; timeout; assignParams; buildResult; outParamBuilder ])
-            else 
+            | _ -> 
                 let (outParamsType, resultType) = getStoredProcElementTypes returnType
                 let adaptedMetadata = adaptToReturnType metadata resultType 
                 let buildResult = generateResultBuilder adaptedMetadata resultType false
@@ -918,19 +891,14 @@ module Queries =
                 Expression.Call(getConcreteMethodN [| resultType; outParamsType |] "executeProcedure", [ connection; transaction; sql; timeout; assignParams; buildResult; outParamBuilder ])
 
         let rec generateCaller t inParams outParams paramDefs = 
-            if not (FSharpType.IsFunction t)
-            then 
-                [], genExecutor paramDefs outParams t
-            else 
-                let firstParamType, remainingParams = FSharpType.GetFunctionElements t
+            match t with
+            | Function (firstParamType, remainingParams) ->
                 let param = Expression.Parameter(firstParamType, Seq.head inParams)
-                let paramGetters = if FSharpType.IsTuple firstParamType
-                                    then
-                                        getTupleParamExpressions customPB param 0 inParams
-                                    else 
-                                        customPB "" param.Name param inParams
+                let paramGetters = customPB "" param.Name param inParams
                 let (paramExprs, caller) = generateCaller remainingParams (skipUsedParamNames paramGetters inParams) outParams (List.append paramDefs paramGetters)
                 (param :: paramExprs), caller
+            | _ -> 
+                [], genExecutor paramDefs outParams t
 
         try
             let parameters = extractProcParamNames procedureName 
