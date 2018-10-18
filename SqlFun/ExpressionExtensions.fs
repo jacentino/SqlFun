@@ -35,6 +35,12 @@ module ExpressionExtensions =
 
         static member UnitAsyncConstant = Expression.Convert(Expression.Constant(async { return () }), typeof<unit Async>)
 
+        static member GetSomeUnionCase (optionType: Type) (value: Expression) = 
+            Expression.Call(optionType, "Some", value)
+
+        static member GetNoneUnionCase optionType = 
+            Expression.Property(null, optionType, "None")
+
         static member Call (instance: Expression, methodName: string, arguments: IEnumerable<Expression>) = 
             let types = arguments |> Seq.map (fun e -> e.Type) |> Seq.toArray
             let mth = findMethod methodName types instance.Type

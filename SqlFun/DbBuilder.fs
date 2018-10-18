@@ -1,10 +1,133 @@
 ﻿namespace SqlFun
 
+open System.Data
+
 [<AutoOpen>]
 module ComputationBuilder = 
 
     type DbAction<'t> = DataContext -> 't
-    type AsyncDbAction<'t> = DbAction<Async<'t>>
+
+    module DbAction = 
+
+        /// <summary>
+        /// Wraps a database operation in a transaction.
+        /// </summary>
+        /// <param name="f">
+        /// A function performing some database operation.
+        /// </param>
+        /// <param name="dc">
+        /// The data context object.
+        /// </param>
+        let inTransaction (f: DataContext -> 't) (dc: DataContext) = 
+            match dc.transaction with
+            | Some _ -> f dc
+            | None ->
+                use t = DataContext.beginTransaction None dc 
+                let r = f t
+                DataContext.commit t
+                r
+
+        /// <summary>
+        /// Wraps a database operation in a transaction.
+        /// </summary>
+        /// <param name="isolationLevel">
+        /// Transaction isolation level.
+        /// </param>
+        /// <param name="f">
+        /// A function performing some database operation.
+        /// </param>
+        /// <param name="dc">
+        /// The data context object.
+        /// </param>
+        let inTransactionWith (isolationLevel: IsolationLevel) (f: DataContext -> 't) (dc: DataContext) = 
+            match dc.transaction with
+            | Some _ -> f dc
+            | None ->
+                use t = DataContext.beginTransaction (Some isolationLevel) dc 
+                let r = f t
+                DataContext.commit t
+                r
+
+        /// <summary>
+        /// Prepares data context and runs a function on it.
+        /// </summary>
+        /// <param name="createConnection">
+        /// The function responsible for creating a database connection.
+        /// </param>
+        /// <param name="f">
+        /// A function performing some database operation.
+        /// </param>
+        let run (createConnection: unit -> #IDbConnection) f = 
+            let connection = createConnection()
+            connection.Open()
+            use dc = DataContext.create connection
+            f dc
+
+
+
+    type AsyncDb<'t> = DbAction<Async<'t>>
+
+    module AsyncDb = 
+
+        /// <summary>
+        /// Wraps a database operation in a transaction asynchronously.
+        /// </summary>
+        /// <param name="f">
+        /// A function performing some database operation asynchronously.
+        /// </param>
+        /// <param name="dc">
+        /// The data context object.
+        /// </param>
+        let inTransaction (f: DataContext -> 't Async) (dc: DataContext) = async {
+            match dc.transaction with
+            | Some _ -> return! f dc
+            | None -> 
+                use t = DataContext.beginTransaction None dc 
+                let! r = f t
+                DataContext.commit t
+                return r
+        }
+
+        /// <summary>
+        /// Wraps a database operation in a transaction asynchronously.
+        /// </summary>
+        /// <param name="isolationLevel">
+        /// Transaction isolation level.
+        /// </param>
+        /// <param name="f">
+        /// A function performing some database operation asynchronously.
+        /// </param>
+        /// <param name="dc">
+        /// The data context object.
+        /// </param>
+        let inTransactionWith (isolationLevel: IsolationLevel) (f: DataContext -> 't Async) (dc: DataContext) = async {
+            match dc.transaction with
+            | Some _ -> return! f dc
+            | None -> 
+                use t = DataContext.beginTransaction (Some isolationLevel) dc 
+                let! r = f t
+                DataContext.commit t
+                return r
+        }        
+
+        /// <summary>
+        /// Prepares data context and runs a function on it asynchronously.
+        /// </summary>
+        /// <param name="createConnection">
+        /// The function responsible for creating a database connection.
+        /// </param>
+        /// <param name="f">
+        /// A function performing some database operation asynchronously.
+        /// </param>
+        let run (createConnection: unit -> #IDbConnection) f = 
+            async {
+                let connection = createConnection()
+                connection.Open()
+                use dc = DataContext.create connection
+                return! f dc
+            }
+
+
 
     type DbActionBuilder() = 
             member this.Return(x: 't): DbAction<'t> = fun ctx -> x
@@ -21,23 +144,23 @@ module ComputationBuilder =
 
     let dbaction = DbActionBuilder()
 
-    type AsyncDbActionBuilder() = 
-            member this.Return(x: 't): AsyncDbAction<'t> = fun ctx -> async { return x }
-            member this.ReturnFrom(x: AsyncDbAction<'t>): AsyncDbAction<'t> = x
-            member this.Bind(x: AsyncDbAction<'t1>, f: 't1 -> AsyncDbAction<'t2>): AsyncDbAction<'t2> = 
+    type AsyncDbBuilder() = 
+            member this.Return(x: 't): AsyncDb<'t> = fun ctx -> async { return x }
+            member this.ReturnFrom(x: AsyncDb<'t>): AsyncDb<'t> = x
+            member this.Bind(x: AsyncDb<'t1>, f: 't1 -> AsyncDb<'t2>): AsyncDb<'t2> = 
                 fun ctx -> async {
                         let! v = x ctx
                         return! (f v) ctx
                     }                    
             member this.Zero(x) = fun ctx -> async { return () }
-            member this.Combine(x: AsyncDbAction<'t1>, y: AsyncDbAction<'t2>): AsyncDbAction<'t2> = this.Bind(x, fun x' -> y)
+            member this.Combine(x: AsyncDb<'t1>, y: AsyncDb<'t2>): AsyncDb<'t2> = this.Bind(x, fun x' -> y)
             member this.Delay(f: unit-> DataContext -> 't Async) = fun ctx -> async { return! f () ctx }
-            member this.For (items: seq<'t>,  f: 't -> AsyncDbAction<unit>): AsyncDbAction<unit> = 
+            member this.For (items: seq<'t>,  f: 't -> AsyncDb<unit>): AsyncDb<unit> = 
                 fun ctx -> async {
                     for x in items do 
                         do! f x ctx
                 }
 
 
-    let asyncdb = AsyncDbActionBuilder()
+    let asyncdb = AsyncDbBuilder()
         

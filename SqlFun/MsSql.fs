@@ -3,6 +3,7 @@
 module MsSql =
     
     open SqlFun.Queries
+    open SqlFun.ParamBuilder
     open SqlFun.Types
     open System.Linq.Expressions
     open System.Data
@@ -11,15 +12,6 @@ module MsSql =
     open System.Reflection
     open Microsoft.SqlServer.Server
     open SqlFun.ExpressionExtensions
-
-    let defaultParamBuilder = defaultParamBuilder
-
-    let private getEnumValues (enumType: Type) = 
-        enumType.GetFields()
-            |> Seq.filter (fun f -> f.IsStatic)
-            |> Seq.map (fun f -> f.GetValue(null), f.GetCustomAttributes<EnumValueAttribute>() |> Seq.map (fun a -> a.Value) |> Seq.tryHead)
-            |> Seq.map (fun (e, vopt) -> e, match vopt with Some x -> x | None -> e)
-            |> List.ofSeq
 
     let private convertIfEnum (expr: Expression) = 
         if expr.Type.IsEnum
@@ -154,11 +146,4 @@ module MsSql =
         | _ ->
             defaultPB prefix name expr names
 
-    let sql connectionBuilder commandTimeout paramBuilder commandText = 
-        sql connectionBuilder commandTimeout (fun defaultPB -> paramBuilder <| MsSqlParamBuilder connectionBuilder defaultPB) commandText
-
-    let storedproc connectionBuilder commandTimeout paramBuilder procName = 
-        storedproc connectionBuilder commandTimeout (fun defaultPB -> paramBuilder <| MsSqlParamBuilder connectionBuilder defaultPB) procName
-
-
-
+    let defaultParamBuilder connectionBuilder = (MsSqlParamBuilder connectionBuilder) <+> defaultParamBuilder 

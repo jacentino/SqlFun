@@ -385,7 +385,7 @@ type SqlQueryTests() =
                         }
                         return! TestQueries.insertPost post
                     } 
-                    |> DataContext.inTransactionAsync
+                    |> AsyncDb.inTransaction
                     |> runAsync
                     |> Async.RunSynchronously
         let p = Tooling.getPost id |> run
@@ -413,7 +413,7 @@ type SqlQueryTests() =
             id <- postId
             raise <| Exception "Just for rollback."
         } 
-        |> DataContext.inTransactionAsync
+        |> AsyncDb.inTransaction
         |> runAsync
         |> Async.Catch
         |> Async.RunSynchronously
@@ -442,7 +442,7 @@ type SqlQueryTests() =
             for t in tags do
                 do! TestQueries.insertTag t
         }
-        |> DataContext.inTransactionAsync
+        |> AsyncDb.inTransaction
         |> runAsync
         |> Async.RunSynchronously
 

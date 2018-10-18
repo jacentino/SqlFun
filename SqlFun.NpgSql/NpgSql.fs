@@ -1,17 +1,19 @@
 ﻿namespace SqlFun.NpgSql
 
+open System
+open System.Linq.Expressions
+open System.Data
+
+open SqlFun
+open SqlFun.Types
+open SqlFun.ParamBuilder
+open SqlFun.Queries
+
+open Npgsql
+open NpgsqlTypes
+
 [<AutoOpen>]
 module NpgSql = 
-
-    open SqlFun.Queries
-    open SqlFun.Types
-    open System.Linq.Expressions
-    open System.Data
-    open NpgsqlTypes
-    open Npgsql
-    open System
-
-    let defaultParamBuilder = defaultParamBuilder
 
     let private getNpgSqlDbType t = 
         if t = typeof<int> then NpgsqlDbType.Integer
@@ -26,7 +28,7 @@ module NpgSql =
         else failwith <| sprintf "Unknown array element type: %O" t
         
 
-    let private NpgsqlParamBuilder defaultPB prefix name (expr: Expression) names = 
+    let private NpgsqlParamBuilder (defaultPB: ParamBuilder) prefix name (expr: Expression) (names: string list) = 
         if expr.Type.IsArray && isSimpleType (expr.Type.GetElementType()) then
             [
                 prefix + name,
@@ -44,10 +46,6 @@ module NpgSql =
         else
             defaultPB prefix name expr names
 
-    let sql connectionBuilder commandTimeout paramBuilder commandText = 
-        sql connectionBuilder commandTimeout (fun defaultPB -> paramBuilder <| NpgsqlParamBuilder defaultPB) commandText
-
-    let storedproc connectionBuilder commandTimeout paramBuilder procName = 
-        storedproc connectionBuilder commandTimeout  (fun defaultPB -> paramBuilder <| NpgsqlParamBuilder defaultPB) procName
+    let defaultParamBuilder: ParamBuilder -> ParamBuilder = NpgsqlParamBuilder <+> defaultParamBuilder
 
 

@@ -91,7 +91,7 @@ module Composite =
     /// <param name="part">
     /// The next query part.
     /// </param>
-    let withTemplate<'t> (template: string) (next: AsyncDbAction<IQueryPart>) = asyncdb {
+    let withTemplate<'t> (template: string) (next: AsyncDb<IQueryPart>) = asyncdb {
         let! part = next 
         return part.Combine<'t> template    
     }
@@ -183,8 +183,10 @@ module Composite =
     /// <param name="paramBuilder">
     /// Function creating sql parameters.
     /// </param>
-    type FinalQueryPart<'c when 'c :> IDbConnection>(ctx: DataContext, createConnection: unit -> 'c, commandTimeout: int option, paramBuilder: ParamBuilder -> ParamBuilder) = 
+    type FinalQueryPart<'c when 'c :> IDbConnection>(ctx: DataContext, createConnection: unit -> 'c, commandTimeout: int option, paramBuilder: ParamBuilder -> ParamBuilder, rowBuilder: RowBuilder -> RowBuilder) = 
         interface IQueryPart with
             override this.Combine (template: string) : 't =
-                let generator = sql createConnection commandTimeout paramBuilder
+                let generator = sql createConnection commandTimeout paramBuilder rowBuilder
                 buildAndRunQuery ctx template generator
+
+

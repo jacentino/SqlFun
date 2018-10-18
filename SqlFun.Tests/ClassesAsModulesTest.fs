@@ -8,6 +8,7 @@ open SqlFun.Transforms
 open SqlFun.Transforms.Conventions
 open Common
 open System
+open LazyExtensions
 
 module ClassesAsModules = 
 
@@ -18,18 +19,23 @@ module ClassesAsModules =
         | Choice1Of2 _ -> ()
         | Choice2Of2 e -> f e
 
+    type IEnv =
+        abstract member GetService: unit -> 't
+        abstract member WithService: 't Lazy -> IEnv
+
     type AsyncReader<'env, 't> = 'env -> Async<'t>
+    type AsyncReader<'t> = IEnv -> Async<'t>
 
     type AsyncReaderBuilder() = 
 
             member this.Return(x: 't): AsyncReader<'env, 't> = fun env -> async { return x }
 
-            member this.ReturnFrom(x: AsyncReader<'env, 't>): AsyncReader<'env, 't> = x
+            member this.ReturnFrom<'envC, 't, 'env when 'env :> IEnv>(x: AsyncReader<'envC, 't>): AsyncReader<'env, 't> = fun env -> x (env.GetService())
 
-            member this.Bind(x: AsyncReader<'env, 't1>, f: 't1 -> AsyncReader<'env, 't2>): AsyncReader<'env, 't2> = 
+            member this.Bind<'env, 't1, 'c1, 't2, 'c2 when 'env :> IEnv>(x: AsyncReader<'c1, 't1>, f: 't1 -> AsyncReader<'c2, 't2>): AsyncReader<'env, 't2> = 
                 fun env -> async {
-                        let! v = x env
-                        return! (f v) env
+                        let! v = x (env.GetService())
+                        return! (f v) (env.GetService())
                     }                    
 
             member this.Zero(x) = fun env -> async { return () }
@@ -49,59 +55,80 @@ module ClassesAsModules =
     let asyncenv = AsyncReaderBuilder()
 
 
-
     module Data = 
 
-        let mapEnv m f p deps = f(p, m deps)
+        type IBlogging = 
+            abstract member getBlog: (int -> AsyncDb<Blog>)
+            abstract member getPosts: (int -> AsyncDb<Post list>)
 
-        type IBlogging<'env> = 
-            abstract member getBlog: (int -> AsyncReader<'env, Blog>)
-            abstract member getPosts: (int -> AsyncReader<'env, Post list>)
+        type BloggingImpl() =      
 
-        type BloggingImpl<'env>(extract: 'env -> DataContext) =      
-            let mapEnv f p env = mapEnv extract f p env
-
-            interface IBlogging<'env> with
+            interface IBlogging with
                 member val getBlog = 
                     sql"select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id"
-                    |> mapEnv
                 member val getPosts = 
                     sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
                          select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
                          select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
                     >> mapAsync (join<_, Tag> >-> (mapSnd Tooling.buildTree >> join<_, Comment>))
-                    |> mapEnv
+                    |> curry
+                    
 
     module Service = 
 
-        type Result<'t> = Choice<'t, exn>
-
-        type IBlogging<'env> = 
-            abstract member getBlog: int -> (AsyncReader<'env, Blog>)
-            abstract member getPosts: int -> (AsyncReader<'env, Post list>)
+        type IBlogging = 
+            abstract member getBlog: int -> (AsyncReader<Blog>)
+            abstract member getPosts: int -> (AsyncReader<Post list>)
         
 
-        type BloggingImpl<'env>(data: Data.IBlogging<'env>) =
+        type BloggingImpl(data: Data.IBlogging) =
 
-            interface IBlogging<'env> with
-                member x.getBlog id = data.getBlog id
-                member x.getPosts id = data.getPosts id 
+            interface IBlogging with
+                member x.getBlog id = asyncenv { return! data.getBlog id }
+                member x.getPosts id = asyncenv { return! data.getPosts id }
 
     module CompositionRoot = 
 
-        type Environment = { dataContext: DataContext }
+        type Environment(services: (Type * Lazy<obj>) list) = 
+        
+            new() = 
+                let services = [ 
+                    typeof<DataContext>, lazy let con = createConnection()
+                                              con.Open()
+                                              box <| DataContext.create con                                            
+                ]
+                new Environment(services)
 
-        type EnvImpl() = 
+            interface IEnv with
+                member this.WithService (service: 't Lazy) =
+                    new Environment((typeof<'t>, lazy box (service.Force())) :: services) :> IEnv
+
+                member this.GetService (): 't = 
+                    (typeof<Environment>, lazy box this) :: services 
+                    |> List.tryFind (fst >> typeof<'t>.IsAssignableFrom)
+                    |> Option.map (fun (_, srv) -> srv.Value :?> 't)
+                    |> Option.defaultWith (fun () -> failwithf "Service of type %O is not available." typeof<'t>)
+            
+            interface IDisposable with
+                member this.Dispose() = 
+                    services
+                    |> Seq.map snd
+                    |> Seq.filter (fun srv -> srv.IsValueCreated && srv.Value :? IDisposable)
+                    |> Seq.iter (fun srv -> (srv.Value :?> IDisposable).Dispose())
+
+
+        type EnvRunner() = 
             member x.Run f = async {
-                return! runAsync (fun ctx -> f { dataContext = ctx })
+                use env = new Environment()
+                return! f env
             }
-            member x.InTransaction f env = async {
-                let f' txn = f { env with dataContext = txn }
-                return! DataContext.inTransactionAsync f' env.dataContext
+            member x.InTransaction f (env: IEnv) = async {
+                let f' txn = f (env.WithService(lazy txn))
+                return! AsyncDb.inTransaction f' (env.GetService())
             }
                 
 
-        let Env = EnvImpl()
+        let Env = EnvRunner()
 
         let withLogging msg (f: 'env -> 't Async) env = async {
             let sw = System.Diagnostics.Stopwatch()
@@ -119,13 +146,13 @@ module ClassesAsModules =
         let withLoggingF v = Printf.kprintf (fun msg -> withLogging msg) v
 
         module Data = 
-            let Blogging = Data.BloggingImpl<Environment>(fun d -> d.dataContext) :> Data.IBlogging<Environment>
+            let Blogging = Data.BloggingImpl() :> Data.IBlogging
 
         module Service = 
-            let private blogging = Service.BloggingImpl<Environment>(Data.Blogging) :> Service.IBlogging<Environment>
+            let private blogging = Service.BloggingImpl(Data.Blogging) :> Service.IBlogging
             
             let Blogging = {
-                new Service.IBlogging<Environment> with
+                new Service.IBlogging with
                     member x.getBlog id = 
                         blogging.getBlog id  
                         |> withLoggingF "Blogging.getBlog %d" id

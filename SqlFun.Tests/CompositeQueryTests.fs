@@ -55,10 +55,10 @@ module CompositeQueries =
     
 
     let buildQuery ctx = async {
-        return FinalQueryPart(ctx, createConnection, None, defaultParamBuilder) :> IQueryPart
+        return FinalQueryPart(ctx, createConnection, None, Queries.defaultParamBuilder, Queries.defaultRowBuilder) :> IQueryPart
     }
 
-    let rec filterPosts (criteria: PostCriteria) (next: AsyncDbAction<IQueryPart>) = 
+    let rec filterPosts (criteria: PostCriteria) (next: AsyncDb<IQueryPart>) = 
             match criteria with
             | { TitleContains = Some title }  ->
                 let intermediate = filterPosts { criteria with TitleContains = None } next
@@ -118,7 +118,7 @@ module CompositeQueries =
         else 
             next
 
-    let selectPosts next: AsyncDbAction<Post list> =
+    let selectPosts next: AsyncDb<Post list> =
         next |> withTemplate "select p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status
                               from post p {{JOIN-CLAUSES}}
                               {{WHERE-CLAUSE}}
@@ -174,7 +174,7 @@ type CompositeQueryTests() =
         Assert.AreEqual(1, l |> List.length)        
 
     (*[<Test>]
-    member this.``Composie queries can be tested with FsCheck``() = 
+    member this.``Composite queries can be tested with FsCheck``() = 
         
         let property criteria ordering = 
             buildQuery

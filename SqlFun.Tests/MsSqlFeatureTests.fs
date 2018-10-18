@@ -3,14 +3,12 @@
 open NUnit.Framework
 open SqlFun
 open Data
-open SqlFun.Exceptions
-open SqlFun.Transforms
 open Common
-open System
+
 
 module MsSqlTestQueries = 
     
-    let sql command = MsSql.sql createConnection None defaultParamBuilder command
+    let sql command = Queries.sql createConnection None (MsSql.defaultParamBuilder createConnection) Queries.defaultRowBuilder command
 
     type Tag2 = {
         postId: int option

@@ -53,10 +53,12 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="ExpressionExtensions.fs" />
     <Compile Include="CompileTimeException.fs" />
-    <Compile Include="Types.fs" />
     <Compile Include="Attributes.fs" />
+    <Compile Include="Types.fs" />
     <Compile Include="DataContext.fs" />
     <Compile Include="DbBuilder.fs" />
+    <Compile Include="ParamBuilder.fs" />
+    <Compile Include="ResultBuilder.fs" />
     <Compile Include="Queries.fs" />
     <Compile Include="Transforms.fs" />
     <Compile Include="MsSql.fs" />

@@ -1,25 +1,33 @@
 ﻿namespace SqlFun
 
+
+open System
+open System.Reflection
+open FSharp.Reflection
+
 module Types = 
 
-    open System
-    open FSharp.Reflection
+    let getEnumValues (enumType: Type) = 
+        enumType.GetFields()
+            |> Seq.filter (fun f -> f.IsStatic)
+            |> Seq.map (fun f -> f.GetValue(null), f.GetCustomAttributes<EnumValueAttribute>() |> Seq.map (fun a -> a.Value) |> Seq.tryHead)
+            |> Seq.map (fun (e, vopt) -> e, match vopt with Some x -> x | None -> e)
+            |> List.ofSeq
+
 
     let isOption (t: Type) = 
-        let x = t.Name.StartsWith("FSharpOption`1")
-        x
+         t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
 
     let (|OptionOf|_|) (t: Type) = 
-        if t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
+        if isOption t
         then Some <| t.GetGenericArguments().[0]
         else None
 
     let isAsync (t: Type) = 
-        let x = t.Name.StartsWith("FSharpAsync`1")
-        x
+        t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<Async<_>>
 
     let (|AsyncOf|_|) (t: Type) = 
-        if t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<Async<_>>
+        if isAsync t
         then Some <| t.GetGenericArguments().[0]
         else None
 
