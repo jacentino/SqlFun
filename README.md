@@ -38,15 +38,15 @@ First step is to define function creating database connection,
 ```
 and wire it up with functions responsible for generating queries (using partial application):
 ```fsharp 
-    let sql commandText = sql createConnection defaultParamBuilder commandText
+    let sql commandText = sql createConnection None defaultParamBuilder defaurRowBuilder commandText
 
-    let storedproc name = storedproc createConnection defaultParamBuilder name
+    let storedproc name = storedproc createConnection None defaultParamBuilder defaultRowBuilder name
 ```
 and for executing them:
 ```fsharp 
-    let run f = DataContext.run createConnection f
+    let run f = DbAction.run createConnection f
 
-    let runAsync f = DataContext.runAsync createConnection f
+    let runAsync f = AsyncDb.run createConnection f
 ```    
 ### Data structures
 Then, data structures should be defined for results of your queries.
@@ -202,10 +202,10 @@ To execute some queries in transaction, the DataContext.inTransaction should be 
         do! Blogging.insertComments postId comments
         do! Blogging.insertTags postId tags
     } 
-    |> DataContext.inTransaction
+    |> DbAction.inTransaction
     |> run
 ```
-Its async equivalent is DataContext.inTransactionAsync.
+Its async equivalent is AsyncDb.inTransaction.
 
 ## Documentation & examples
 
