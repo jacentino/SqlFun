@@ -38,7 +38,7 @@ First step is to define function creating database connection,
 ```
 and wire it up with functions responsible for generating queries (using partial application):
 ```fsharp 
-    let sql commandText = sql createConnection None defaultParamBuilder defaurRowBuilder commandText
+    let sql commandText = sql createConnection None defaultParamBuilder defaultRowBuilder commandText
 
     let storedproc name = storedproc createConnection None defaultParamBuilder defaultRowBuilder name
 ```
