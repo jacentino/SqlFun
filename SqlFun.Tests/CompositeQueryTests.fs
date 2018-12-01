@@ -55,10 +55,10 @@ module CompositeQueries =
     
 
     let buildQuery ctx = async {
-        return FinalQueryPart(ctx, createConnection, None, Queries.defaultParamBuilder, Queries.defaultRowBuilder) :> IQueryPart
+        return FinalQueryPart(ctx, createConnection, None, Queries.defaultParamBuilder, Queries.defaultRowBuilder, cleanUpTemplate) :> IQueryPart<_>
     }
 
-    let rec filterPosts (criteria: PostCriteria) (next: AsyncDb<IQueryPart>) = 
+    let rec filterPosts (criteria: PostCriteria) (next: AsyncDb<IQueryPart<_>>) = 
             match criteria with
             | { TitleContains = Some title }  ->
                 let intermediate = filterPosts { criteria with TitleContains = None } next

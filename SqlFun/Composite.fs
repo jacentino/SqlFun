@@ -9,12 +9,17 @@ module Composite =
     /// <summary>
     /// The interface for query specification components.
     /// </summary>
-    type IQueryPart = 
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
+    type IQueryPart<'t> = 
 
         /// <summary>
         /// Combines current query part with a remaining query parts.
         /// </summary>
-        abstract member Combine: string -> 't          
+        abstract member Combine: 't -> 'q          
+
+    type IQueryPart = IQueryPart<string>
 
     /// <summary>
     /// Adds parameters from list as hierarchical tuple to a composite query.
@@ -28,9 +33,15 @@ module Composite =
     /// <param name="next">
     /// The next query part in a composition.
     /// </param>
-    type TransformWithListQueryPart<'e>(expand: string -> string, items: 'e list, next: IQueryPart) = 
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
+    /// <typeparam name="'e">
+    /// The type of an element.
+    /// </typeparam>
+    type TransformWithListQueryPart<'t, 'e>(expand: 't -> 't, items: 'e list, next: IQueryPart<'t>) = 
 
-        member private this.buildHTuple<'t, 'e, 'v> (template: string) (value: 'v) (items: 'e list) (next: IQueryPart): 't =
+        member private this.buildHTuple<'q, 'e, 'v> (template: 't) (value: 'v) (items: 'e list) (next: IQueryPart<'t>): 'q =
             match items with
             | e :: r ->
                 this.buildHTuple template (e, value) r next
@@ -38,40 +49,46 @@ module Composite =
                 let f = next.Combine template
                 f value
 
-        member this.Combine (template: string) : 't =
+        member this.Combine (template: 't) : 'q =
             match items with
-            | e :: remaining -> this.buildHTuple<'t, 'e, 'e> (expand template) e remaining next
+            | e :: remaining -> this.buildHTuple<'q, 'e, 'e> (expand template) e remaining next
             | [] -> next.Combine (expand template)
 
-        interface IQueryPart with
-            member this.Combine (template: string) : 't = this.Combine template
+        interface IQueryPart<'t> with
+            member this.Combine (template: 't) : 'q = this.Combine template
             
 
 
     let transformWithList expand items next = asyncdb {
         let! nextP = next
-        return TransformWithListQueryPart(expand, items, nextP) :> IQueryPart
+        return TransformWithListQueryPart(expand, items, nextP) :> IQueryPart<'t>
     }
 
     /// <summary>
     /// Expands query template with a specified function without adding any parameters 
     /// and changing query function type.
     /// </summary>
-    type TransformWithTextQueryPart(expand: string -> string, next: IQueryPart) = 
-        interface IQueryPart with
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
+    type TransformWithTextQueryPart<'t>(expand: 't -> 't, next: IQueryPart<'t>) = 
+        interface IQueryPart<'t> with
             member this.Combine template = 
                 next.Combine <| expand template
 
     let transformWithText expand next = asyncdb {
         let! nextP = next
-        return TransformWithTextQueryPart(expand, nextP) :> IQueryPart
+        return TransformWithTextQueryPart(expand, nextP) :> IQueryPart<'t>
     }
 
     /// <summary>
     /// Expands template and applies a specified value.
     /// </summary>
-    type TransformWithValueQueryPart<'v>(expand: string -> string, value: 'v, next: IQueryPart) = 
-        interface IQueryPart with
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
+    type TransformWithValueQueryPart<'t, 'v>(expand: 't -> 't, value: 'v, next: IQueryPart<'t>) = 
+        interface IQueryPart<'t> with
             member this.Combine<'q> template = 
                 let exp = expand template
                 let f = next.Combine<'v -> 'q> exp
@@ -79,7 +96,7 @@ module Composite =
 
     let transformWithValue expand value next = asyncdb {
         let! nextP = next
-        return TransformWithValueQueryPart(expand, value, nextP) :> IQueryPart
+        return TransformWithValueQueryPart(expand, value, nextP) :> IQueryPart<'t>
     }
 
     /// <summary>
@@ -91,16 +108,19 @@ module Composite =
     /// <param name="part">
     /// The next query part.
     /// </param>
-    let withTemplate<'t> (template: string) (next: AsyncDb<IQueryPart>) = asyncdb {
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
+    let withTemplate (template: 't) (next: AsyncDb<IQueryPart<'t>>) = asyncdb {
         let! part = next 
-        return part.Combine<'t> template    
+        return part.Combine<'q> template    
     }
 
     /// <summary>
     /// The cache of generated sql caller functions.
     /// </summary>
-    type CommandCache<'t>() = 
-        static member private cache = ConcurrentDictionary<string, 't>()
+    type CommandCache<'q>() = 
+        static member private cache = ConcurrentDictionary<string, 'q>()
 
         /// <summary>
         /// Gets a caller function from a cache or generates one, if none exists.
@@ -111,7 +131,7 @@ module Composite =
         /// <param name="generator">
         /// The function, that generates a caller of an sql command.
         /// </param>
-        static member GetOrAdd (command: string) (generator: string -> 't) = CommandCache<'t>.cache.GetOrAdd(command, generator)
+        static member GetOrAdd (command: string) (generator: string -> 'q) = CommandCache<'q>.cache.GetOrAdd(command, generator)
 
     /// <summary>
     /// Expands some template placeholder with a value.
@@ -163,9 +183,8 @@ module Composite =
     /// <param name="generator">
     /// The function, that generates a caller of an sql command.
     /// </param>
-    let buildAndRunQuery (ctx: DataContext) (cmd: string) (generator: string -> DataContext -> 't): 't =
-        let cmdExp = cleanUpTemplate cmd
-        let f = CommandCache<DataContext -> 't>.GetOrAdd cmdExp generator
+    let buildAndRunQuery (ctx: DataContext) (cmd: string) (generator: string -> DataContext -> 'q): 'q =
+        let f = CommandCache<DataContext -> 'q>.GetOrAdd cmd generator
         f ctx
 
     /// <summary>
@@ -181,12 +200,26 @@ module Composite =
     /// The command timeout.
     /// </param>
     /// <param name="paramBuilder">
-    /// Function creating sql parameters.
+    /// Function generating expression creating sql parameters.
     /// </param>
-    type FinalQueryPart<'c when 'c :> IDbConnection>(ctx: DataContext, createConnection: unit -> 'c, commandTimeout: int option, paramBuilder: ParamBuilder -> ParamBuilder, rowBuilder: RowBuilder -> RowBuilder) = 
-        interface IQueryPart with
-            override this.Combine (template: string) : 't =
+    /// <param name="rowBuilder">
+    /// Function generating expression creating row of results. 
+    /// </param>
+    /// <param name="stringify">
+    /// Function converting query template to string. 
+    /// </param>
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
+    type FinalQueryPart<'t, 'c when 'c :> IDbConnection>(ctx: DataContext, 
+                                                         createConnection: unit -> 'c, 
+                                                         commandTimeout: int option, 
+                                                         paramBuilder: ParamBuilder -> ParamBuilder, 
+                                                         rowBuilder: RowBuilder -> RowBuilder,
+                                                         stringify: 't -> string) = 
+        interface IQueryPart<'t> with
+            override this.Combine (template: 't) : 'q =
                 let generator = sql createConnection commandTimeout paramBuilder rowBuilder
-                buildAndRunQuery ctx template generator
+                buildAndRunQuery ctx (stringify template) generator
 
 
