@@ -140,8 +140,7 @@ Since the ADO.NET allows to execute many sql commands at once, it's possible to 
                  select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
                  from post 
                  where blogId = @id"
-            >> (fun b pl -> { b with posts = pl })
-            |> curry  
+            >> DbAction.map (fun b pl -> { b with posts = pl })
 ```
 The `curry` function is required because the function composition operator `>>` accepts only one-arg functions.
 In simple cases, when code follows conventions, transormations can be specified more declarative way:
@@ -154,8 +153,7 @@ In simple cases, when code follows conventions, transormations can be specified 
                  select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
                  from post 
                  where blogId = @id"
-            >> update<_, Post>
-            |> curry  
+            >> DbAction.map update<_, Post>
 ```
 There are also functions that allow to combine multi-row results by joining many results or grouping wide results.
 
@@ -180,8 +178,7 @@ but there are transformers, that allow to ignore parts of it:
 ```fsharp 
     let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list =
         storedproc "FindPosts"
-        >> resultOnly id 
-        |> curry
+        >> DbAction.map (resultOnly id)
 ```	 
 ### Utilizing `dbaction` and `asyncdb` computation expressions
 It's easy to execute one query with `run` function. To execute more queries in a context of one open connection, computation expression can be used:
