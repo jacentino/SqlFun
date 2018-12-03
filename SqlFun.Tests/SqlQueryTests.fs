@@ -105,17 +105,15 @@ type TestQueries() =
     static member getPostsWithTagsAsync: int -> DataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
-        >> mapAsync (join Post.Id Tag.PostId (Post.withTags id))
-        |> curry 
+        >> AsyncDb.map (join Post.Id Tag.PostId (Post.withTags id))
 
     static member getPostsWithTagsAndCommentsAsync: int -> DataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
-        >> mapAsync (combineTransforms 
-                        (join Post.Id Tag.PostId (Post.withTags id)) 
-                        (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree)))
-        |> curry 
+        >> AsyncDb.map (combineTransforms 
+                            (join Post.Id Tag.PostId (Post.withTags id)) 
+                            (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree)))
 
     static member getPostsWithTagsRel: int -> DataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
@@ -127,16 +125,14 @@ type TestQueries() =
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
-        >> mapAsync (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment>))
-        |> curry 
+        >> AsyncDb.map (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment>))
 
     static member getBlogWithPostsWithTagsAndCommentsAsyncTOps: int -> DataContext -> Blog Async = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id
              select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
-        >> mapAsync (Conventions.update<_, Post> >>- (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment>)))
-        |> curry 
+        >> AsyncDb.map (Conventions.update<_, Post> >>- (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment>)))
 
     static member insertPost: Post -> DataContext -> int Async = 
         sql "insert into post 

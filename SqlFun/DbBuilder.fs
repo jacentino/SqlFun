@@ -10,6 +10,14 @@ module ComputationBuilder =
     module DbAction = 
 
         /// <summary>
+        /// Function transforming value inside a monad.
+        /// </summary>
+        /// <param name="f">Function transforming a value.</param>
+        /// <param name="v">Value wrapped in a monad.</param>
+        let map (f: 't1 -> 't2) (v: DbAction<'t1>): DbAction<'t2> = 
+            v >> f
+
+        /// <summary>
         /// Wraps a database operation in a transaction.
         /// </summary>
         /// <param name="f">
@@ -68,6 +76,17 @@ module ComputationBuilder =
     type AsyncDb<'t> = DbAction<Async<'t>>
 
     module AsyncDb = 
+
+        /// <summary>
+        /// Function transforming value inside a monad.
+        /// </summary>
+        /// <param name="f">Function transforming a value.</param>
+        /// <param name="v">Value wrapped in a monad.</param>
+        let map (f: 't1 -> 't2) (v: AsyncDb<'t1>): AsyncDb<'t2> = 
+            fun ctx -> async {
+                let! x = v ctx 
+                return f x
+            }
 
         /// <summary>
         /// Wraps a database operation in a transaction asynchronously.

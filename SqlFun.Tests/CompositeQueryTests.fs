@@ -3,8 +3,6 @@
 open NUnit.Framework
 open SqlFun
 open Data
-open SqlFun.Exceptions
-open SqlFun.Transforms
 open Common
 open System
 open Composite
