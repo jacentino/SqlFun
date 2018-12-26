@@ -51,6 +51,23 @@ module Data =
         static member withTags (transform: 't list -> Tag list) (p: Post) (tags: 't list) = { p with tags = transform tags }
         static member withComments (transform: 't list -> Comment list) (p: Post) (comments: 't list) = { p with comments = transform comments }
 
+    type PostWithLimitedSubItems = {
+        id: int
+        blogId: int
+        name: string
+        title: string
+        content: string
+        author: string
+        createdAt: DateTime
+        modifiedAt: DateTime option
+        modifiedBy: string option
+        status: PostStatus
+        [<Prefixed>]
+        firstComment: Comment
+        [<Prefixed>]
+        firstTag: Tag option
+    }
+
     type Signature = {
         author: string
         createdAt: DateTime

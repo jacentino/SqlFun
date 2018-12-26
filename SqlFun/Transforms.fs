@@ -150,16 +150,25 @@ module Transforms =
                 Some getter.Invoke
             | None -> None
 
+        static let tryHead(l : 'Child list) = l |> List.tryHead
+        static let tryHeadMethodInfo = typeof<RelationshipBuilder<'Parent, 'Child, 'Key>>.GetMethod("tryHead", BindingFlags.Static ||| BindingFlags.NonPublic)
+
         static let combiner: Choice<'Parent -> 'Child list -> 'Parent, string> = 
             let fieldTypes = FSharpType.GetRecordFields typeof<'Parent> |> Array.map (fun p -> p.PropertyType)
             let construct = typeof<'Parent>.GetConstructor(fieldTypes)
             let parent = Expression.Parameter(typeof<'Parent>)
             let children = Expression.Parameter(typeof<'Child list>)
-            let values = FSharpType.GetRecordFields typeof<'Parent>
-                            |> Array.map (fun prop -> if prop.PropertyType <> typeof<'Child list> 
-                                                        then Expression.MakeMemberAccess(parent, prop) :> Expression
-                                                        else children :> Expression)
-            match values |> Seq.filter (fun v -> v.Type = typeof<'Child list>) |> Seq.length with
+            let values = 
+                FSharpType.GetRecordFields typeof<'Parent>
+                |> Array.map (fun prop -> 
+                                if prop.PropertyType = typeof<'Child list>
+                                then children :> Expression 
+                                elif prop.PropertyType = typeof<'Child>
+                                then Expression.PropertyOrField(children, "Head") :> Expression
+                                elif prop.PropertyType = typeof<'Child option>
+                                then Expression.Call(tryHeadMethodInfo, children) :> Expression
+                                else Expression.MakeMemberAccess(parent, prop) :> Expression)
+            match values |> Seq.filter (fun v -> [ typeof<'Child list>; typeof<'Child option>; typeof<'Child> ] |> List.contains v.Type) |> Seq.length with
             | 1 ->
                 let builder = Expression.Lambda<Func<'Parent, 'Child list, 'Parent>>(Expression.New(construct, values), parent, children).Compile()         
                 Choice1Of2 (fun p cs -> builder.Invoke(p, cs))
@@ -296,7 +305,7 @@ module Transforms =
         /// <param name="c">
         /// Child record list.
         /// </param>
-        let update<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.combiner(p, c)
+        let combine<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.combiner(p, c)
 
         /// <summary>
         /// Builds parent record list from list of parent * child tuples.

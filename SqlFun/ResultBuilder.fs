@@ -163,6 +163,38 @@ module ResultBuilder =
             coerce colType targetType call
   
 
+    let rec private checkColumnExistence reader metadata prefix returnType: string list * string list = 
+        match returnType with
+        | OptionOf t -> 
+            checkColumnExistence reader metadata prefix t
+        | Tuple items -> 
+            items |> Seq.map (checkColumnExistence reader metadata prefix)
+                  |> Seq.reduce (fun (l1, l2) (r1, r2) -> l1 @ r1, l2 @ r2)
+        | CollectionOf _ ->
+            [], []
+        | Record fields ->
+            fields |> Seq.map (checkSingleField reader metadata prefix)
+                   |> Seq.reduce (fun (l1, l2) (r1, r2) -> l1 @ r1, l2 @ r2) 
+        | t -> typeNotSupported t
+    and
+        private checkSingleField (reader: Expression) (metadata: Map<string, int * Type>) (prefix: string) (field: PropertyInfo) = 
+            
+            let rec checkWithType fieldType = 
+                match fieldType with
+                | Record _ | Tuple _ | CollectionOf _ ->
+                    checkColumnExistence reader metadata (prefix + getFieldPrefix field) field.PropertyType
+                | SimpleType -> 
+                    if metadata |> Map.containsKey (prefix.ToLower() + field.Name.ToLower())
+                    then [prefix.ToLower() + field.Name.ToLower()], []
+                    else [], [prefix.ToLower() + field.Name.ToLower()]
+                | OptionOf t ->
+                    checkWithType t
+                | t -> typeNotSupported t
+
+            checkWithType field.PropertyType
+
+
+
     let rec private buildRowNullCheck reader metadata prefix returnType: Expression = 
         match returnType with
         | OptionOf t -> 
@@ -178,16 +210,22 @@ module ResultBuilder =
         | t -> typeNotSupported t
     and
         private buildFieldValueCheck (reader: Expression) (metadata: Map<string, int * Type>) (prefix: string) (field: PropertyInfo) = 
-            match field.PropertyType with
-            | Record _ | Tuple _ | CollectionOf _ ->
-                buildRowNullCheck reader metadata (prefix + getFieldPrefix field) field.PropertyType
-            | SimpleType -> 
-                try
-                    let (ordinal, _) = metadata |> Map.find (prefix.ToLower() + field.Name.ToLower())
-                    Expression.Call(reader, "IsDBNull", Expression.Constant(ordinal)) :> Expression        
-                with ex ->
-                    raise (Exception(sprintf "No column found for %s field. Expected: %s%s" field.Name prefix field.Name, ex))
-            | t -> typeNotSupported t
+            
+            let rec checkWithType fieldType = 
+                match fieldType with
+                | Record _ | Tuple _ | CollectionOf _ ->
+                    buildRowNullCheck reader metadata (prefix + getFieldPrefix field) field.PropertyType
+                | SimpleType -> 
+                    try
+                        let (ordinal, _) = metadata |> Map.find (prefix.ToLower() + field.Name.ToLower())
+                        Expression.Call(reader, "IsDBNull", Expression.Constant(ordinal)) :> Expression        
+                    with ex ->
+                        raise (Exception(sprintf "No column found for %s field. Expected: %s%s" field.Name prefix field.Name, ex))
+                | OptionOf t ->
+                    checkWithType t
+                | t -> typeNotSupported t
+
+            checkWithType field.PropertyType
 
     let rec getRowBuilderExpression nextRB reader metadata (prefix: string) (fieldName: string) returnType =
         match returnType with
@@ -198,10 +236,16 @@ module ResultBuilder =
             with ex ->
                 raise (Exception(sprintf "No column found for %s field. Expected: %s%s" fieldName prefix fieldName, ex))
         | OptionOf retType ->
-            Expression.Condition(
-                buildRowNullCheck reader metadata prefix returnType,
-                Expression.GetNoneUnionCase returnType, 
-                Expression.GetSomeUnionCase returnType (nextRB reader metadata prefix "" retType)) :> Expression
+            match checkColumnExistence reader metadata prefix returnType with
+            | _, [] ->
+                Expression.Condition(
+                    buildRowNullCheck reader metadata prefix returnType,
+                    Expression.GetNoneUnionCase returnType, 
+                    Expression.GetSomeUnionCase returnType (nextRB reader metadata prefix "" retType)) :> Expression
+            | [], _ ->
+                Expression.GetNoneUnionCase returnType :> Expression
+            | existingCols, missingCols ->
+                failwithf "Missing columns in results: %s" (missingCols |> String.concat ", ")
         | Tuple elts ->
             let accessors = elts 
                             |> Seq.map (nextRB reader metadata prefix "") 

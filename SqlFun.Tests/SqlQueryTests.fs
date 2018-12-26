@@ -115,11 +115,24 @@ type TestQueries() =
                             (join Post.Id Tag.PostId (Post.withTags id)) 
                             (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree)))
 
+    static member getPostWithOneCommentAsync: int -> DataContext -> PostWithLimitedSubItems Async = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status, 
+                    0 as firstCommentid, 0 as firstCommentpostId, 0 as firstCommentparentId, '' as firstCommentcontent, '' as firstCommentauthor, cast('2000/01/01' as datetime) as firstCommentcreatedAt
+             from post where id = @id;
+             select top 1 c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c where c.postId = @id"
+        >> AsyncDb.map Conventions.combine<_, Comment>
+
+    static member getPostWithOneTagAsync: int -> DataContext -> PostWithLimitedSubItems Async = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status, 
+                    0 as firstCommentid, 0 as firstCommentpostId, 0 as firstCommentparentId, '' as firstCommentcontent, '' as firstCommentauthor, cast('2000/01/01' as datetime) as firstCommentcreatedAt
+             from post where id = @id;
+             select t.postId, t.name from tag t where t.postId = @id"
+        >> AsyncDb.map Conventions.combine<_, Tag>
+
     static member getPostsWithTagsRel: int -> DataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
-        >> Conventions.join<_, Tag>
-        |> curry 
+        >> DbAction.map Conventions.join<_, Tag>
 
     static member getPostsWithTagsAndCommentsAsyncTOps: int -> DataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
@@ -132,7 +145,7 @@ type TestQueries() =
              select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
-        >> AsyncDb.map (Conventions.update<_, Post> >>- (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment>)))
+        >> AsyncDb.map (Conventions.combine<_, Post> >>- (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment>)))
 
     static member insertPost: Post -> DataContext -> int Async = 
         sql "insert into post 
@@ -239,6 +252,16 @@ type SqlQueryTests() =
         Assert.AreEqual(3, p.tags |> List.length)
 
     [<Test>]
+    member this.``Child relations can be references``() = 
+        let pl = TestQueries.getPostWithOneCommentAsync 1 |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual(1, pl.firstComment.postId)
+
+    [<Test>]
+    member this.``Child relations can be options``() = 
+        let pl = TestQueries.getPostWithOneTagAsync 1 |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual(1, pl.firstTag.Value.postId)
+
+    [<Test>]
     member this.``Query result can be mapped to list of tuples, then grouped by first tuple and combined``() = 
         let pl = TestQueries.getPostsWithTags2 1 |> run
         Assert.AreEqual(1, pl |> List.length)
@@ -294,7 +317,7 @@ type SqlQueryTests() =
         Assert.AreEqual (1, blog.id)
 
     [<Test>]
-    member this.``Two asynchronous  queries can be combined by key value with join wrapped in mapAsync``() = 
+    member this.``Two asynchronous queries can be combined by key value with join wrapped in mapAsync``() = 
         let pl = TestQueries.getPostsWithTagsAsync 1 |> runAsync |> Async.RunSynchronously
         Assert.AreEqual(2, pl |> List.length)
         let p = pl |> List.head
