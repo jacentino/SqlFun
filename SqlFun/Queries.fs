@@ -322,6 +322,22 @@ module Queries =
         with ex ->
             raise <| CompileTimeException(t, "sql command", commandText, ex)
                 
+
+    type GeneratorConfig =
+        {
+            createConnection: unit -> IDbConnection 
+            commandTimeout: int option
+            paramBuilder: ParamBuilder -> ParamBuilder
+            rowBuilder: RowBuilder -> RowBuilder
+        }
+        static member Default =
+            {
+                createConnection = fun () -> failwith "No default value of createConnection exists"
+                commandTimeout = None
+                paramBuilder = ParamBuilder.getParamExpressions
+                rowBuilder = ResultBuilder.getRowBuilderExpression
+            }
+
     /// <summary>
     /// Generates function executing a sql command.
     /// </summary>
