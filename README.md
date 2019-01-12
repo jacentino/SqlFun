@@ -34,64 +34,64 @@ Better way is to build an API exposing your database, consisting of structures r
 ### Prerequisites
 First step is to define function creating database connection,
 ```fsharp
-    let createConnection () = new SqlConnection(<your database connection string>)
+let createConnection () = new SqlConnection(<your database connection string>)
 ```
 and wire it up with functions responsible for generating queries (using partial application):
 ```fsharp 
-    let sql commandText = sql createConnection None defaultParamBuilder defaultRowBuilder commandText
+let sql commandText = sql createConnection None defaultParamBuilder defaultRowBuilder commandText
 
-    let storedproc name = storedproc createConnection None defaultParamBuilder defaultRowBuilder name
+let storedproc name = storedproc createConnection None defaultParamBuilder defaultRowBuilder name
 ```
 and for executing them:
 ```fsharp 
-    let run f = DbAction.run createConnection f
+let run f = DbAction.run createConnection f
 
-    let runAsync f = AsyncDb.run createConnection f
+let runAsync f = AsyncDb.run createConnection f
 ```    
 ### Data structures
 Then, data structures should be defined for results of your queries.
 ```fsharp 
-    type Post = {
-        id: int
-        blogId: int
-        name: string
-        title: string
-        content: string
-        author: string
-        createdAt: DateTime
-        modifiedAt: DateTime option
-        modifiedBy: string option
-        status: PostStatus
-    }
+type Post = {
+    id: int
+    blogId: int
+    name: string
+    title: string
+    content: string
+    author: string
+    createdAt: DateTime
+    modifiedAt: DateTime option
+    modifiedBy: string option
+    status: PostStatus
+}
     
-    type Blog = {
-        id: int
-        name: string
-        title: string
-        description: string
-        owner: string
-        createdAt: DateTime
-        modifiedAt: DateTime option
-        modifiedBy: string option
-        posts: Post list
-    }
+type Blog = {
+    id: int
+    name: string
+    title: string
+    description: string
+    owner: string
+    createdAt: DateTime
+    modifiedAt: DateTime option
+    modifiedBy: string option
+    posts: Post list
+}
 ```    
 The most preferrable way is to use F# record types. Record fields should reflect query result columns, because they are mapped by name.
     
 ### Queries
 The best way of defining queries is to create variables for them and place in some module:
 ```fsharp 
-    module Blogging =    
+module Blogging =    
  
-        let getBlog: int -> DataContext -> Blog = 
-            sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
-                 from Blog 
-                 where id = @id"
+    let getBlog: int -> DataContext -> Blog = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
+             from Blog 
+             where id = @id"
             
-        let getPosts: int -> DataContext -> Post list = 
-            sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
-                 from post 
-                 where blogId = @blogId"
+    let getPosts: int -> DataContext -> Post list = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
+             from post 
+             where blogId = @blogId"
 ```        
 The functions executing queries are generated during a first access to the module contents. 
 
@@ -102,68 +102,68 @@ The generating process uses reflection heavily, but no reflection is used while 
 ### Executing queries
 Since your queries have a DataContext as a last parameter, they can be passed to the `run` function after applying preceding parameters.
 ```fsharp 
-    let blog = Blogging.getBlog 1 |> run
+let blog = Blogging.getBlog 1 |> run
 ```
 ### Async support
 The preferrable way is to define query as asynchronous:
 ```fsharp 
-        let getBlog: int -> DataContext -> Blog Async = 
-            sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
-                 from Blog 
-                 where id = @id"
+let getBlog: int -> DataContext -> Blog Async = 
+    sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
+         from Blog 
+         where id = @id"
 ```
 and then, execute as async:
 ```fsharp 
-    async {
-        let! blog = Blogging.getBlog 1 |> runAsync
-        ...
-    }
+async {
+    let! blog = Blogging.getBlog 1 |> runAsync
+    ...
+}
 ```
 ### Result transformations
 Since the ADO.NET allows to execute many sql commands at once, it's possible to utilize it with SqlFun. The result is a tuple:
 ```fsharp 
-        let getBlogWithPosts: int -> DataContext -> Async<Blog * Post list> = 
-            sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
-                 from Blog 
-                 where id = @id;
-                 select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
-                 from post 
-                 where blogId = @id"
+let getBlogWithPosts: int -> DataContext -> Async<Blog * Post list> = 
+    sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
+         from Blog 
+         where id = @id;
+         select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
+         from post 
+         where blogId = @id"
  ```
  The call of `sql` returns some function, thus it can be composed with another function, possibly performing result transformations.
  Let extend the blog type with a `posts: Post list` property. In this case, two results can be combined with simple function:
  ```fsharp 
-        let getBlogWithPosts: int -> DataContext -> Blog Async = 
-            sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
-                 from Blog 
-                 where id = @id;
-                 select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
-                 from post 
-                 where blogId = @id"
-            >> AsyncDb.map (fun b pl -> { b with posts = pl })
+let getBlogWithPosts: int -> DataContext -> Blog Async = 
+    sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
+         from Blog 
+         where id = @id;
+         select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
+         from post 
+         where blogId = @id"
+    >> AsyncDb.map (fun b pl -> { b with posts = pl })
 ```
 In simple cases, when code follows conventions, transormations can be specified more declarative way:
 
 ```fsharp 
-        let getBlogWithPosts: int -> DataContext -> Blog Async = 
-            sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
-                 from Blog 
-                 where id = @id;
-                 select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
-                 from post 
-                 where blogId = @id"
-            >> AsyncDb.map update<_, Post>
+let getBlogWithPosts: int -> DataContext -> Blog Async = 
+    sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
+         from Blog 
+         where id = @id;
+         select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
+         from post 
+         where blogId = @id"
+    >> AsyncDb.map update<_, Post>
 ```
 There are also functions that allow to combine multi-row results by joining many results or grouping wide results.
 
 ### Compound parameters
 Records can be parameters as well:
 ```fsharp 
-    let insertPost: Post -> DataContext -> int Async = 
-        sql "insert into post 
-                    (blogId, name, title, content, author, createdAt, status)
-             values (@blogId, @name, @title, @content, @author, @createdAt, @status);
-             select scope_identity()"
+let insertPost: Post -> DataContext -> int Async = 
+    sql "insert into post 
+                (blogId, name, title, content, author, createdAt, status)
+         values (@blogId, @name, @title, @content, @author, @createdAt, @status);
+         select scope_identity()"
 ```
 The record fields are mapped to query parameters by name.
 
@@ -175,31 +175,31 @@ let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> 
 ```	
 but there are transformers, that allow to ignore parts of it:
 ```fsharp 
-    let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list Async =
-        storedproc "FindPosts"
-        >> DbAction.map (resultOnly id)
+let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list Async =
+    storedproc "FindPosts"
+    >> AsyncDb.map (resultOnly id)
 ```	 
 ### Utilizing `dbaction` and `asyncdb` computation expressions
 It's easy to execute one query with `runAsync` or `run` function. To execute more queries in a context of one open connection, computation expression can be used:
 ```fsharp 
-    asyncdb {
-        let! postId = Blogging.insertPost post
-        do! Blogging.insertComments postId comments
-        do! Blogging.insertTags postId tags
-    } |> runAsync
+asyncdb {
+    let! postId = Blogging.insertPost post
+    do! Blogging.insertComments postId comments
+    do! Blogging.insertTags postId tags
+} |> runAsync
 ```    
 The synchronous equivalent of this expression is `dbaction`.
 
 ### Transactions
 To execute some queries in transaction, the `inTransaction` function should be used:
 ```fsharp 
-    asyncdb {
-        let! postId = Blogging.insertPost post
-        do! Blogging.insertComments postId comments
-        do! Blogging.insertTags postId tags
-    } 
-    |> AsyncDb.inTransaction
-    |> runAsync
+asyncdb {
+    let! postId = Blogging.insertPost post
+    do! Blogging.insertComments postId comments
+    do! Blogging.insertTags postId tags
+} 
+|> AsyncDb.inTransaction
+|> runAsync
 ```
 Its synchronous equivalent is `DbAction.inTransaction`.
 
