@@ -105,14 +105,14 @@ Since your queries have a DataContext as a last parameter, they can be passed to
     let blog = Blogging.getBlog 1 |> run
 ```
 ### Async support
-The query can be defined as asynchronous as well:
+The preferrable way is to define query as asynchronous:
 ```fsharp 
         let getBlog: int -> DataContext -> Blog Async = 
             sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
                  from Blog 
                  where id = @id"
 ```
-and then, executed as async:
+and then, execute as async:
 ```fsharp 
     async {
         let! blog = Blogging.getBlog 1 |> runAsync
@@ -122,7 +122,7 @@ and then, executed as async:
 ### Result transformations
 Since the ADO.NET allows to execute many sql commands at once, it's possible to utilize it with SqlFun. The result is a tuple:
 ```fsharp 
-        let getBlogWithPosts: int -> DataContext -> Blog * Post list = 
+        let getBlogWithPosts: int -> DataContext -> Async<Blog * Post list> = 
             sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
                  from Blog 
                  where id = @id;
@@ -133,34 +133,33 @@ Since the ADO.NET allows to execute many sql commands at once, it's possible to 
  The call of `sql` returns some function, thus it can be composed with another function, possibly performing result transformations.
  Let extend the blog type with a `posts: Post list` property. In this case, two results can be combined with simple function:
  ```fsharp 
-        let getBlogWithPosts: int -> DataContext -> Blog = 
+        let getBlogWithPosts: int -> DataContext -> Blog Async = 
             sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
                  from Blog 
                  where id = @id;
                  select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
                  from post 
                  where blogId = @id"
-            >> DbAction.map (fun b pl -> { b with posts = pl })
+            >> AsyncDb.map (fun b pl -> { b with posts = pl })
 ```
-The `curry` function is required because the function composition operator `>>` accepts only one-arg functions.
 In simple cases, when code follows conventions, transormations can be specified more declarative way:
 
 ```fsharp 
-        let getBlogWithPosts: int -> DataContext -> Blog = 
+        let getBlogWithPosts: int -> DataContext -> Blog Async = 
             sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
                  from Blog 
                  where id = @id;
                  select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
                  from post 
                  where blogId = @id"
-            >> DbAction.map update<_, Post>
+            >> AsyncDb.map update<_, Post>
 ```
 There are also functions that allow to combine multi-row results by joining many results or grouping wide results.
 
 ### Compound parameters
 Records can be parameters as well:
 ```fsharp 
-    let insertPost: Post -> DataContext -> int = 
+    let insertPost: Post -> DataContext -> int Async = 
         sql "insert into post 
                     (blogId, name, title, content, author, createdAt, status)
              values (@blogId, @name, @title, @content, @author, @createdAt, @status);
@@ -171,38 +170,38 @@ The record fields are mapped to query parameters by name.
 ### Stored procedures
 The result of a function calling stored procedure should be a three-element tuple (return code, output params, result):
 ```fsharp 	
-    let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> (int * unit * Post list) =
+    let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Async<int * unit * Post list> =
         storedproc "FindPosts"
 ```	
 but there are transformers, that allow to ignore parts of it:
 ```fsharp 
-    let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list =
+    let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list Async =
         storedproc "FindPosts"
         >> DbAction.map (resultOnly id)
 ```	 
 ### Utilizing `dbaction` and `asyncdb` computation expressions
 It's easy to execute one query with `run` function. To execute more queries in a context of one open connection, computation expression can be used:
 ```fsharp 
-    dbaction {
+    asyncdb {
         let! postId = Blogging.insertPost post
         do! Blogging.insertComments postId comments
         do! Blogging.insertTags postId tags
-    } |> run
+    } |> runAsync
 ```    
-The async equivalent of this expression is `asyncdb`.
+The synchronous equivalent of this expression is `dbaction`.
 
 ### Transactions
-To execute some queries in transaction, the DataContext.inTransaction should be used:
+To execute some queries in transaction, the `inTransaction` function should be used:
 ```fsharp 
-    dbaction {
+    asyncdb {
         let! postId = Blogging.insertPost post
         do! Blogging.insertComments postId comments
         do! Blogging.insertTags postId tags
     } 
-    |> DbAction.inTransaction
-    |> run
+    |> AsyncDb.inTransaction
+    |> runAsync
 ```
-Its async equivalent is AsyncDb.inTransaction.
+Its synchronous equivalent is DbAction.inTransaction.
 
 ## Documentation & examples
 
