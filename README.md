@@ -170,8 +170,8 @@ The record fields are mapped to query parameters by name.
 ### Stored procedures
 The result of a function calling stored procedure should be a three-element tuple (return code, output params, result):
 ```fsharp 	
-    let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Async<int * unit * Post list> =
-        storedproc "FindPosts"
+let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Async<int * unit * Post list> =
+    storedproc "FindPosts"
 ```	
 but there are transformers, that allow to ignore parts of it:
 ```fsharp 
@@ -180,7 +180,7 @@ but there are transformers, that allow to ignore parts of it:
         >> DbAction.map (resultOnly id)
 ```	 
 ### Utilizing `dbaction` and `asyncdb` computation expressions
-It's easy to execute one query with `run` function. To execute more queries in a context of one open connection, computation expression can be used:
+It's easy to execute one query with `runAsync` or `run` function. To execute more queries in a context of one open connection, computation expression can be used:
 ```fsharp 
     asyncdb {
         let! postId = Blogging.insertPost post
@@ -201,7 +201,7 @@ To execute some queries in transaction, the `inTransaction` function should be u
     |> AsyncDb.inTransaction
     |> runAsync
 ```
-Its synchronous equivalent is DbAction.inTransaction.
+Its synchronous equivalent is `DbAction.inTransaction`.
 
 ## Documentation & examples
 
