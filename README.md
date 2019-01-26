@@ -29,7 +29,7 @@ There are two extensions, enabling provider-specific features:
 
 ## How it works
 Most of us think about data access code as a separate layer. We don't like to spread SQL queries across all the application.
-Better way is to build an API exposing your database, consisting of structures representing database data, and functions responsible for processing this data. 
+Better way is to build an API exposing your database, consisting of structures representing database data, and functions responsible for processing this data. SqlFun makes a design requirement.
 
 ### Prerequisites
 First step is to define function creating database connection,
