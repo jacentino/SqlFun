@@ -35,12 +35,13 @@ Better way is to build an API exposing your database, consisting of structures r
 First step is to define function creating database connection,
 ```fsharp
 let createConnection () = new SqlConnection(<your database connection string>)
+let generatorConfig = createDefaultConfig createConnection
 ```
 and wire it up with functions responsible for generating queries (using partial application):
 ```fsharp 
-let sql commandText = sql createConnection None defaultParamBuilder defaultRowBuilder commandText
+let sql commandText = sql generatorConfig commandText
 
-let storedproc name = storedproc createConnection None defaultParamBuilder defaultRowBuilder name
+let proc name = proc generatorConfig name
 ```
 and for executing them:
 ```fsharp 
@@ -171,12 +172,12 @@ The record fields are mapped to query parameters by name.
 The result of a function calling stored procedure should be a three-element tuple (return code, output params, result):
 ```fsharp 	
 let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Async<int * unit * Post list> =
-    storedproc "FindPosts"
+    proc "FindPosts"
 ```	
 but there are transformers, that allow to ignore parts of it:
 ```fsharp 
 let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list Async =
-    storedproc "FindPosts"
+    proc "FindPosts"
     >> AsyncDb.map (resultOnly id)
 ```	 
 ### Utilizing `dbaction` and `asyncdb` computation expressions
