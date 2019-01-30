@@ -11,11 +11,13 @@ module Common =
 
     let createConnection () = new NpgsqlConnection(ConfigurationManager.ConnectionStrings.["SqlFunTests"].ConnectionString)
 
+    let generatorConfig = NpgSql.createDefaultConfig createConnection
+
     let run f = DbAction.run createConnection f
 
     let runAsync f = AsyncDb.run createConnection f
 
-    let sql commandText = sql createConnection None defaultParamBuilder defaultRowBuilder commandText
+    let sql commandText = sql generatorConfig commandText
 
-    let storedproc name = storedproc createConnection None defaultParamBuilder defaultRowBuilder name
+    let proc name = proc generatorConfig name
 

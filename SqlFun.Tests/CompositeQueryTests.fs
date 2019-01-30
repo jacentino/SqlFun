@@ -53,7 +53,7 @@ module CompositeQueries =
     
 
     let buildQuery ctx = async {
-        return FinalQueryPart(ctx, createConnection, None, Queries.defaultParamBuilder, Queries.defaultRowBuilder, cleanUpTemplate) :> IQueryPart<_>
+        return FinalQueryPart(ctx, generatorConfig, cleanUpTemplate) :> IQueryPart<_>
     }
 
     let rec filterPosts (criteria: PostCriteria) (next: AsyncDb<IQueryPart<_>>) = 
@@ -171,7 +171,7 @@ type CompositeQueryTests() =
                 |> Async.RunSynchronously
         Assert.AreEqual(1, l |> List.length)        
 
-    (*[<Test>]
+    [<Test>]
     member this.``Composite queries can be tested with FsCheck``() = 
         
         let property criteria ordering = 
@@ -184,4 +184,4 @@ type CompositeQueryTests() =
             |> ignore
 
         let cfg = { Config.QuickThrowOnFailure with Arbitrary = [ typeof<Arbs> ] }
-        Check.One(cfg, property)*)
+        Check.One(cfg, property)

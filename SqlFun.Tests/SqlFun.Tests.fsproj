@@ -70,7 +70,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FsCheck">
-      <HintPath>..\..\FsCheck\src\FsCheck\bin\Debug\FsCheck.dll</HintPath>
+      <HintPath>..\packages\FsCheck.2.13.0\lib\net452\FsCheck.dll</HintPath>
     </Reference>
     <Reference Include="FSharp.Core">
       <HintPath>..\packages\FSharp.Core.4.2.3\lib\net45\FSharp.Core.dll</HintPath>

@@ -12,9 +12,8 @@ type TestQueries() =
         sql "select blogid, name, title, description, owner, createdAt, modifiedAt, modifiedBy from blog where blogid = @id"
 
     static member spGetBlog: int -> DataContext -> Blog = 
-        storedproc "getblog"
-        >> resultOnly id
-        |> curry
+        proc "getblog"
+        >> DbAction.map (resultOnly id)
         
     static member getPosts: int array -> DataContext -> Post list = 
         sql "select p.postid, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status

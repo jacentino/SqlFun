@@ -4,11 +4,15 @@ open NUnit.Framework
 open SqlFun
 open Data
 open Common
-
+open SqlFun.MsSql
 
 module MsSqlTestQueries = 
+    open SqlFun.Queries
     
-    let sql command = Queries.sql createConnection None (MsSql.defaultParamBuilder createConnection) Queries.defaultRowBuilder command
+
+    let generatorConfig = MsSql.createDefaultConfig createConnection
+
+    let sql command = Queries.sql generatorConfig command
 
     type Tag2 = {
         postId: int option

@@ -147,6 +147,17 @@ type TestQueries() =
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
         >> AsyncDb.map (Conventions.combine<_, Post> >>- (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment>)))
 
+    static member getBlogsWithWrongTransform: DataContext -> Blog list Async = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog;
+             select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post"
+        |> AsyncDb.map (Conventions.combine<_, Post>)
+
+    static member getBlogWithoutPostsWithoutAnyIds: int -> DataContext -> BlogWithPostsWithoutAnyIds Async = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id;
+             select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id"
+        >> AsyncDb.map (Conventions.combine<_, PostWithoutAnyIds>)
+
+
     static member insertPost: Post -> DataContext -> int Async = 
         sql "insert into post 
                     (blogId, name, title, content, author, createdAt, status)
@@ -350,6 +361,18 @@ type SqlQueryTests() =
         Assert.AreEqual(1, p.blogId)
         Assert.AreEqual(3, p.tags |> List.length)
         Assert.AreEqual(1, p.comments |> List.length)
+
+    [<Test>]
+    member this.``Combine on collection raises meaningful error message``() = 
+        try
+            TestQueries.getBlogsWithWrongTransform |> runAsync |> Async.RunSynchronously |> ignore
+            Assert.Fail()
+        with
+        | e -> Assert.True(e.InnerException.Message.Contains("is not an F# record type"))
+
+    [<Test>]
+    member this.``Combine without parent key is allowed``() = 
+            TestQueries.getBlogWithoutPostsWithoutAnyIds 1 |> runAsync |> Async.RunSynchronously |> ignore
 
     [<Test>]
     member this.``Asynchronous queries can be executed on the same connection with asyncdb computation expression``() =

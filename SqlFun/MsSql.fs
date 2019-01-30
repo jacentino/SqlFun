@@ -146,4 +146,8 @@ module MsSql =
         | _ ->
             defaultPB prefix name expr names
 
-    let defaultParamBuilder connectionBuilder = (MsSqlParamBuilder connectionBuilder) <+> defaultParamBuilder 
+    let createDefaultConfig connectionBuilder = 
+        let lastDefault = createDefaultConfig connectionBuilder
+        {
+            lastDefault with paramBuilder = (MsSqlParamBuilder connectionBuilder) <+> lastDefault.paramBuilder 
+        }

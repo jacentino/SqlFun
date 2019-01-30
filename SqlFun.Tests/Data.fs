@@ -124,6 +124,31 @@ module Data =
         status: PostStatus option
     }
 
+    type PostWithoutAnyIds = {
+        name: string
+        title: string
+        content: string
+        author: string
+        createdAt: DateTime
+        modifiedAt: DateTime option
+        modifiedBy: string option
+        status: PostStatus
+        comments: Comment list
+        tags: Tag list
+    }
+
+    type BlogWithPostsWithoutAnyIds = {
+        name: string
+        title: string
+        description: string
+        owner: string
+        createdAt: DateTime
+        modifiedAt: DateTime option
+        modifiedBy: string option
+        posts: PostWithoutAnyIds list
+    }
+
+
 open Data
 
 module Tooling = 

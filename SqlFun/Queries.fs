@@ -322,21 +322,34 @@ module Queries =
         with ex ->
             raise <| CompileTimeException(t, "sql command", commandText, ex)
                 
-
-    type GeneratorConfig =
+    /// <summary>
+    /// Values and functions allowing to customize generation of query execution functions.
+    /// </summary>
+    type GeneratorConfig<'Connection when 'Connection :> IDbConnection> =
         {
-            createConnection: unit -> IDbConnection 
+            /// The function providing a database connection used in generation.
+            createConnection: unit -> 'Connection 
+            /// The command timeout.
             commandTimeout: int option
+            /// Function generating code creating query parameters from function parameters.
             paramBuilder: ParamBuilder -> ParamBuilder
+            /// Function generating code creating typed result from data reader.
             rowBuilder: RowBuilder -> RowBuilder
         }
-        static member Default =
-            {
-                createConnection = fun () -> failwith "No default value of createConnection exists"
-                commandTimeout = None
-                paramBuilder = ParamBuilder.getParamExpressions
-                rowBuilder = ResultBuilder.getRowBuilderExpression
-            }
+        
+    /// <summary>
+    /// Provides default configuration.
+    /// </summary>
+    /// <param name="connectionBuilder">
+    /// Database connection - can not be left unspecified.
+    /// </param>
+    let createDefaultConfig connectionBuilder =
+        {
+            createConnection = connectionBuilder
+            commandTimeout = None
+            paramBuilder = ParamBuilder.getParamExpressions
+            rowBuilder = ResultBuilder.getRowBuilderExpression
+        }
 
     /// <summary>
     /// Generates function executing a sql command.
@@ -344,11 +357,8 @@ module Queries =
     /// <typeparam name="'t">
     /// The function type.
     /// </typeparam>
-    /// <param name="createConnection">
-    /// The function providing a database connection used in generation.
-    /// </param>
-    /// <param name="commandTimeout">
-    /// The command timeout.
+    /// <param name="config">
+    /// The query generation configuration data.
     /// </param>
     /// <param name="commandText">
     /// The sql statement to be executed.
@@ -356,8 +366,8 @@ module Queries =
     /// <returns>
     /// A function of type 't executing command given by commandText parameter.
     /// </returns>
-    let sql<'t, 'c when 'c :> IDbConnection> (createConnection: unit -> 'c) (commandTimeout: int option) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (commandText: string): 't = 
-        generateSqlCommandCaller createConnection commandTimeout paramBuilder rowBuilder commandText typeof<'t> :?> 't
+    let sql<'t, 'c when 'c :> IDbConnection> (config: GeneratorConfig<'c>) (commandText: string): 't = 
+        generateSqlCommandCaller config.createConnection config.commandTimeout config.paramBuilder config.rowBuilder commandText typeof<'t> :?> 't
 
     let getStoredProcElementTypes returnType =
         match returnType with
@@ -522,11 +532,8 @@ module Queries =
     /// <typeparam name="'t">
     /// The function type.
     /// </typeparam>
-    /// <param name="createConnection">
-    /// The function providing a database connection used in generation.
-    /// </param>
-    /// <param name="commandTimeout">
-    /// The command timeout.
+    /// <param name="config">
+    /// The query generation configuration data.
     /// </param>
     /// <param name="procedureName">
     /// The stored procedure to be executed.
@@ -534,20 +541,7 @@ module Queries =
     /// <returns>
     /// A function of type 't executing stored procedure given by procedureName parameter.
     /// </returns>
-    let storedproc<'t, 'c when 'c :> IDbConnection> (createConnection: unit -> 'c)  (commandTimeout: int option) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (procedureName: string): 't =
-        generateStoredProcCaller createConnection commandTimeout paramBuilder rowBuilder procedureName typeof<'t> :?> 't
+    let proc<'t, 'c when 'c :> IDbConnection> (config: GeneratorConfig<'c>) (procedureName: string): 't =
+        generateStoredProcCaller config.createConnection config.commandTimeout config.paramBuilder config.rowBuilder procedureName typeof<'t> :?> 't
 
-    /// <summary>
-    /// Default function creating query parameters from function parameters.
-    /// </summary>
-    let defaultParamBuilder = ParamBuilder.getParamExpressions
-
-    /// <summary>
-    /// Default function transforming row from data reader to target data structure row.
-    /// </summary>
-    let defaultRowBuilder = ResultBuilder.getRowBuilderExpression
-    
-    /// <summary>
-    /// Does nothing. Use it for writing attribute forcing module initialization.
-    /// </summary>
     let test () = ()

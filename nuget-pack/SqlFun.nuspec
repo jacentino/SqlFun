@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>SqlFun</id>
+    <version>0.0.1-alpha</version>
+    <title>SqlFun: Idiomatic data access for F#</title>
+    <authors>Jacek Hełka</authors>
+    <owners>jacentino</owners>
+    <licenseUrl>https://github.com/jacentino/SqlFun/blob/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/jacentino/SqlFun</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>
+		SqlFun is a tool for writing data access code in F# functional way. 
+		It's fast, type safe and gives you all powers of SQL, no custom query language constraints you. 
+		It's also lightweight, you need to know a general idea and few functions (and, of course SQL).	</description>
+    <releaseNotes>
+		First release.
+	</releaseNotes>
+    <copyright>Copyright 2019</copyright>
+    <tags>microorm orm f# fsharp sql sqlserver postgresql</tags>
+	<dependencies>
+		<dependency id="FSharp.Core" version="4.2.3" />
+	</dependencies>
+  </metadata>
+</package>
