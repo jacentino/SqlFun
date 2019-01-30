@@ -150,10 +150,63 @@ module Transforms =
                 Some getter.Invoke
             | None -> None
 
-        static let tryHead(l : 'Child list) = l |> List.tryHead
-        static let tryHeadMethodInfo = typeof<RelationshipBuilder<'Parent, 'Child, 'Key>>.GetMethod("tryHead", BindingFlags.Static ||| BindingFlags.NonPublic)
+        static let combiner = fun p c -> RelationshipBuilder<'Parent, 'Child>.combine (p, c)
 
-        static let combiner: Choice<'Parent -> 'Child list -> 'Parent, string> = 
+        static member join (p: 'Parent list, cs: 'Child list) = 
+            match parentKeyGetter, childKeyGetter with
+            | None, _ -> failwith <| sprintf "Parent key of %s -> %s relation not found. Its name should be one of %s" 
+                                             typeof<'Parent>.Name typeof<'Child>.Name 
+                                             (RelationshipBuilder<'Parent, 'Child>.ParentKeyNames |> String.concat ", ")
+            | _, None -> failwith <| sprintf "Child key of %s -> %s relation not found. Its name should be one of %s" 
+                                             typeof<'Parent>.Name typeof<'Child>.Name 
+                                             (RelationshipBuilder<'Parent, 'Child>.ChildKeyNames |> String.concat ", ")
+            | Some pkGetter, Some ckGetter ->
+                
+                Standard.join pkGetter ckGetter combiner (p, cs)
+    
+    and RelationshipBuilder<'Parent, 'Child>() =
+            
+        static let childKeyNames = 
+            let pname = typeof<'Parent>.Name.Split('`').[0].ToLower() 
+            [pname + "id"; pname + "_id"]
+
+        static let parentKeyNames = "id" :: childKeyNames
+    
+        static let tryGetKeyProp (t: Type) attrib names = 
+            t.GetProperties() 
+            |> Seq.tryFind (fun p -> p.GetCustomAttribute(attrib) <> null || names |> List.exists ((=) (p.Name.ToLower())))
+
+        static let keyType = 
+            tryGetKeyProp typeof<'Parent> typeof<IdAttribute> parentKeyNames 
+            |> Option.map (fun p -> p.PropertyType)            
+
+        static let joinerOpt = 
+            keyType 
+            |> Option.map (fun ktype -> 
+                let builder = typedefof<RelationshipBuilder<_, _, _>>.MakeGenericType(typeof<'Parent>, typeof<'Child>, ktype)
+                let parents = Expression.Parameter(typeof<'Parent list>)
+                let children = Expression.Parameter(typeof<'Child list>)
+                let joinMethod = builder.GetMethod("join", BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
+                let joiner = Expression.Lambda<Func<'Parent list, 'Child list, 'Parent list>>(
+                                Expression.Call(null, joinMethod, parents, children), parents, children).Compile()                        
+                joiner.Invoke)
+
+        
+        static let tryHeadMethodInfo = 
+            [].GetType().Assembly.GetType("Microsoft.FSharp.Collections.ListModule")
+              .GetMethod("TryHead", BindingFlags.Static ||| BindingFlags.Public)
+              .MakeGenericMethod(typeof<'Child>)
+
+        static member ParentKeyNames = parentKeyNames    
+        static member ChildKeyNames = childKeyNames
+        static member ParentKeyProp = tryGetKeyProp typeof<'Parent> typeof<IdAttribute> parentKeyNames
+        static member ChildKeyProp = tryGetKeyProp typeof<'Child> typeof<ParentIdAttribute> childKeyNames
+
+        static member join (p: 'Parent list, c: 'Child list): 'Parent list = 
+            let joiner = joinerOpt |> Option.defaultWith (fun () -> failwithf "Can not determine key type for: %A" typeof<'Parent>)
+            joiner (p, c)
+
+        static member val combine: 'Parent * 'Child list -> 'Parent = 
             let fieldTypes = FSharpType.GetRecordFields typeof<'Parent> |> Array.map (fun p -> p.PropertyType)
             let construct = typeof<'Parent>.GetConstructor(fieldTypes)
             let parent = Expression.Parameter(typeof<'Parent>)
@@ -171,71 +224,12 @@ module Transforms =
             match values |> Seq.filter (fun v -> [ typeof<'Child list>; typeof<'Child option>; typeof<'Child> ] |> List.contains v.Type) |> Seq.length with
             | 1 ->
                 let builder = Expression.Lambda<Func<'Parent, 'Child list, 'Parent>>(Expression.New(construct, values), parent, children).Compile()         
-                Choice1Of2 (fun p cs -> builder.Invoke(p, cs))
+                fun (p, cs) -> builder.Invoke(p, cs)
             | 0 ->
-                Choice2Of2 (sprintf "Property of type %s list not found in parent type %s" typeof<'Child>.Name typeof<'Parent>.Name)
+                failwithf "Property of type %s list not found in parent type %s" typeof<'Child>.Name typeof<'Parent>.Name
             | _ -> 
-                Choice2Of2 (sprintf "More than one property of type %s list found in parent type %s" typeof<'Child>.Name typeof<'Parent>.Name)
+                failwithf "More than one property of type %s list found in parent type %s" typeof<'Child>.Name typeof<'Parent>.Name
 
-        static member join (p: 'Parent list, cs: 'Child list) = 
-            match parentKeyGetter, childKeyGetter, combiner with
-            | None, _, _ -> failwith <| sprintf "Parent key of %s -> %s relation not found. Its name should be one of %s" 
-                                             typeof<'Parent>.Name typeof<'Child>.Name 
-                                             (RelationshipBuilder<'Parent, 'Child>.ParentKeyNames |> String.concat ", ")
-            | _, None, _ -> failwith <| sprintf "Child key of %s -> %s relation not found. Its name should be one of %s" 
-                                             typeof<'Parent>.Name typeof<'Child>.Name 
-                                             (RelationshipBuilder<'Parent, 'Child>.ChildKeyNames |> String.concat ", ")
-            | _, _, Choice2Of2 err -> failwith err
-            | Some pkGetter, Some ckGetter, Choice1Of2 combiner ->
-                Standard.join pkGetter ckGetter combiner (p, cs)
-
-        static member combine (p: 'Parent, cs:'Child list) = 
-            match combiner with
-            | Choice1Of2 c -> c p cs
-            | Choice2Of2 err -> failwith err
-    
-    and RelationshipBuilder<'Parent, 'Child>() =
-            
-        static let childKeyNames = 
-            let pname = typeof<'Parent>.Name.Split('`').[0].ToLower() 
-            [pname + "id"; pname + "_id"]
-
-        static let parentKeyNames = "id" :: childKeyNames
-    
-        static let tryGetKeyProp (t: Type) attrib names = 
-            t.GetProperties() 
-            |> Seq.tryFind (fun p -> p.GetCustomAttribute(attrib) <> null || names |> List.exists ((=) (p.Name.ToLower())))
-
-        static let keyType = 
-            tryGetKeyProp typeof<'Parent> typeof<IdAttribute> parentKeyNames 
-            |> Option.map (fun p -> p.PropertyType)
-            |> Option.get
-
-        static let builderType = 
-            typeof<RelationshipBuilder<_, _, _>>
-                .GetGenericTypeDefinition()
-                .MakeGenericType(typeof<'Parent>, typeof<'Child>, keyType)
-        
-        static member ParentKeyNames = parentKeyNames    
-        static member ChildKeyNames = childKeyNames
-        static member ParentKeyProp = tryGetKeyProp typeof<'Parent> typeof<IdAttribute> parentKeyNames
-        static member ChildKeyProp = tryGetKeyProp typeof<'Child> typeof<ParentIdAttribute> childKeyNames
-
-        static member val joiner: ('Parent list * 'Child list) -> 'Parent list = 
-            let parents = Expression.Parameter(typeof<'Parent list>)
-            let children = Expression.Parameter(typeof<'Child list>)
-            let joinMethod = builderType.GetMethod("join", BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
-            let joiner = Expression.Lambda<Func<'Parent list, 'Child list, 'Parent list>>(
-                            Expression.Call(null, joinMethod, parents, children), parents, children).Compile()                        
-            joiner.Invoke
-
-        static member val combiner: 'Parent * 'Child list -> 'Parent = 
-            let combineMethod = builderType.GetMethod("combine", BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
-            let parent = Expression.Parameter(typeof<'Parent>)
-            let children = Expression.Parameter(typeof<'Child list>)
-            let combine = Expression.Lambda<Func<'Parent, 'Child list, 'Parent>>(
-                            Expression.Call(null, combineMethod, parent, children), parent, children).Compile()                        
-            combine.Invoke
 
     /// <summary>
     /// Combines two functions transforming query results into one function with more parameters.
@@ -294,7 +288,7 @@ module Transforms =
         /// <param name="c">
         /// Child record list.
         /// </param>
-        let join<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.joiner(p, c)
+        let join<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.join(p, c)
 
         /// <summary>
         /// Combines a parent record with child record list.
@@ -305,7 +299,7 @@ module Transforms =
         /// <param name="c">
         /// Child record list.
         /// </param>
-        let combine<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.combiner(p, c)
+        let combine<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.combine(p, c)
 
         /// <summary>
         /// Builds parent record list from list of parent * child tuples.
@@ -314,7 +308,7 @@ module Transforms =
         /// List of parent * child tuples.
         /// </param>
         let group<'p, 'c when 'p: equality>(pc) = 
-            pc |> Standard.group (RelationshipBuilder<'p, 'c>.combiner |> curry)
+            pc |> Standard.group (RelationshipBuilder<'p, 'c>.combine |> curry)
 
     
 
