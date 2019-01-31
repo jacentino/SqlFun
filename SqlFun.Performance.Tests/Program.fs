@@ -8,10 +8,10 @@ open BenchmarkDotNet.Running
 [<EntryPoint>]
 let main argv = 
 
-    //let summary1 = BenchmarkRunner.Run<ReadMany>()
-    //let summary2 = BenchmarkRunner.Run<ReadOneManyTimes>()
+    let summary1 = BenchmarkRunner.Run<ReadMany>()
+    let summary2 = BenchmarkRunner.Run<ReadOneManyTimes>()
 
-    //let summary3 = BenchmarkRunner.Run<ReadManyAsync>()
+    let summary3 = BenchmarkRunner.Run<ReadManyAsync>()
     let summary4 = BenchmarkRunner.Run<ReadOneManyTimesAsync>()
 
     0 // return an integer exit code
