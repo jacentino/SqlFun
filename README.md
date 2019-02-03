@@ -209,3 +209,7 @@ Its synchronous equivalent is `DbAction.inTransaction`.
 For more comprehensive documentation refer project [wiki](https://github.com/jacentino/SqlFun/wiki).
 
 For more examples refer [test project](https://github.com/jacentino/SqlFun/tree/master/SqlFun.Tests).
+
+## Installation
+
+SqlFun is available as a [NuGet package](https://www.nuget.org/packages/SqlFun)
