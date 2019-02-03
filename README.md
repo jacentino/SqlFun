@@ -5,6 +5,9 @@ SqlFun is a tool for writing data access code in F# functional way.
 It's fast, type safe and gives you all powers of SQL, no custom query language constraints you.
 It's also lightweight, you need to know a [general idea](https://github.com/jacentino/SqlFun/wiki/Basic-concepts) and few functions (and, of course SQL).
 
+It's available as a [NuGet package](https://www.nuget.org/packages/SqlFun)
+
+
 ## Features
 * Works with any  ADO.NET provider
 * All SQL features available
@@ -31,8 +34,15 @@ There are two extensions, enabling provider-specific features:
 Most of us think about data access code as a separate layer. We don't like to spread SQL queries across all the application.
 Better way is to build an API exposing your database, consisting of structures representing database data, and functions responsible for processing this data. SqlFun makes a design requirement.
 
+## Installation
+SqlFun can be added to your solution from Package Manager Console:
+
+```PowerShell
+PM> Install-Package SqlFun
+```
+
 ### Prerequisites
-First step is to define function creating database connection,
+First step is to define function creating database connection and config record:
 ```fsharp
 let createConnection () = new SqlConnection(<your database connection string>)
 let generatorConfig = createDefaultConfig createConnection
@@ -210,6 +220,3 @@ For more comprehensive documentation refer project [wiki](https://github.com/jac
 
 For more examples refer [test project](https://github.com/jacentino/SqlFun/tree/master/SqlFun.Tests).
 
-## Installation
-
-SqlFun is available as a [NuGet package](https://www.nuget.org/packages/SqlFun)
