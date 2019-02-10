@@ -57,6 +57,15 @@ type TestQueries() =
         >> join Post.Id Tag.PostId (Post.withTags id)
         |> curry 
 
+    static member getSomePostsByIds: int list -> DataContext -> Post list = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
+
+    static member getSomePostsByTags: string list -> DataContext -> Post list = 
+        sql "select id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status from 
+             post p join tag t on t.postId = p.id
+             where t.name in (@tagName)
+             group by id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status"
+
     static member getPostsWithTags2: int -> DataContext -> Post list = 
         sql "select p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status,
                    t.postId as item_postId, t.name as item_name
@@ -245,6 +254,16 @@ type SqlQueryTests() =
     member this.``Result type can contain substructures``() =
         let p = TestQueries.getDecomposedPost 1 |> run
         Assert.AreEqual("jacenty", p.signature.author)
+
+    [<Test>]
+    member this.``Lists of ints are valid parameters (listDirectParamBuilder)``() =
+        let p = TestQueries.getSomePostsByIds [1; 2; 3] |> run
+        Assert.IsNotEmpty(p)
+
+    [<Test>]
+    member this.``Lists of strings are valid parameters (listParamBuilder)``() =
+        let p = TestQueries.getSomePostsByTags ["framework"; "options"] |> run
+        Assert.IsNotEmpty(p)
 
     [<Test>]
     member this.``Two queries can be combined by key value with join``() = 

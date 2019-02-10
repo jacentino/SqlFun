@@ -63,6 +63,25 @@ module ParamBuilder =
         |> Seq.map (fun a -> if a.Name <> "" then a.Name else field.Name)
         |> Seq.fold (fun last next -> next) ""
 
+
+    /// <summary>
+    /// Most default parameter building functionality.
+    /// </summary>
+    /// <param name="customPB">
+    /// Another parameter builder implementing customizations.
+    /// </param>
+    /// <param name="prefix">
+    /// Parameter name prefix.
+    /// </param>
+    /// <param name="name">
+    /// Parameter name.
+    /// </param>
+    /// <param name="expr">
+    /// Expression calculating parameter value from function parameter.
+    /// </param>
+    /// <param name="paramNames">
+    /// List of available parameter names extracted from SQL command.
+    /// </param>
     let rec getParamExpressions (customPB: ParamBuilder) (prefix: string) (name: string) (expr: Expression) (paramNames: string list) =         
         match expr.Type with
         | Connection ->
@@ -99,6 +118,107 @@ module ParamBuilder =
     let buildParamDefs pb t paramNames = 
         buildParamDefsInternal (cyclePB pb) t paramNames []
 
-
+    /// <summary>
+    /// Composes two parameter builders.
+    /// </summary>
+    /// <param name="pb1">
+    /// First parameter builder.
+    /// </param>
+    /// <param name="pb2">
+    /// Second parameter builder.
+    /// </param>
+    /// <param name="next">
+    /// Next item in parameter building cycle.
+    /// </param>
     let (<+>) (pb1: ParamBuilder -> ParamBuilder) (pb2: ParamBuilder-> ParamBuilder) (next: ParamBuilder): ParamBuilder = 
         pb1 <| pb2 next
+
+    /// <summary>
+    /// Parameter builder transforming list of values (intentionally of simple type)
+    /// by adding SQL parameters for all elements.
+    /// </summary>
+    /// <param name="isAllowed">
+    /// Function determining if list elements have valid type.
+    /// </param>
+    /// <param name="toString">
+    /// Converts element to string representing SQL literal of element.
+    /// </param>
+    /// <param name="defaultPB">
+    /// Next item in parameter building cycle.
+    /// </param>
+    /// <param name="prefix">
+    /// Parameter name prefix.
+    /// </param>
+    /// <param name="name">
+    /// Parameter name.
+    /// </param>
+    /// <param name="expr">
+    /// Expression calculating parameter value from function parameter.
+    /// </param>
+    /// <param name="names">
+    /// List of available parameter names extracted from SQL command.
+    /// </param>
+    let listParamBuilder isAllowed defaultPB prefix name (expr: Expression) names = 
+        match expr.Type with 
+        | CollectionOf itemType when isAllowed itemType ->
+            [
+                prefix + name,
+                expr,
+                fun (value: obj) (command: IDbCommand) ->
+                    let first = command.Parameters.Count
+                    for v in value :?> System.Collections.IEnumerable do
+                        let param = command.CreateParameter()
+                        param.ParameterName <- "@" + name + string(command.Parameters.Count - first)
+                        param.Value <- v
+                        command.Parameters.Add(param) |> ignore
+                    let names = [| for i in 0..command.Parameters.Count - first - 1 -> "@" + name + string(i) |] 
+                    let newCommandText = command.CommandText.Replace("@" + name, names |> String.concat ",")
+                    command.CommandText <- newCommandText
+                    command.Parameters.Count
+                ,
+                [ getFakeValue itemType ] :> obj
+            ]       
+        | _ ->
+            defaultPB prefix name expr names
+
+    /// <summary>
+    /// Parameter builder handling list of values (intentionally of simple type)
+    /// by injecting them directly into SQL command.
+    /// </summary>
+    /// <param name="isAllowed">
+    /// Function determining if list elements have valid type.
+    /// </param>
+    /// <param name="toString">
+    /// Converts element to string representing SQL literal of element.
+    /// </param>
+    /// <param name="defaultPB">
+    /// Next item in parameter building cycle.
+    /// </param>
+    /// <param name="prefix">
+    /// Parameter name prefix.
+    /// </param>
+    /// <param name="name">
+    /// Parameter name.
+    /// </param>
+    /// <param name="expr">
+    /// Expression calculating parameter value from function parameter.
+    /// </param>
+    /// <param name="names">
+    /// List of available parameter names extracted from SQL command.
+    /// </param>
+    let listDirectParamBuilder isAllowed toString defaultPB prefix name (expr: Expression) names = 
+        match expr.Type with 
+        | CollectionOf itemType when isAllowed itemType ->
+            [
+                prefix + name,
+                expr,
+                fun (value: obj) (command: IDbCommand) ->
+                    let values = [| for v in value :?> System.Collections.IEnumerable do yield toString v |] 
+                    let newCommandText = command.CommandText.Replace("@" + name, values |> String.concat ",")
+                    command.CommandText <- newCommandText
+                    command.Parameters.Count
+                ,
+                [ getFakeValue itemType ] :> obj
+            ]       
+        | _ ->
+            defaultPB prefix name expr names
