@@ -46,7 +46,7 @@ module NpgSql =
         else
             defaultPB prefix name expr names
 
-    let createDefaultConfig connectionBuilder = 
+    let createDefaultConfig (connectionBuilder: unit -> #IDbConnection) = 
             let lastDefault = createDefaultConfig connectionBuilder
             {
                 lastDefault with paramBuilder = NpgsqlParamBuilder <+> lastDefault.paramBuilder 

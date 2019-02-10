@@ -5,8 +5,8 @@ module Common =
     open System.Configuration
     open SqlFun
     open SqlFun.Queries
-    open SqlFun.Composite
     open SqlFun.NpgSql
+    open System.Data
 
 
     let createConnection () = new NpgsqlConnection(ConfigurationManager.ConnectionStrings.["SqlFunTests"].ConnectionString)

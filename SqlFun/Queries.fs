@@ -21,8 +21,15 @@ module Queries =
 
     type Toolbox() = 
 
-        static member executeSql (connection: IDbConnection) (transaction: IDbTransaction option) (commandText: string) (commandTimeout: int option) (assignParams: Func<IDbCommand, int>) (buildResult: Func<IDataReader, 't>) =
-            use command = connection.CreateCommand()
+        static member executeSql 
+                (createCommand: IDbConnection -> IDbCommand) 
+                (connection: IDbConnection) 
+                (transaction: IDbTransaction option) 
+                (commandText: string) 
+                (commandTimeout: int option) 
+                (assignParams: Func<IDbCommand, int>) 
+                (buildResult: Func<IDataReader, 't>) =
+            use command = createCommand(connection)
             match transaction with
             | Some t -> command.Transaction <- t
             | None -> ()
@@ -34,8 +41,16 @@ module Queries =
             use reader = command.ExecuteReader()
             buildResult.Invoke(reader)
 
-        static member executeProcedure (connection: IDbConnection) (transaction: IDbTransaction option) (procName: string) (commandTimeout: int option) (assignParams: Func<IDbCommand, int>) (buildResult: Func<IDataReader, 't>) (buildOutParams: Func<IDbCommand, 'u>) =
-            use command = connection.CreateCommand()
+        static member executeProcedure 
+                (createCommand: IDbConnection -> IDbCommand) 
+                (connection: IDbConnection) 
+                (transaction: IDbTransaction option) 
+                (procName: string) 
+                (commandTimeout: int option) 
+                (assignParams: Func<IDbCommand, int>) 
+                (buildResult: Func<IDataReader, 't>) 
+                (buildOutParams: Func<IDbCommand, 'u>) =
+            use command = createCommand(connection)
             command.CommandText <- procName
             command.CommandType <- CommandType.StoredProcedure
             match transaction with
@@ -56,9 +71,16 @@ module Queries =
             let result = buildResult.Invoke(reader)
             retVal, outParamVals, result
 
-        static member executeSqlAsync (connection: IDbConnection) (transaction: IDbTransaction option) (commandText: string) (commandTimeout: int option) (assignParams: Func<IDbCommand, int>) (buildResult: Func<DbDataReader, Async<'t>>) =
+        static member executeSqlAsync 
+                (createCommand: IDbConnection -> IDbCommand) 
+                (connection: IDbConnection) 
+                (transaction: IDbTransaction option) 
+                (commandText: string) 
+                (commandTimeout: int option) 
+                (assignParams: Func<IDbCommand, int>) 
+                (buildResult: Func<DbDataReader, Async<'t>>) =
             async {
-                use command = (connection :?> DbConnection).CreateCommand()
+                use command = createCommand(connection) :?> DbCommand
                 command.CommandText <- commandText
                 match transaction with
                 | Some t -> command.Transaction <- t :?> DbTransaction
@@ -71,9 +93,17 @@ module Queries =
                 return! buildResult.Invoke(reader)
             }
 
-        static member executeProcedureAsync (connection: IDbConnection) (transaction: IDbTransaction option) (procName: string) (commandTimeout: int option) (assignParams: Func<IDbCommand, int>) (buildResult: Func<DbDataReader, Async<'t>>) (buildOutParams: Func<IDbCommand, 'u>) =
+        static member executeProcedureAsync 
+                (createCommand: IDbConnection -> IDbCommand) 
+                (connection: IDbConnection) 
+                (transaction: IDbTransaction option) 
+                (procName: string) 
+                (commandTimeout: int option) 
+                (assignParams: Func<IDbCommand, int>) 
+                (buildResult: Func<DbDataReader, Async<'t>>) 
+                (buildOutParams: Func<IDbCommand, 'u>) =
             async {
-                use command = (connection :?> DbConnection).CreateCommand()
+                use command = createCommand(connection) :?> DbCommand
                 command.CommandText <- procName
                 command.CommandType <- CommandType.StoredProcedure
                 match transaction with
@@ -268,12 +298,12 @@ module Queries =
         | Some (_, texpr, _, _) -> texpr
         | None -> Expression.GetNoneUnionCase typeof<IDbTransaction option> :> Expression
 
-    let private generateSqlCommandCaller<'c when 'c :> IDbConnection> (createConnection: unit -> 'c)  (commandTimeout: int option) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (commandText: string)  (t: Type): obj = 
+    let private generateSqlCommandCaller (createConnection: unit -> IDbConnection) (createCommand: IDbConnection -> IDbCommand) (commandTimeout: int option) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (commandText: string)  (t: Type): obj = 
 
         let makeDiagnosticCall (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) = 
             use connection = createConnection()
             connection.Open()
-            use command = connection.CreateCommand()
+            use command = createCommand(connection)
             command.CommandText <- commandText
             for _, _, buildParam, fakeVal in paramDefs do
                 buildParam fakeVal command |> ignore
@@ -282,7 +312,7 @@ module Queries =
         let getResultMetadata (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) = 
             use connection = createConnection()
             connection.Open()
-            use command = connection.CreateCommand()
+            use command = createCommand(connection)
             command.CommandText <- commandText
             for _, expr, buildParam, fakeVal in paramDefs do
                 buildParam fakeVal command |> ignore
@@ -293,7 +323,7 @@ module Queries =
             let initial = getOneResultMetadata ()
             initial :: List.unfold (fun _ -> if schemaOnlyReader.NextResult() then Some (getOneResultMetadata(), ()) else None) ()
 
-        let genExecutor paramDefs returnType = 
+        let genExecutor createCommand paramDefs returnType = 
             let queryParamDefs = paramDefs |> withoutConnectionAndTransaction
             let assignParams = genParamAssigner queryParamDefs []    
             let metadata = if returnType <> typeof<unit> && not (Types.isAsyncOf returnType typeof<unit>) // Npgsql hangs on NextResult if no first result exists
@@ -305,19 +335,20 @@ module Queries =
             let connection = getConnectionExpr paramDefs
             let transaction = getTransactionExpr paramDefs
             let sql = Expression.Constant commandText :> Expression
+            let createCmd = Expression.Constant(createCommand) :> Expression
             let timeout = Expression.Constant(commandTimeout, typeof<int option>) :> Expression
             match returnType with
             | AsyncOf t ->
                 let buildResult = generateResultBuilder rowBuilder metadata t true
-                Expression.Call(getConcreteMethod t "executeSqlAsync", [ connection; transaction; sql; timeout; assignParams; buildResult ])
+                Expression.Call(getConcreteMethod t "executeSqlAsync", [ createCmd; connection; transaction; sql; timeout; assignParams; buildResult ])
             | _ ->
                 let buildResult = generateResultBuilder rowBuilder metadata returnType false
-                Expression.Call(getConcreteMethod returnType "executeSql", [ connection; transaction; sql; timeout; assignParams; buildResult ])
+                Expression.Call(getConcreteMethod returnType "executeSql", [ createCmd; connection; transaction; sql; timeout; assignParams; buildResult ])
 
         try
             let parameterNames = extractParameterNames commandText
             let (paramExprs, paramDefs, retType) = buildParamDefs paramBuilder t (List.append parameterNames [""])
-            let caller = genExecutor paramDefs retType
+            let caller = genExecutor createCommand paramDefs retType
             compileCaller paramExprs caller 
         with ex ->
             raise <| CompileTimeException(t, "sql command", commandText, ex)
@@ -325,10 +356,12 @@ module Queries =
     /// <summary>
     /// Values and functions allowing to customize generation of query execution functions.
     /// </summary>
-    type GeneratorConfig<'Connection when 'Connection :> IDbConnection> =
+    type GeneratorConfig =
         {
             /// The function providing a database connection used in generation.
-            createConnection: unit -> 'Connection 
+            createConnection: unit -> IDbConnection 
+            /// The function creating commands.
+            createCommand: IDbConnection -> IDbCommand
             /// The command timeout.
             commandTimeout: int option
             /// Function generating code creating query parameters from function parameters.
@@ -343,9 +376,10 @@ module Queries =
     /// <param name="connectionBuilder">
     /// Database connection - can not be left unspecified.
     /// </param>
-    let createDefaultConfig connectionBuilder =
+    let createDefaultConfig (connectionBuilder: unit -> #IDbConnection) =
         {
-            createConnection = connectionBuilder
+            createConnection = (connectionBuilder >> unbox<IDbConnection>)
+            createCommand = fun c -> c.CreateCommand()
             commandTimeout = None
             paramBuilder = ParamBuilder.getParamExpressions
             rowBuilder = ResultBuilder.getRowBuilderExpression
@@ -366,8 +400,8 @@ module Queries =
     /// <returns>
     /// A function of type 't executing command given by commandText parameter.
     /// </returns>
-    let sql<'t, 'c when 'c :> IDbConnection> (config: GeneratorConfig<'c>) (commandText: string): 't = 
-        generateSqlCommandCaller config.createConnection config.commandTimeout config.paramBuilder config.rowBuilder commandText typeof<'t> :?> 't
+    let sql<'t> (config: GeneratorConfig) (commandText: string): 't = 
+        generateSqlCommandCaller config.createConnection config.createCommand config.commandTimeout config.paramBuilder config.rowBuilder commandText typeof<'t> :?> 't
 
     let getStoredProcElementTypes returnType =
         match returnType with
@@ -411,30 +445,12 @@ module Queries =
         Expression.Lambda(expr, command) :> Expression
         
 
-    /// <summary>
-    /// Generates a function executing stored procedure.
-    /// </summary>
-    /// <typeparam name="t">
-    /// The function type.
-    /// </typeparam>
-    /// <param name="createConnection">
-    /// The function providing a database connection used in generation.
-    /// </param>
-    /// <param name="commandTimeout">
-    /// The command timeout.
-    /// </param>
-    /// <param name="procedureName">
-    /// The stored procedure to be executed.
-    /// </param>
-    /// <returns>
-    /// A function of type 't executing stored procedure given by procedureName parameter.
-    /// </returns>
-    let private generateStoredProcCaller<'c when 'c :> IDbConnection> (createConnection: unit -> 'c)  (commandTimeout: int option) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (procedureName: string) (t: Type): obj =
+    let private generateStoredProcCaller (createConnection: unit -> IDbConnection) (createCommand: IDbConnection-> IDbCommand) (commandTimeout: int option) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (procedureName: string) (t: Type): obj =
 
         let extractProcParamNames (procedureName: string) = 
             use connection = createConnection()
             connection.Open()
-            use command = connection.CreateCommand()
+            use command = createCommand(connection)
             command.CommandText <- "select p.parameter_name, p.parameter_mode, p.data_type
                                     from information_schema.parameters p
                                          join information_schema.routines r on r.specific_name = p.specific_name
@@ -485,7 +501,7 @@ module Queries =
             let initial = getOneResultMetadata ()
             initial :: List.unfold (fun _ -> if schemaOnlyReader.NextResult() then Some (getOneResultMetadata(), ()) else None) ()
 
-        let genExecutor paramDefs outParams returnType = 
+        let genExecutor createCommand paramDefs outParams returnType = 
             let queryParamDefs = paramDefs |> withoutConnectionAndTransaction
             let assignParams = genParamAssigner queryParamDefs outParams      
             let metadata = if returnType <> typeof<unit> && not (Types.isAsyncOf returnType typeof<unit>) // Npgsql hangs on NextResult if no first result exists
@@ -497,18 +513,19 @@ module Queries =
             let connection = getConnectionExpr paramDefs
             let transaction = getTransactionExpr paramDefs
             let sql = Expression.Constant(procedureName) :> Expression
+            let createCmd = Expression.Constant(createCommand) :> Expression
             let timeout = Expression.Constant(commandTimeout, typeof<int option>) :> Expression
             match returnType with
             | AsyncOf underlyingType ->
                 let (outParamsType, resultType) = getStoredProcElementTypes underlyingType
                 let buildResult = generateResultBuilder rowBuilder metadata resultType true
                 let outParamBuilder = genOutParamsBuilder outParams outParamsType
-                Expression.Call(getConcreteMethodN [| resultType; outParamsType |] "executeProcedureAsync", [ connection; transaction; sql; timeout; assignParams; buildResult; outParamBuilder ])
+                Expression.Call(getConcreteMethodN [| resultType; outParamsType |] "executeProcedureAsync", [ createCmd; connection; transaction; sql; timeout; assignParams; buildResult; outParamBuilder ])
             | _ -> 
                 let (outParamsType, resultType) = getStoredProcElementTypes returnType
                 let buildResult = generateResultBuilder rowBuilder metadata resultType false
                 let outParamBuilder = genOutParamsBuilder outParams outParamsType
-                Expression.Call(getConcreteMethodN [| resultType; outParamsType |] "executeProcedure", [ connection; transaction; sql; timeout; assignParams; buildResult; outParamBuilder ])
+                Expression.Call(getConcreteMethodN [| resultType; outParamsType |] "executeProcedure", [ createCmd; connection; transaction; sql; timeout; assignParams; buildResult; outParamBuilder ])
 
         try
             let parameters = extractProcParamNames procedureName 
@@ -521,7 +538,7 @@ module Queries =
                             |> Seq.map (fun (name, _, dbtype) -> name, dbtype)
                             |> List.ofSeq
             let (paramExprs, paramDefs, retType) = buildParamDefs paramBuilder t (List.append inParams [""]) 
-            let caller = genExecutor paramDefs outParams retType
+            let caller = genExecutor createCommand paramDefs outParams retType
             compileCaller paramExprs caller
         with ex ->
             raise <| CompileTimeException(t, "stored procedure", procedureName, ex) 
@@ -541,7 +558,7 @@ module Queries =
     /// <returns>
     /// A function of type 't executing stored procedure given by procedureName parameter.
     /// </returns>
-    let proc<'t, 'c when 'c :> IDbConnection> (config: GeneratorConfig<'c>) (procedureName: string): 't =
-        generateStoredProcCaller config.createConnection config.commandTimeout config.paramBuilder config.rowBuilder procedureName typeof<'t> :?> 't
+    let proc<'t> (config: GeneratorConfig) (procedureName: string): 't =
+        generateStoredProcCaller config.createConnection config.createCommand config.commandTimeout config.paramBuilder config.rowBuilder procedureName typeof<'t> :?> 't
 
     let test () = ()

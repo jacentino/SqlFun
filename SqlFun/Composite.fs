@@ -211,7 +211,7 @@ module Composite =
     /// <typeparam name="'t">
     /// The type of a template.
     /// </typeparam>
-    type FinalQueryPart<'t, 'c when 'c :> IDbConnection>(ctx: DataContext, config: GeneratorConfig<'c>, stringify: 't -> string) = 
+    type FinalQueryPart<'t>(ctx: DataContext, config: GeneratorConfig, stringify: 't -> string) = 
         interface IQueryPart<'t> with
             override this.Combine (template: 't) : 'q =
                 let generator = sql config
