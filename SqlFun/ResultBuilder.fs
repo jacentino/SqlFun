@@ -15,8 +15,6 @@ type RowBuilder = ParameterExpression -> Map<string, int * Type> -> string -> st
 
 module ResultBuilder = 
 
-    
-
     let private dataRecordColumnAccessMethodByType = 
         [
             typeof<Boolean>,    "GetBoolean"
@@ -63,16 +61,16 @@ module ResultBuilder =
 
     type Toolbox() = 
 
-        static member buildSingleResult (resultBuilder: Func<IDataReader, 't>) = 
+        static member BuildSingleResult (resultBuilder: Func<IDataReader, 't>) = 
             Func<IDataReader, 't>(fun (reader: IDataReader) -> if reader.Read() then resultBuilder.Invoke(reader) else failwith "Value does not exist. Use option type.")
         
-        static member buildOptionalResult (resultBuilder: Func<IDataReader, 't>) = 
+        static member BuildOptionalResult (resultBuilder: Func<IDataReader, 't>) = 
             Func<IDataReader, 't option>(fun (reader: IDataReader) -> if reader.Read() then Some (resultBuilder.Invoke(reader)) else None)
 
-        static member buildCollectionResult (resultBuilder: Func<IDataReader, 't>) = 
+        static member BuildCollectionResult (resultBuilder: Func<IDataReader, 't>) = 
             Func<IDataReader, 't list>(fun (reader: IDataReader) -> reader |> rmap resultBuilder.Invoke)
 
-        static member buildSingleResultAsync (resultBuilder: Func<IDataReader, 't>) = 
+        static member BuildSingleResultAsync (resultBuilder: Func<IDataReader, 't>) = 
             Func<DbDataReader, Async<'t>>(fun (reader: DbDataReader) -> 
                 async {
                     let! read = Async.AwaitTask(reader.ReadAsync())
@@ -81,7 +79,7 @@ module ResultBuilder =
                     else return failwith "Value does not exist. Use option type."
                 })        
 
-        static member buildOptionalResultAsync (resultBuilder: Func<IDataReader, 't>) = 
+        static member BuildOptionalResultAsync (resultBuilder: Func<IDataReader, 't>) = 
             Func<DbDataReader, Async<'t option>>(fun (reader: DbDataReader) -> 
                 async {
                     let! read = Async.AwaitTask(reader.ReadAsync())
@@ -90,35 +88,32 @@ module ResultBuilder =
                     else return None
                 })
 
-        static member buildCollectionResultAsync (resultBuilder: Func<IDataReader, 't>) = 
+        static member BuildCollectionResultAsync (resultBuilder: Func<IDataReader, 't>) = 
             Func<DbDataReader, Async<'t list>>(fun (reader: DbDataReader) -> reader |> rmapAsync resultBuilder.Invoke)
 
-        static member asyncBind (v: 't Async, f: Func<'t, 'u Async>) =
+        static member AsyncBind (v: 't Async, f: Func<'t, 'u Async>) =
             async.Bind(v, f.Invoke)
 
-        static member taskBind (v: Task<'t>, f: Func<'t, 'u Async>) =
+        static member TaskBind (v: Task<'t>, f: Func<'t, 'u Async>) =
             async.Bind(Async.AwaitTask(v), f.Invoke)
 
-        static member asyncReturn  (v: 't) =
+        static member AsyncReturn  (v: 't) =
             async.Return(v)
 
-        static member newList(): 't list =
+        static member NewList(): 't list =
             List.empty
 
-        static member intToEnum(value: int): 't =
+        static member IntToEnum(value: int): 't =
                 LanguagePrimitives.EnumOfValue value
 
-        static member throwOnInvalidEnumValue(value: 'v): 't = 
+        static member ThrowOnInvalidEnumValue(value: 'v): 't = 
             raise (ArgumentException("The " + value.ToString() + " value can not be converted to " + typeof<'t>.Name + " type."))
 
 
-    let private getConcreteMethod concreteType methodName = 
-        let m = typeof<Toolbox>.GetMethod(methodName, BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
-        m.MakeGenericMethod([| concreteType |])
-
-    let private getConcreteMethodN concreteTypes methodName = 
-        let m = typeof<Toolbox>.GetMethod(methodName, BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
-        m.MakeGenericMethod(concreteTypes)
+    type Expression with
+    
+        static member Call (genericParams: Type array, methodName: string, [<ParamArray>]arguments: Expression array ) =
+            Expression.Call(typeof<Toolbox>, genericParams, methodName, arguments)
 
 
     let private getFieldPrefix (field: PropertyInfo) = 
@@ -130,22 +125,24 @@ module ResultBuilder =
         failwithf "Type not supported: %O" t
 
     let coerce colType (targetType: Type) (expr: Expression) = 
-        if targetType.IsEnum then
-            let values = getEnumValues targetType       
+        match targetType with
+        | EnumOf (eType, values) ->
             if values |> Seq.exists (fun (e, v) -> e <> v)
             then        
-                let comparer v = Expression.Call(
-                                    Expression.Constant(v), 
-                                    typeof<obj>.GetMethod("Equals", [| typeof<obj> |]), 
-                                    Expression.Convert(expr, typeof<obj>))
-                let exprAsEnum = Expression.Call(getConcreteMethodN [| expr.Type; targetType|] "throwOnInvalidEnumValue", expr) :> Expression
+                let comparer v = 
+                    if eType = expr.Type then
+                        Expression.Equal(Expression.Constant(v, eType), expr) :> Expression
+                    else
+                        let exprAsObj = Expression.Convert(expr, typeof<obj>)
+                        Expression.Call(Expression.Constant(v), "Equals", exprAsObj) :> Expression
+                let exprAsEnum = Expression.Call([| expr.Type; targetType|], "ThrowOnInvalidEnumValue", expr) :> Expression
                 values 
-                    |> Seq.fold (fun cexpr (e, v) -> Expression.Condition(comparer v, Expression.Constant(e), cexpr) :> Expression) exprAsEnum
+                |> Seq.fold (fun cexpr (e, v) -> Expression.Condition(comparer v, Expression.Constant(e), cexpr) :> Expression) exprAsEnum
             else 
-                Expression.Call(getConcreteMethod targetType "intToEnum", expr) :> Expression
-        elif targetType = colType 
-        then expr
-        else Expression.Convert(expr, targetType) :> Expression
+                Expression.Call([| targetType |], "IntToEnum", expr) :> Expression
+        | _ when targetType = colType ->
+            expr
+        | _ -> Expression.Convert(expr, targetType) :> Expression
 
 
     let private buildColumnAccessor (reader: ParameterExpression) colType ordinal targetType = 
@@ -252,7 +249,7 @@ module ResultBuilder =
                             |> List.ofSeq                
             Expression.NewTuple(accessors)
         | CollectionOf t ->
-            Expression.Call(getConcreteMethod t "newList", []) :> Expression
+            Expression.Call([| t |], "NewList") :> Expression
         | Record fields ->
             let accessors = fields
                             |> Seq.map (fun field -> nextRB reader metadata (prefix + getFieldPrefix field) field.Name field.PropertyType)
@@ -283,9 +280,8 @@ module ResultBuilder =
 
     let generateResultBuilder rowBuilder metadata returnType isAsync = 
 
-        let generateCall returnType methodName resultBuilder = 
-            let concreteMethod = getConcreteMethod returnType (methodName + if isAsync then "Async" else "")
-            Expression.Call(concreteMethod, [resultBuilder])
+        let generateCall returnType methodName (resultBuilder: Expression) = 
+            Expression.Call([| returnType |], (methodName + if isAsync then "Async" else ""), resultBuilder)
 
         let buildOneResultSet metadata returnType = 
             let buildRow = buildRow (cycleRB rowBuilder)
@@ -295,21 +291,21 @@ module ResultBuilder =
                 Expression.Lambda(result, Expression.Parameter(typeof<IDataReader>)) :> Expression
             | SimpleType ->
                 let resultBuilder = buildScalar metadata returnType
-                generateCall returnType "buildSingleResult" resultBuilder :> Expression
+                generateCall returnType "BuildSingleResult" resultBuilder :> Expression
             | OptionOf t when isSimpleType t ->               
                 let resultBuilder = buildScalar metadata t
-                generateCall t "buildOptionalResult" resultBuilder :> Expression
+                generateCall t "BuildOptionalResult" resultBuilder :> Expression
             | CollectionOf t ->
                 let resultBuilder = if isSimpleType t 
                                     then buildScalar metadata t
                                     else buildRow metadata t
-                generateCall t "buildCollectionResult" resultBuilder :> Expression
+                generateCall t "BuildCollectionResult" resultBuilder :> Expression
             | OptionOf t ->
                 let resultBuilder = buildRow metadata t
-                generateCall t "buildOptionalResult" resultBuilder :> Expression
+                generateCall t "BuildOptionalResult" resultBuilder :> Expression
             | _ ->
                 let resultBuilder = buildRow metadata returnType
-                generateCall returnType "buildSingleResult" resultBuilder :> Expression
+                generateCall returnType "BuildSingleResult" resultBuilder :> Expression
 
         let genResultBuilderCall resultBuilder readerExpr firstResultProcessed = 
             if firstResultProcessed 
@@ -326,7 +322,7 @@ module ResultBuilder =
             else
                 let nextResultExpr = Expression.Call(reader, "NextResultAsync")
                 let adaptedBuilder = Expression.Lambda(Expression.Invoke(resultBuilder, reader), Expression.Parameter(typeof<bool>))
-                Expression.Call(getConcreteMethodN [| typeof<bool>; itemType |] "taskBind", nextResultExpr, adaptedBuilder) :> Expression
+                Expression.Call([| typeof<bool>; itemType |], "TaskBind", nextResultExpr, adaptedBuilder) :> Expression
 
         let rec buildMultiResultSetAsync isFirst metadata returnType = 
             let reader = Expression.Parameter(typeof<DbDataReader>, "reader")
@@ -342,10 +338,10 @@ module ResultBuilder =
                                     Expression.Parameter(rt, "item" + i.ToString()), genResultBuilderCallAsync innerRs reader true rt)
                             |> List.ofSeq                            
             let parameters = builders |> List.map fst
-            let tupleBuilder = Expression.Call(getConcreteMethod returnType "asyncReturn", Expression.NewTuple(parameters |> List.map (fun p -> p :> Expression))) :> Expression   
+            let tupleBuilder = Expression.Call([| returnType |], "AsyncReturn", Expression.NewTuple(parameters |> List.map (fun p -> p :> Expression))) :> Expression   
             
             let bindParam (bld: Expression) (param: ParameterExpression, itemExpr: Expression) = 
-                Expression.Call(getConcreteMethodN [| param.Type; returnType |] "asyncBind", itemExpr, Expression.Lambda(bld, param)) :> Expression
+                Expression.Call([| param.Type; returnType |], "AsyncBind", itemExpr, Expression.Lambda(bld, param)) :> Expression
                                     
             Expression.Lambda(builders |> List.rev |> List.fold bindParam tupleBuilder, reader) :> Expression
 

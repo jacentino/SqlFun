@@ -14,7 +14,6 @@ module Types =
             |> Seq.map (fun (e, vopt) -> e, match vopt with Some x -> x | None -> e)
             |> List.ofSeq
 
-
     let isOption (t: Type) = 
          t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
 
@@ -39,6 +38,14 @@ module Types =
 
     let (|Unit|_|) (t: Type) = 
         if t = typeof<unit> then Some () else None
+
+    let (|EnumOf|_|) (t: Type) = 
+        if t.IsEnum then 
+            let values = getEnumValues t
+            let valueType = values |> List.tryHead |> Option.map (fun (_, v) -> v.GetType()) |> Option.defaultValue t
+            Some (valueType, values)
+        else 
+            None
 
     let getUnderlyingType (optionType: Type) = 
         optionType.GetGenericArguments().[0]

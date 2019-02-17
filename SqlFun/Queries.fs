@@ -20,8 +20,9 @@ module Queries =
         [ while r.Read() do yield f r ]
 
     type Toolbox() = 
+        inherit ExpressionExtensions.Toolbox()
 
-        static member executeSql 
+        static member ExecuteSql 
                 (createCommand: IDbConnection -> IDbCommand) 
                 (connection: IDbConnection) 
                 (transaction: IDbTransaction option) 
@@ -41,7 +42,7 @@ module Queries =
             use reader = command.ExecuteReader()
             buildResult.Invoke(reader)
 
-        static member executeProcedure 
+        static member ExecuteProcedure 
                 (createCommand: IDbConnection -> IDbCommand) 
                 (connection: IDbConnection) 
                 (transaction: IDbTransaction option) 
@@ -71,7 +72,7 @@ module Queries =
             let result = buildResult.Invoke(reader)
             retVal, outParamVals, result
 
-        static member executeSqlAsync 
+        static member ExecuteSqlAsync 
                 (createCommand: IDbConnection -> IDbCommand) 
                 (connection: IDbConnection) 
                 (transaction: IDbTransaction option) 
@@ -93,7 +94,7 @@ module Queries =
                 return! buildResult.Invoke(reader)
             }
 
-        static member executeProcedureAsync 
+        static member ExecuteProcedureAsync 
                 (createCommand: IDbConnection -> IDbCommand) 
                 (connection: IDbConnection) 
                 (transaction: IDbTransaction option) 
@@ -123,114 +124,86 @@ module Queries =
                 return (if retValParam.Value = null then 0 else retValParam.Value :?> int), buildOutParams.Invoke(command), result                   
             }
 
-        static member unpackOption (value: 't option) = 
+        static member UnpackOption (value: 't option) = 
             match value with
             | Some v -> v :> obj
             | None -> DBNull.Value :> obj
 
-        static member mapOption (f: Func<'t, obj>) (opt: 't option) = Option.map f.Invoke opt
-
-        static member compileCaller<'t> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t> (parameters: ParameterExpression list, caller: Expression) =
             Expression.Lambda< Action<'t> >(caller.Reduce(), parameters).Compile()
 
-        static member compileCaller<'t1, 't2> (parameters: ParameterExpression list, caller: Expression) =      
+        static member CompileCaller<'t1, 't2> (parameters: ParameterExpression list, caller: Expression) =      
             let compiled = Expression.Lambda< Func<'t1, 't2> >(caller.Reduce(), parameters).Compile()
             fun a -> compiled.Invoke(a)
 
-        static member compileCaller<'t1, 't2, 't3> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 -> compiled.Invoke(a1, a2)
 
-        static member compileCaller<'t1, 't2, 't3, 't4> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 -> compiled.Invoke(a1, a2, a3)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 -> compiled.Invoke(a1, a2, a3, a4)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5, 't6> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5, 't6> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5, 't6> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 a5 -> compiled.Invoke(a1, a2, a3, a4, a5)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5, 't6, 't7> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 a5 a6 -> compiled.Invoke(a1, a2, a3, a4, a5, a6)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 a5 a6 a7 -> compiled.Invoke(a1, a2, a3, a4, a5, a6, a7)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 a5 a6 a7 a8 -> compiled.Invoke(a1, a2, a3, a4, a5, a6, a7, a8)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 a5 a6 a7 a8 a9 -> compiled.Invoke(a1, a2, a3, a4, a5, a6, a7, a8, a9)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 -> compiled.Invoke(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 -> compiled.Invoke(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 -> compiled.Invoke(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13, 't14> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13, 't14> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13, 't14> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 -> compiled.Invoke(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13, 't14, 't15> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13, 't14, 't15> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13, 't14, 't15> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 -> compiled.Invoke(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14)
 
-        static member compileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13, 't14, 't15, 't16> (parameters: ParameterExpression list, caller: Expression) =
+        static member CompileCaller<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13, 't14, 't15, 't16> (parameters: ParameterExpression list, caller: Expression) =
             let compiled = Expression.Lambda< Func<'t1, 't2, 't3, 't4, 't5, 't6, 't7, 't8, 't9, 't10, 't11, 't12, 't13, 't14, 't15, 't16> >(caller.Reduce(), parameters).Compile()
             fun a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15-> compiled.Invoke(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
 
-    let private getConcreteMethod concreteType methodName = 
-        let m = typeof<Toolbox>.GetMethod(methodName, BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
-        m.MakeGenericMethod([| concreteType |])
+    type Expression with
+    
+        static member Call (genericParams: Type array, methodName: string, [<ParamArray>]arguments: Expression array ) =
+            Expression.Call(typeof<Toolbox>, genericParams, methodName, arguments)
 
-    let private getConcreteMethodN concreteTypes methodName = 
-        let m = typeof<Toolbox>.GetMethod(methodName, BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
-        m.MakeGenericMethod(concreteTypes)
-
-    let private convertIfEnum (expr: Expression) = 
-        if expr.Type.IsEnum
-        then
-            let exprAsObj = Expression.Convert(expr, typeof<obj>) :> Expression
-            let values = getEnumValues expr.Type
-            if values |> Seq.exists (fun (e, v) -> e <> v)
-            then            
-                let comparer e = Expression.Call(Expression.Constant(e), "Equals", exprAsObj) :> Expression
-                values 
-                    |> Seq.fold (fun cexpr (e, v) -> Expression.Condition(comparer e, Expression.Constant(v, typeof<obj>), cexpr) :> Expression) exprAsObj
-            else
-                exprAsObj
-        else
-            expr
-
-    let private convertEnumOption (expr: Expression) =
-        let param = Expression.Parameter(getUnderlyingType expr.Type, "v")
-        if param.Type.IsEnum
-        then 
-            Expression.Call(getConcreteMethod param.Type "mapOption", Expression.Lambda(convertIfEnum (param), param), expr) :> Expression
-        else 
-            expr
 
     let private convertAsNeeded (expr: Expression) =
         match expr.Type with
-        | OptionOf _ ->
-            let converter = convertEnumOption expr
-            Expression.Call(getConcreteMethod (getUnderlyingType converter.Type) "unpackOption", converter) :> Expression
+        | OptionOf optType ->
+            Expression.Call([| optType |], "UnpackOption", expr) :> Expression
         | _ ->
-            Expression.Convert(convertIfEnum expr, typeof<obj>) :> Expression
+            Expression.Convert(expr, typeof<obj>) :> Expression
 
     let private createInParam (command: Expression) (name: string, getter: Expression, assigner: (obj -> IDbCommand -> int), fakeVal: obj) =
         let adapter = Expression.Constant(Func<obj, Func<IDbCommand, int>>(fun value -> Func<IDbCommand, int>(assigner value)))    
@@ -281,7 +254,7 @@ module Queries =
     
     let private compileCaller (paramDefs: ParameterExpression list) (caller: Expression) = 
         let compiler = typeof<Toolbox>.GetMethods(BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic) 
-                        |> Seq.find (fun m -> m.Name = "compileCaller" && m.GetGenericArguments().Length = (List.length paramDefs) + 1)
+                        |> Seq.find (fun m -> m.Name = "CompileCaller" && m.GetGenericArguments().Length = (List.length paramDefs) + 1)
         let compiler = compiler.MakeGenericMethod(Seq.append (paramDefs |> Seq.map (fun p -> p.Type)) [caller.Type] |> Seq.toArray)
         compiler.Invoke(null, [| paramDefs; caller |])
 
@@ -340,10 +313,10 @@ module Queries =
             match returnType with
             | AsyncOf t ->
                 let buildResult = generateResultBuilder rowBuilder metadata t true
-                Expression.Call(getConcreteMethod t "executeSqlAsync", [ createCmd; connection; transaction; sql; timeout; assignParams; buildResult ])
+                Expression.Call([| t |], "ExecuteSqlAsync", createCmd, connection, transaction, sql, timeout, assignParams, buildResult) 
             | _ ->
                 let buildResult = generateResultBuilder rowBuilder metadata returnType false
-                Expression.Call(getConcreteMethod returnType "executeSql", [ createCmd; connection; transaction; sql; timeout; assignParams; buildResult ])
+                Expression.Call([| returnType |], "ExecuteSql", createCmd, connection, transaction, sql, timeout, assignParams, buildResult) 
 
         try
             let parameterNames = extractParameterNames commandText
@@ -520,12 +493,12 @@ module Queries =
                 let (outParamsType, resultType) = getStoredProcElementTypes underlyingType
                 let buildResult = generateResultBuilder rowBuilder metadata resultType true
                 let outParamBuilder = genOutParamsBuilder outParams outParamsType
-                Expression.Call(getConcreteMethodN [| resultType; outParamsType |] "executeProcedureAsync", [ createCmd; connection; transaction; sql; timeout; assignParams; buildResult; outParamBuilder ])
+                Expression.Call([| resultType; outParamsType |], "ExecuteProcedureAsync", createCmd, connection, transaction, sql, timeout, assignParams, buildResult, outParamBuilder)
             | _ -> 
                 let (outParamsType, resultType) = getStoredProcElementTypes returnType
                 let buildResult = generateResultBuilder rowBuilder metadata resultType false
                 let outParamBuilder = genOutParamsBuilder outParams outParamsType
-                Expression.Call(getConcreteMethodN [| resultType; outParamsType |] "executeProcedure", [ createCmd; connection; transaction; sql; timeout; assignParams; buildResult; outParamBuilder ])
+                Expression.Call([| resultType; outParamsType |], "ExecuteProcedure", createCmd, connection, transaction, sql, timeout, assignParams, buildResult, outParamBuilder)
 
         try
             let parameters = extractProcParamNames procedureName 

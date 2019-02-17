@@ -13,7 +13,7 @@ open SqlFun.ExpressionExtensions
 type ParamBuilder = string -> string -> Expression -> string list -> (string * Expression * (obj -> IDbCommand -> int) * obj) list
 
 module ParamBuilder =        
-    
+
     let (|Connection|_|) (t: Type) =
         if typeof<IDbConnection>.IsAssignableFrom(t) then Some () else None
 
@@ -63,6 +63,23 @@ module ParamBuilder =
         |> Seq.map (fun a -> if a.Name <> "" then a.Name else field.Name)
         |> Seq.fold (fun last next -> next) ""
 
+    let private convertEnum (enumType: Type) (values: (obj * obj) list) (expr: Expression) = 
+        if values |> Seq.exists (fun (e, v) -> e <> v) then            
+            let comparer e = Expression.Equal(Expression.Constant(e), expr) :> Expression
+            values |> Seq.fold 
+                        (fun cexpr (e, v) -> Expression.Condition(comparer e, Expression.Constant(v, enumType), cexpr) :> Expression) 
+                        (Expression.Constant(null, enumType) :> Expression)
+        else
+            expr
+
+    let private convertOption (optType) (expr: Expression) =
+        let param = Expression.Parameter(optType, "v")
+        match param.Type with
+        | EnumOf (eType, values) -> 
+            Expression.Call([| optType; eType |], "MapOption", Expression.Lambda(convertEnum eType values param, param), expr) :> Expression
+        | _ ->
+            expr
+
 
     /// <summary>
     /// Most default parameter building functionality.
@@ -95,6 +112,12 @@ module ParamBuilder =
             |> List.ofSeq
         | Tuple _ ->
             getTupleParamExpressions customPB expr 0 paramNames
+        | OptionOf optType when optType.IsEnum ->
+            let expr = convertOption optType expr
+            getParamExpressions customPB prefix name expr paramNames
+        | EnumOf (eType, values) ->
+            let expr = Expression.Convert(convertEnum eType values expr, typeof<obj>) :> Expression
+            getParamExpressions customPB prefix name expr paramNames
         | _ ->
             [prefix + name, expr, buildInParam (prefix + name, expr), getFakeValue expr.Type]
 
@@ -222,3 +245,10 @@ module ParamBuilder =
             ]       
         | _ ->
             defaultPB prefix name expr names
+
+    let simpleConversionParamBuilder (convert: 't -> 'c) defaultPB prefix name (expr: Expression) names =
+        if expr.Type = typeof<'t> then
+            let convertExpr = Expression.Invoke(Expression.Constant(Func<'t, 'c>(convert)), expr) 
+            defaultPB prefix name (convertExpr :> Expression) names
+        else
+            defaultPB prefix name expr names        

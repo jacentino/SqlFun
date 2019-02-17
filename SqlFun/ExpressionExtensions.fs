@@ -8,6 +8,17 @@ open Microsoft.FSharp.Reflection
 
 module ExpressionExtensions = 
 
+
+    type Toolbox() = 
+        static member MapOption (f: Func<'t1, 't2>) (opt: 't1 option) = Option.map f.Invoke opt
+
+    let private getConcreteMethod (ownerType: Type) concreteTypes methodName = 
+        let m = ownerType.GetMethod(methodName, BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
+        if m <> null then
+            Some <| m.MakeGenericMethod(concreteTypes)
+        else
+            None
+        
     let rec findMethod (name: string) (paramTypes: Type[]) (typ: Type) = 
         let mth = typ.GetMethod(name, paramTypes)
         if mth <> null then
@@ -62,3 +73,11 @@ module ExpressionExtensions =
             | Some m -> Expression.Call(m, arguments)
             | None -> failwith ("Method not found: " + methodName)
 
+        static member Call (ownerType: Type, genericParams: Type array, methodName: string, [<ParamArray>]arguments: Expression array ) =
+            let mth = getConcreteMethod ownerType genericParams methodName 
+            match mth with
+            | Some m -> Expression.Call(m, arguments)
+            | None -> failwith ("Method not found: " + methodName)
+
+        static member Call (genericParams: Type array, methodName: string, [<ParamArray>]arguments: Expression array ) =
+            Expression.Call(typeof<Toolbox>, genericParams, methodName, arguments)

@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>SqlFun</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DocumentationFile>bin\Debug\netstandard2.0\SqlFun.XML</DocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DocumentationFile>bin\Release\netstandard2.0\SqlFun.XML</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\SqlFun\AssemblyInfo.fs" />
+    <Compile Include="..\SqlFun\ExpressionExtensions.fs" />
+    <Compile Include="..\SqlFun\CompileTimeException.fs" />
+    <Compile Include="..\SqlFun\Attributes.fs" />
+    <Compile Include="..\SqlFun\Types.fs" />
+    <Compile Include="..\SqlFun\DataContext.fs" />
+    <Compile Include="..\SqlFun\DbBuilder.fs" />
+    <Compile Include="..\SqlFun\ParamBuilder.fs" />
+    <Compile Include="..\SqlFun\ResultBuilder.fs" />
+    <Compile Include="..\SqlFun\Queries.fs" />
+    <Compile Include="..\SqlFun\Transforms.fs" />
+    <Compile Include="..\SqlFun\MsSql.fs" />
+    <Compile Include="..\SqlFun\Crud.fs" />
+    <Compile Include="..\SqlFun\Statements.fs" />
+    <Compile Include="..\SqlFun\Composite.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Data.SqlClient" Version="4.6.0" />
+  </ItemGroup>
+
+</Project>
