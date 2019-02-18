@@ -163,7 +163,7 @@ let getBlogWithPosts: int -> DataContext -> Blog Async =
          select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
          from post 
          where blogId = @id"
-    >> AsyncDb.map update<_, Post>
+    >> AsyncDb.map combine<_, Post>
 ```
 There are also functions that allow to combine multi-row results by joining many results or grouping wide results.
 
