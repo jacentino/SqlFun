@@ -13,16 +13,17 @@ type StoredProcs() =
         
         static member GetAllPosts: int -> DataContext -> Post list Async = 
             proc "GetAllPosts"
-            >> AsyncDb.map (resultOnly(combineTransforms 
-                                (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree)) 
-                                (join Post.Id Tag.PostId (Post.withTags id))))
+            >> AsyncDb.map (resultOnly
+                            >> (combineTransforms 
+                                    (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree)) 
+                                    (join Post.Id Tag.PostId (Post.withTags id))))
 
         static member FindPostsFull: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> (int * unit * Post list) =
             proc "FindPosts"
 
         static member FindPostsResultOnly: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list =
             proc "FindPosts"
-            >> DbAction.map (resultOnly id)
+            >> DbAction.map resultOnly
 
 
 [<TestFixture>]
