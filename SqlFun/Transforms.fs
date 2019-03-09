@@ -108,8 +108,7 @@ module Transforms =
     /// <summary>
     /// Extract result sets from stored procedure result tuple.
     /// </summary>
-    let resultOnly (map: 't -> 'u) (_: int, (), result: 't) = 
-        map result
+    let resultOnly (_: int, (), result: 't) = result
 
     /// <summary>
     /// Extract output parameters from stored procedure result tuple.

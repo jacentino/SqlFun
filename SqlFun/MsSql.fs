@@ -32,6 +32,13 @@ module MsSql =
         else
             expr
 
+    
+    let private getIsSome (t: Type) = t.GetMethod("get_IsSome", BindingFlags.Public ||| BindingFlags.Static)
+
+    let private getSetter (t: Type) = typeof<SqlDataRecord>.GetMethod("Set" + t.Name)
+
+    let private getOptValue expr = Expression.Property (expr, "Value")
+
     let rec private getUpdateExpr (positions: Map<string, int>) (record: Expression) (root: Expression): Expression = 
         match root.Type with
         | Tuple elts -> 
@@ -39,33 +46,34 @@ module MsSql =
             |> Seq.mapi (fun i t -> Expression.PropertyOrField(root, "Item" + (i + 1).ToString()) |> getUpdateExpr positions record)                        
             |> Expression.Block :> Expression
         | _ ->
-            let exprs = FSharpType.GetRecordFields root.Type
-                        |> Seq.filter (fun p -> not (isCollectionType p.PropertyType))
-                        |> Seq.filter (fun p -> not (isSimpleType p.PropertyType || isSimpleTypeOption p.PropertyType) || positions.ContainsKey p.Name)
-                        |> Seq.map (fun p -> match p.PropertyType with
-                                             | SimpleType -> 
-                                                let valueExpr = convertIfEnum (Expression.Property(root, p))
-                                                let setter = typeof<SqlDataRecord>.GetMethod("Set" + valueExpr.Type.Name)
-                                                Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), valueExpr)
-                                                :> Expression
-                                             | SimpleTypeOption ->
-                                                let valueExpr = Expression.Property(root, p)
-                                                let optValueExpr = convertIfEnum (Expression.Property (valueExpr, "Value"))
-                                                let setter = typeof<SqlDataRecord>.GetMethod("Set" + optValueExpr.Type.Name)
-                                                Expression.IfThen(
-                                                    Expression.Call(valueExpr.Type.GetMethod("get_IsSome", BindingFlags.Public ||| BindingFlags.Static), valueExpr),
-                                                    Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), optValueExpr))
-                                                :> Expression
-                                             | OptionOf _ ->
-                                                let valueExpr = Expression.Property(root, p)
-                                                let optValueExpr = Expression.Property (valueExpr, "Value")
-                                                Expression.IfThen(
-                                                    Expression.Call(valueExpr.Type.GetMethod("get_IsSome", BindingFlags.Public ||| BindingFlags.Static), valueExpr),
-                                                    getUpdateExpr positions record optValueExpr)
-                                                :> Expression
-                                             | _ ->  
-                                                Expression.Property(root, p) |> getUpdateExpr positions record)
-                        |> List.ofSeq
+            let exprs = 
+                [ for p in FSharpType.GetRecordFields root.Type do
+                    if not (isCollectionType p.PropertyType) && 
+                       not (isSimpleType p.PropertyType || isSimpleTypeOption p.PropertyType) || positions.ContainsKey p.Name 
+                    then
+                        yield match p.PropertyType with
+                              | SimpleType -> 
+                                    let valueExpr = convertIfEnum (Expression.Property(root, p))
+                                    let setter = getSetter valueExpr.Type
+                                    Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), valueExpr) :> Expression
+                              | SimpleTypeOption ->
+                                    let valueExpr = Expression.Property(root, p)
+                                    let optValueExpr = convertIfEnum (getOptValue valueExpr)
+                                    let setter = getSetter optValueExpr.Type
+                                    Expression.IfThen(
+                                        Expression.Call(getIsSome valueExpr.Type, valueExpr),
+                                            Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), optValueExpr))
+                                    :> Expression
+                              | OptionOf _ ->
+                                    let valueExpr = Expression.Property(root, p)
+                                    let optValueExpr = getOptValue valueExpr
+                                    Expression.IfThen(
+                                        Expression.Call(getIsSome valueExpr.Type, valueExpr), 
+                                        getUpdateExpr positions record optValueExpr)
+                                    :> Expression
+                              | _ ->  
+                                    Expression.Property(root, p) |> getUpdateExpr positions record
+                ]
             if exprs.IsEmpty 
             then Expression.UnitConstant :> Expression
             else exprs |> Expression.Block :> Expression
@@ -109,7 +117,7 @@ module MsSql =
         let convert = Expression.Assign(itemVar, Expression.Convert(itemParam, itemType)) :> Expression
         let positions = metadata |> Seq.mapi (fun i m -> m.Name, i) |> Map.ofSeq
         let updateBlock = Expression.Block([itemVar], [convert; getUpdateExpr positions dataRecParam itemVar])
-        let updater = Expression.Lambda< Action<SqlDataRecord, obj> >(updateBlock, dataRecParam, itemParam).Compile()
+        let updater = Expression.Lambda<Action<SqlDataRecord, obj> >(updateBlock, dataRecParam, itemParam).Compile()
 
         fun (items: obj) ->
             let record = SqlDataRecord(metadata)
@@ -118,6 +126,8 @@ module MsSql =
             else
                 seq {
                     for item in itemSeq do
+                        for i in 0..record.FieldCount - 1 do
+                            record.SetDBNull(i)
                         updater.Invoke (record, item)
                         yield record
                 }
