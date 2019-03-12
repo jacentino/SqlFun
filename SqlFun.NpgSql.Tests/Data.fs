@@ -115,26 +115,26 @@ open Data
 module Tooling = 
     
     let cleanup: DataContext -> unit = 
-        sql "delete from post where id > 2;
+        sql "delete from post where postid > 2;
              delete from tag where postId = 2"
 
     let getNumberOfPosts: DataContext -> int = 
         sql "select count(*) from post"
 
+    let getNumberOfBlogs: DataContext -> int = 
+        sql "select count(*) from blog"
+
+    let deleteAllButFirstBlog: DataContext -> unit = 
+        sql "delete from blog where blogid > 1"
+
     let getPostByName: string -> DataContext -> Post = 
         sql "select * from post where name = @name"
 
     let getPost: int -> DataContext -> Post = 
-        sql "select * from post where id = @id"
-
-    let insertPost: Post -> DataContext -> int = 
-        sql "insert into post 
-                    (blogId, name, title, content, author, createdAt, status)
-             values (@blogId, @name, @title, @content, @author, @createdAt, @status);
-             select scope_identity()"
+        sql "select * from post where postid = @id"
 
     let deletePost: int -> DataContext -> unit =
-        sql "delete from post where id = @id"
+        sql "delete from post where postid = @id"
 
     let getTags: int -> DataContext -> Tag list = 
         sql "select postId, name from Tag where postId = @postId"
