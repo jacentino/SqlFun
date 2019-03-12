@@ -183,6 +183,9 @@ type TestQueries() =
         sql "declare @postId int; set @postId = @p;
              select * from post where id = @postId"
 
+    static member getBlogsByCreatedBeforeDate: DateTimeOffset -> DataContext -> Blog list Async = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where createdAt < @createdAt"
+        
 
 [<TestFixture>]
 type SqlQueryTests() = 
@@ -510,3 +513,8 @@ type SqlQueryTests() =
         let pl = TestQueries.getPostsWithTags 1 |> run 
         let p = pl |> List.find (fun p -> p.id = 2)
         Assert.AreEqual (2, p.tags |> List.length)
+
+    [<Test>]
+    member this.``DateTimeOffset is handled correctly``() = 
+        let d = DateTimeOffset.Now
+        TestQueries.getBlogsByCreatedBeforeDate d |> runAsync |> Async.RunSynchronously |> ignore

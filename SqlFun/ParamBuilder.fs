@@ -13,6 +13,8 @@ open SqlFun.ExpressionExtensions
 type ParamBuilder = string -> string -> Expression -> string list -> (string * Expression * (obj -> IDbCommand -> int) * obj) list
 
 module ParamBuilder =        
+    open System.Text.RegularExpressions
+    open System.Linq
 
     let (|Connection|_|) (t: Type) =
         if typeof<IDbConnection>.IsAssignableFrom(t) then Some () else None
@@ -22,7 +24,7 @@ module ParamBuilder =
 
     let private buildInParam (name: string, expr: Expression) value (command: IDbCommand) =
         let param = command.CreateParameter()
-        param.ParameterName <- "@" + name
+        param.ParameterName <- name
         param.Value <- value
         command.Parameters.Add(param)            
 
@@ -80,6 +82,24 @@ module ParamBuilder =
         | _ ->
             expr
 
+    /// <summary>
+    /// Searches for parameter names in a command.
+    /// </summary>
+    /// <param name="commandText">
+    /// The SQL command.
+    /// </param>
+    let extractParameterNames prefix commandText = 
+        let var = sprintf "(declare\s+\%s[a-zA-Z0-9_]+)|(\%s\%s[a-zA-Z0-9_]+)" prefix prefix prefix
+        let cmd = Regex.Matches(commandText, var, RegexOptions.IgnoreCase).Cast<Match>()
+                    |> Seq.collect (fun m -> m.Captures.Cast<Capture>())
+                    |> Seq.map (fun c -> c.Value.Split(' ').Last())
+                    |> Seq.fold (fun (cmd: string) tr -> cmd.Replace(tr, "")) commandText
+        let param = sprintf "\%s[a-zA-Z0-9_]+" prefix
+        Regex.Matches(cmd, param, RegexOptions.IgnoreCase).Cast<Match>() 
+        |> Seq.collect (fun m -> m.Captures.Cast<Capture>()) 
+        |> Seq.map (fun c -> c.Value.Substring(1))
+        |> Seq.distinct
+        |> List.ofSeq
 
     /// <summary>
     /// Most default parameter building functionality.
@@ -181,7 +201,7 @@ module ParamBuilder =
     /// <param name="names">
     /// List of available parameter names extracted from SQL command.
     /// </param>
-    let listParamBuilder isAllowed defaultPB prefix name (expr: Expression) names = 
+    let listParamBuilder isAllowed paramPrefix defaultPB prefix name (expr: Expression) names = 
         match expr.Type with 
         | CollectionOf itemType when isAllowed itemType ->
             [
@@ -191,11 +211,11 @@ module ParamBuilder =
                     let first = command.Parameters.Count
                     for v in value :?> System.Collections.IEnumerable do
                         let param = command.CreateParameter()
-                        param.ParameterName <- "@" + name + string(command.Parameters.Count - first)
+                        param.ParameterName <- name + string(command.Parameters.Count - first)
                         param.Value <- v
                         command.Parameters.Add(param) |> ignore
-                    let names = [| for i in 0..command.Parameters.Count - first - 1 -> "@" + name + string(i) |] 
-                    let newCommandText = command.CommandText.Replace("@" + name, names |> String.concat ",")
+                    let names = [| for i in 0..command.Parameters.Count - first - 1 -> paramPrefix + name + string(i) |] 
+                    let newCommandText = command.CommandText.Replace(paramPrefix + name, names |> String.concat ",")
                     command.CommandText <- newCommandText
                     command.Parameters.Count
                 ,

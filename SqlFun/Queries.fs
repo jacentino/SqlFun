@@ -226,7 +226,7 @@ module Queries =
         Expression.Block(
             [| param |],
             Expression.Assign(param, Expression.Call(command, "CreateParameter")),
-            Expression.Assign(Expression.Property(param, "ParameterName"), Expression.Constant("@" + name)),
+            Expression.Assign(Expression.Property(param, "ParameterName"), Expression.Constant(name)),
             Expression.Assign(Expression.Property(param, "DbType"), Expression.Constant(getDbTypeEnum dbtype)),
             Expression.Assign(Expression.Property(param, "Direction"), Expression.Constant(ParameterDirection.Output)),
             Expression.Call(Expression.Property(command, "Parameters"), "Add", param)) 
@@ -241,17 +241,6 @@ module Queries =
         else 
             Expression.Lambda(Expression.Constant(0), command) :> Expression
 
-    let private extractParameterNames commandText = 
-        let cmd = Regex.Matches(commandText, "(declare\s+\@[a-zA-Z0-9_]+)|(\@\@[a-zA-Z0-9_]+)", RegexOptions.IgnoreCase).Cast<Match>()
-                    |> Seq.collect (fun m -> m.Captures.Cast<Capture>())
-                    |> Seq.map (fun c -> c.Value.Split(' ').Last())
-                    |> Seq.fold (fun (cmd: string) tr -> cmd.Replace(tr, "")) commandText
-        Regex.Matches(cmd, "\@[a-zA-Z0-9_]+", RegexOptions.IgnoreCase).Cast<Match>() 
-        |> Seq.collect (fun m -> m.Captures.Cast<Capture>()) 
-        |> Seq.map (fun c -> c.Value.Substring(1))
-        |> Seq.distinct
-        |> List.ofSeq
-    
     let private compileCaller (paramDefs: ParameterExpression list) (caller: Expression) = 
         let compiler = typeof<Toolbox>.GetMethods(BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic) 
                         |> Seq.find (fun m -> m.Name = "CompileCaller" && m.GetGenericArguments().Length = (List.length paramDefs) + 1)
@@ -271,7 +260,7 @@ module Queries =
         | Some (_, texpr, _, _) -> texpr
         | None -> Expression.GetNoneUnionCase typeof<IDbTransaction option> :> Expression
 
-    let private generateSqlCommandCaller (createConnection: unit -> IDbConnection) (createCommand: IDbConnection -> IDbCommand) (commandTimeout: int option) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (commandText: string)  (t: Type): obj = 
+    let private generateSqlCommandCaller (createConnection: unit -> IDbConnection) (createCommand: IDbConnection -> IDbCommand) (commandTimeout: int option) (extractParameterNames: string -> string list) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (commandText: string)  (t: Type): obj = 
 
         let makeDiagnosticCall (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) = 
             use connection = createConnection()
@@ -337,6 +326,8 @@ module Queries =
             createCommand: IDbConnection -> IDbCommand
             /// The command timeout.
             commandTimeout: int option
+            /// Function searching for parameter names in a command text.
+            paramNameFinder: string -> string list
             /// Function generating code creating query parameters from function parameters.
             paramBuilder: ParamBuilder -> ParamBuilder
             /// Function generating code creating typed result from data reader.
@@ -354,6 +345,7 @@ module Queries =
             createConnection = (connectionBuilder >> unbox<IDbConnection>)
             createCommand = fun c -> c.CreateCommand()
             commandTimeout = None
+            paramNameFinder = ParamBuilder.extractParameterNames "@"
             paramBuilder = ParamBuilder.getParamExpressions
             rowBuilder = ResultBuilder.getRowBuilderExpression
         }
@@ -374,7 +366,7 @@ module Queries =
     /// A function of type 't executing command given by commandText parameter.
     /// </returns>
     let sql<'t> (config: GeneratorConfig) (commandText: string): 't = 
-        generateSqlCommandCaller config.createConnection config.createCommand config.commandTimeout config.paramBuilder config.rowBuilder commandText typeof<'t> :?> 't
+        generateSqlCommandCaller config.createConnection config.createCommand config.commandTimeout config.paramNameFinder config.paramBuilder config.rowBuilder commandText typeof<'t> :?> 't
 
     let getStoredProcElementTypes returnType =
         match returnType with
@@ -388,7 +380,7 @@ module Queries =
         let getParamExpr name = Expression.Property(
                                     Expression.Convert(
                                         Expression.Property(
-                                            Expression.Property(command, "Parameters"), "Item", Expression.Constant("@" + name)), 
+                                            Expression.Property(command, "Parameters"), "Item", Expression.Constant(name)), 
                                             typeof<IDataParameter>), "Value")
         let wrapInOption = if isOption outParamsType
                            then (fun (expr: Expression) (coerce: Expression -> Expression) -> 
@@ -446,7 +438,7 @@ module Queries =
                 buildParam fakeVal command |> ignore
             for name, dbtype in outParams do
                 let param = command.CreateParameter()
-                param.ParameterName <- "@" + name
+                param.ParameterName <- name
                 param.DbType <- getDbTypeEnum dbtype
                 param.Direction <- ParameterDirection.Output
                 command.Parameters.Add param |> ignore
@@ -462,7 +454,7 @@ module Queries =
                 buildParam fakeVal command |> ignore
             for name, dbtype in outParams do
                 let param = command.CreateParameter()
-                param.ParameterName <- "@" + name
+                param.ParameterName <- name
                 param.DbType <- getDbTypeEnum dbtype
                 param.Direction <- ParameterDirection.Output
                 command.Parameters.Add param |> ignore

@@ -12,6 +12,8 @@ module MsSqlTestQueries =
 
     let generatorConfig = MsSql.createDefaultConfig createConnection
 
+    let sqlTm tm commandText = Queries.sql { generatorConfig with commandTimeout = Some tm } commandText
+
     let sql command = Queries.sql generatorConfig command
 
     type Tag2 = {
@@ -47,6 +49,10 @@ module MsSqlTestQueries =
         status: TagStatusInt
     }
 
+    let insertBlogs: Blog list -> DataContext -> unit =
+        sqlTm 60 "insert into blog ([name],[title],[description],[owner],[createdAt],[modifiedAt],[modifiedBy])
+                  select [name],[title],[description],[owner],[createdAt],[modifiedAt],[modifiedBy] from @blogs"
+
     let updateTags: Post -> DataContext -> unit = 
         sql "delete from tag where postId = @id;
              insert into tag (postId, name) select @id, name from @tags"
@@ -73,6 +79,7 @@ module MsSqlTestQueries =
 
 open MsSqlTestQueries
 open System.Linq.Expressions
+open System.Diagnostics
 
 [<TestFixture>]
 type MsSqlTests() = 
@@ -148,7 +155,36 @@ type MsSqlTests() =
         let result = Tooling.getTags 2 |> run |> List.map (fun t -> { Tag6.postId = t.postId; name = t.name; status = TagStatusInt.Active })
         Assert.AreEqual(tags |> List.sortBy (fun t -> t.name), result |> List.sortBy (fun t -> t.name))
         
-       
+    [<Test>]       
+    member this.``TVP-based inserts are extremely fast``() = 
+
+        Tooling.deleteAllButFirstBlog |> run
+
+        let blogsToAdd = 
+            [  for i in 2..200 do
+                yield {
+                    id = i
+                    name = sprintf "blog-%d" i
+                    title = sprintf "Blog no %d" i
+                    description = sprintf "Just another blog, added for test - %d" i
+                    owner = "jacenty"
+                    createdAt = System.DateTime.Now
+                    modifiedAt = None
+                    modifiedBy = None
+                    posts = []          
+                }
+            ]
+
+        let sw = Stopwatch()
+        sw.Start()
+        insertBlogs blogsToAdd |> run
+        sw.Stop()
+        printfn "Elapsed time %O" sw.Elapsed
+        
+        let numOfBlogs = Tooling.getNumberOfBlogs |> run        
+        Tooling.deleteAllButFirstBlog |> run
+        Assert.AreEqual(200, numOfBlogs)
+        
 
 
     

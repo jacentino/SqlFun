@@ -15,7 +15,7 @@ module Common =
         { defaultConfig with
             paramBuilder = 
                 (listDirectParamBuilder (string >> Set([string typeof<int>]).Contains) string) <+> 
-                (listParamBuilder isSimpleType) <+> 
+                (listParamBuilder isSimpleType "@") <+> 
                 defaultConfig.paramBuilder
         }
 
@@ -24,6 +24,8 @@ module Common =
     let createDC() = DataContext.create <| createConnection()
 
     let runAsync f = AsyncDb.run createConnection f
+
+    let sqlTm tm commandText = sql { generatorConfig with commandTimeout = Some tm } commandText
 
     let sql commandText = sql generatorConfig commandText
 

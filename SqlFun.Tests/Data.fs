@@ -160,6 +160,13 @@ module Tooling =
     let getNumberOfPosts: DataContext -> int = 
         sql "select count(*) from post"
 
+    let getNumberOfBlogs: DataContext -> int = 
+        sql "select count(*) from blog"
+
+
+    let deleteAllButFirstBlog: DataContext -> unit = 
+        sqlTm 60 "delete from blog where id > 1"
+
     let getPostByName: string -> DataContext -> Post = 
         sql "select * from post where name = @name"
 

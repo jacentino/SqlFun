@@ -132,7 +132,26 @@ module MsSql =
                         yield record
                 }
 
-    let private MsSqlParamBuilder (connectionBuilder: unit -> #IDbConnection) defaultPB prefix name (expr: Expression) names = 
+    /// <summary>
+    /// Parameter builder supporting user defined table type parameters.
+    /// Allows to combine bulk operations with usual queries.
+    /// </summary>
+    /// <param name="defaultPB">
+    /// Next item in parameter building cycle.
+    /// </param>
+    /// <param name="prefix">
+    /// Parameter name prefix.
+    /// </param>
+    /// <param name="name">
+    /// Parameter name.
+    /// </param>
+    /// <param name="expr">
+    /// Expression calculating parameter value from function parameter.
+    /// </param>
+    /// <param name="names">
+    /// List of available parameter names extracted from SQL command.
+    /// </param>
+    let tableValueParamBuilder (connectionBuilder: unit -> #IDbConnection) defaultPB prefix name (expr: Expression) names = 
         match expr.Type with 
         | CollectionOf itemType when isComplexType itemType ->
             let typeName = itemType.Name.Split('`').[0] // Allows for use of resolved generic types.
@@ -144,7 +163,7 @@ module MsSql =
                 expr,
                 fun value (command: IDbCommand) ->
                     let param = new SqlClient.SqlParameter()
-                    param.ParameterName <- "@" + name
+                    param.ParameterName <- name
                     if value <> null then
                         param.Value <- toSqlDataRecords value
                     param.SqlDbType <- SqlDbType.Structured
@@ -159,5 +178,5 @@ module MsSql =
     let createDefaultConfig connectionBuilder = 
         let lastDefault = createDefaultConfig connectionBuilder
         {
-            lastDefault with paramBuilder = (MsSqlParamBuilder connectionBuilder) <+> lastDefault.paramBuilder 
+            lastDefault with paramBuilder = (tableValueParamBuilder connectionBuilder) <+> lastDefault.paramBuilder 
         }

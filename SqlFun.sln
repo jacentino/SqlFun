@@ -15,7 +15,13 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Performance.Tests", 
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.NetStandard", "SqlFun.NetStandard\SqlFun.NetStandard.fsproj", "{6C28181A-90EA-4EC3-82EF-7F531B7A94A2}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.NpgSql.NetStandard", "SqlFun.NpgSql.NetStandard\SqlFun.NpgSql.NetStandard.fsproj", "{77E4720B-E69B-49A8-B167-FE0A0735955E}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.NpgSql.NetStandard", "SqlFun.NpgSql.NetStandard\SqlFun.NpgSql.NetStandard.fsproj", "{77E4720B-E69B-49A8-B167-FE0A0735955E}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Oracle.Tests", "SqlFun.Oracle.Tests\SqlFun.Oracle.Tests.fsproj", "{554DE11C-4C35-459F-9878-B7A93AA8FDA5}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Oracle", "SqlFun.Oracle\SqlFun.Oracle.fsproj", "{B172625E-F4CB-4DC9-82B5-B81B67FCED00}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Oracle.NetStandard", "SqlFun.Oracle.NetStandard\SqlFun.Oracle.NetStandard.fsproj", "{60BD4DEF-5EC3-485B-8FAF-FD555290C705}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -51,6 +57,18 @@ Global
 		{77E4720B-E69B-49A8-B167-FE0A0735955E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{77E4720B-E69B-49A8-B167-FE0A0735955E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{77E4720B-E69B-49A8-B167-FE0A0735955E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{554DE11C-4C35-459F-9878-B7A93AA8FDA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{554DE11C-4C35-459F-9878-B7A93AA8FDA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{554DE11C-4C35-459F-9878-B7A93AA8FDA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{554DE11C-4C35-459F-9878-B7A93AA8FDA5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B172625E-F4CB-4DC9-82B5-B81B67FCED00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B172625E-F4CB-4DC9-82B5-B81B67FCED00}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B172625E-F4CB-4DC9-82B5-B81B67FCED00}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B172625E-F4CB-4DC9-82B5-B81B67FCED00}.Release|Any CPU.Build.0 = Release|Any CPU
+		{60BD4DEF-5EC3-485B-8FAF-FD555290C705}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{60BD4DEF-5EC3-485B-8FAF-FD555290C705}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{60BD4DEF-5EC3-485B-8FAF-FD555290C705}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{60BD4DEF-5EC3-485B-8FAF-FD555290C705}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
