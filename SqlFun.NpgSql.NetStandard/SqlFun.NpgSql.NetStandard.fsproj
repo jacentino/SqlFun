@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <PackageReference Include="Npgsql" Version="3.2.5" />
-    <PackageReference Include="SqlFun" Version="0.0.3-alpha" />
+    <PackageReference Include="SqlFun" Version="0.1.0-alpha" />
   </ItemGroup>
 
 </Project>
