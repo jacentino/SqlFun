@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.18.5" />
-    <PackageReference Include="SqlFun" Version="0.1.0-alpha" />
+    <PackageReference Include="SqlFun" Version="0.2.0-alpha" />
   </ItemGroup>
 
 </Project>

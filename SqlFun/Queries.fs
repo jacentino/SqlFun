@@ -260,7 +260,7 @@ module Queries =
         | Some (_, texpr, _, _) -> texpr
         | None -> Expression.GetNoneUnionCase typeof<IDbTransaction option> :> Expression
 
-    let private generateSqlCommandCaller (createConnection: unit -> IDbConnection) (createCommand: IDbConnection -> IDbCommand) (commandTimeout: int option) (extractParameterNames: string -> string list) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (commandText: string)  (t: Type): obj = 
+    let private generateSqlCommandCaller (createConnection: unit -> IDbConnection) (createCommand: IDbConnection -> IDbCommand) (commandTimeout: int option) (extractParameterNames: string -> string list) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (makeDiagnosticCalls: bool) (commandText: string)  (t: Type): obj = 
 
         let makeDiagnosticCall (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) = 
             use connection = createConnection()
@@ -292,7 +292,8 @@ module Queries =
                             then 
                                 getResultMetadata queryParamDefs                                
                             else 
-                                makeDiagnosticCall queryParamDefs
+                                if makeDiagnosticCalls then
+                                    makeDiagnosticCall queryParamDefs
                                 [Map.empty]
             let connection = getConnectionExpr paramDefs
             let transaction = getTransactionExpr paramDefs
@@ -332,6 +333,9 @@ module Queries =
             paramBuilder: ParamBuilder -> ParamBuilder
             /// Function generating code creating typed result from data reader.
             rowBuilder: RowBuilder -> RowBuilder
+            /// Determines, whether queries, that don't return results, should be executed
+            /// with CommandBehavior.SchemaOnly for diagnostic purposes.
+            makeDiagnosticCalls: bool
         }
         
     /// <summary>
@@ -348,6 +352,7 @@ module Queries =
             paramNameFinder = ParamBuilder.extractParameterNames "@"
             paramBuilder = ParamBuilder.getParamExpressions
             rowBuilder = ResultBuilder.getRowBuilderExpression
+            makeDiagnosticCalls = true
         }
 
     /// <summary>
@@ -366,7 +371,7 @@ module Queries =
     /// A function of type 't executing command given by commandText parameter.
     /// </returns>
     let sql<'t> (config: GeneratorConfig) (commandText: string): 't = 
-        generateSqlCommandCaller config.createConnection config.createCommand config.commandTimeout config.paramNameFinder config.paramBuilder config.rowBuilder commandText typeof<'t> :?> 't
+        generateSqlCommandCaller config.createConnection config.createCommand config.commandTimeout config.paramNameFinder config.paramBuilder config.rowBuilder config.makeDiagnosticCalls commandText typeof<'t> :?> 't
 
     let getStoredProcElementTypes returnType =
         match returnType with
@@ -410,7 +415,7 @@ module Queries =
         Expression.Lambda(expr, command) :> Expression
         
 
-    let private generateStoredProcCaller (createConnection: unit -> IDbConnection) (createCommand: IDbConnection-> IDbCommand) (commandTimeout: int option) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (procedureName: string) (t: Type): obj =
+    let private generateStoredProcCaller (createConnection: unit -> IDbConnection) (createCommand: IDbConnection-> IDbCommand) (commandTimeout: int option) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (makeDiagnosticCalls: bool) (procedureName: string) (t: Type): obj =
 
         let extractProcParamNames (procedureName: string) = 
             use connection = createConnection()
@@ -473,7 +478,8 @@ module Queries =
                             then 
                                 getResultMetadata queryParamDefs outParams
                             else 
-                                makeDiagnosticCall queryParamDefs outParams
+                                if makeDiagnosticCalls then
+                                    makeDiagnosticCall queryParamDefs outParams
                                 [Map.empty]
             let connection = getConnectionExpr paramDefs
             let transaction = getTransactionExpr paramDefs
@@ -524,6 +530,6 @@ module Queries =
     /// A function of type 't executing stored procedure given by procedureName parameter.
     /// </returns>
     let proc<'t> (config: GeneratorConfig) (procedureName: string): 't =
-        generateStoredProcCaller config.createConnection config.createCommand config.commandTimeout config.paramBuilder config.rowBuilder procedureName typeof<'t> :?> 't
+        generateStoredProcCaller config.createConnection config.createCommand config.commandTimeout config.paramBuilder config.rowBuilder config.makeDiagnosticCalls procedureName typeof<'t> :?> 't
 
     let test () = ()

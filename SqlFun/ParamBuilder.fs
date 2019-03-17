@@ -28,7 +28,7 @@ module ParamBuilder =
         param.Value <- value
         command.Parameters.Add(param)            
 
-    let rec private getFakeValue (dataType: Type) = 
+    let rec getFakeValue (dataType: Type) = 
         if isOption dataType
         then getFakeValue (getUnderlyingType dataType)
         elif dataType = typeof<DateTime>
@@ -126,10 +126,12 @@ module ParamBuilder =
         | TransactionOption ->
             ["<transaction>", expr, (fun _ _ -> 0), null :> obj] 
         | Record fields ->
-            fields
-            |> Seq.collect (fun p -> customPB (prefix + getFieldPrefix p) p.Name (Expression.Property(expr, p)) paramNames)
-            |> Seq.filter (fun (name, _, _, _) -> ("<connection>" :: "<transaction>" :: paramNames) |> Seq.exists ((=) name))
-            |> List.ofSeq
+            let exprs = 
+                fields
+                |> Seq.collect (fun p -> customPB (prefix + getFieldPrefix p) p.Name (Expression.Property(expr, p)) paramNames)
+                |> Seq.filter (fun (name, _, _, _) -> ("<connection>" :: "<transaction>" :: paramNames) |> Seq.exists ((=) name))
+                |> List.ofSeq
+            exprs
         | Tuple _ ->
             getTupleParamExpressions customPB expr 0 paramNames
         | OptionOf optType when optType.IsEnum ->

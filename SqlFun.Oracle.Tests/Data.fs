@@ -1,6 +1,7 @@
 ﻿namespace SqlFun.Oracle.Tests
 
 open System
+open Common
 
 module Data = 
 
@@ -14,5 +15,11 @@ module Data =
         modifiedAt: DateTime option
         modifiedBy: string option
     }
+
+module Tooling = 
+    open SqlFun
+
+    let deleteAllButFirstBlog: DataContext -> unit = 
+        sql "delete from blog where blogid > 1"
 
 

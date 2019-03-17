@@ -7,6 +7,7 @@ open NUnit.Framework
 open SqlFun.Transforms
 open SqlFun.NpgSql
 open System.Diagnostics
+open System
 
 type TestQueries() =    
  
@@ -20,6 +21,10 @@ type TestQueries() =
     static member getPosts: int array -> DataContext -> Post list = 
         sql "select p.postid, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status
              from post p join unnest(@ids) ids on p.postid = ids"
+
+    static member insertBlog: Blog -> DbAction<unit> =
+        sql "insert into blog (blogid, name, title, description, owner, createdAt, modifiedAt, modifiedBy) values (@blogId, @name, @title, @description, @owner, @createdAt, @modifiedAt, @modifiedBy)"
+
 
 [<TestFixture>]
 type NpgSqlTests() = 
@@ -38,6 +43,25 @@ type NpgSqlTests() =
     member this.``Queries to PostgreSQL using array parameters return valid results``() = 
         let l = TestQueries.getPosts [| 1; 2 |] |> run
         Assert.AreEqual(2, l |> List.length)
+
+    
+    [<Test>]
+    member this.``Inserts to PostgrSQL work as expected``() =    
+
+        Tooling.deleteAllButFirstBlog |> run
+
+        TestQueries.insertBlog {
+            blogId = 4
+            name = "test-blog-4"
+            title = "Testing simple insert 4"
+            description = "Added to check if inserts work properly."
+            owner = "jacentino"
+            createdAt = DateTime.Now
+            modifiedAt = None
+            modifiedBy = None
+            posts = []
+        } |> run
+
 
     [<Test>]
     member this.``BulkCopy inserts records without subrecords``() = 

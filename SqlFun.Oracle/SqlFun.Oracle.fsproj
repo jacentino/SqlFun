@@ -65,7 +65,7 @@
       <HintPath>..\packages\Oracle.ManagedDataAccess.18.3.0\lib\net40\Oracle.ManagedDataAccess.dll</HintPath>
     </Reference>
     <Reference Include="SqlFun">
-      <HintPath>..\packages\SqlFun.0.1.0-alpha\lib\net461\SqlFun.dll</HintPath>
+      <HintPath>..\packages\SqlFun.0.2.0-alpha\lib\net461\SqlFun.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
