@@ -101,6 +101,51 @@ module ParamBuilder =
         |> Seq.distinct
         |> List.ofSeq
 
+
+    let private getDbTypeEnum name = 
+        match name with
+        | "int" -> DbType.Int32
+        | "varchar" -> DbType.String
+        | "nvarchar" -> DbType.String
+        | "text" -> DbType.String
+        | "date" -> DbType.Date
+        | "datetime" -> DbType.DateTime
+        | "bit" -> DbType.Boolean
+        | _ -> DbType.String
+
+    /// <summary>
+    /// Reads parameter names and directions from information schema.
+    /// </summary>
+    /// <param name="createConnection">
+    /// Function creating database connection.
+    /// </param>
+    /// <param name="createCommand">
+    /// Function creating database command.
+    /// </param>
+    /// <param name="procedureName">
+    /// The name of the procedure.
+    /// </param>
+    let extractProcParamNames (createConnection: unit -> IDbConnection) (createCommand: IDbConnection -> IDbCommand) (procedureName: string) = 
+        use connection = createConnection()
+        connection.Open()
+        use command = createCommand(connection)
+        command.CommandText <- "select p.parameter_name, p.parameter_mode, p.data_type
+                                from information_schema.parameters p
+                                        join information_schema.routines r on r.specific_name = p.specific_name
+                                where r.routine_name = @procedure_name
+                                order by p.ordinal_position"
+        let param = command.CreateParameter()
+        param.ParameterName <- "@procedure_name"
+        param.Value <- procedureName.Split('.') |> Seq.last
+        command.Parameters.Add(param) |> ignore
+        use reader = command.ExecuteReader()
+        [ while reader.Read() do 
+            yield 
+                (if reader.GetString(0).StartsWith("@") then reader.GetString(0).Substring(1) else reader.GetString(0)), 
+                reader.GetString(1) <> "IN", getDbTypeEnum(reader.GetString(2))
+        ]
+
+
     /// <summary>
     /// Most default parameter building functionality.
     /// </summary>

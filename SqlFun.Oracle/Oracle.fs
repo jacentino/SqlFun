@@ -52,7 +52,7 @@ module Oracle =
             [
                 prefix + name,
                 expr,
-                fun (value: obj) (command: IDbCommand) ->
+                fun (value: obj) (command: IDbCommand) ->                    
                     let param = new OracleParameter()
                     param.ParameterName <- name
                     if value <> null then
@@ -70,6 +70,50 @@ module Oracle =
         else
             defaultPB prefix name expr names
 
+    let private getDbTypeEnum name = 
+        match name with
+        | "INT"
+        | "INTEGER" -> DbType.Int32
+        | "SMALLINT" -> DbType.Int16
+        | "NUMBER" -> DbType.Decimal
+        | "VARCHAR" 
+        | "VARCHAR2"
+        | "NVARCHAR"
+        | "NVARCHAR2" -> DbType.String
+        | "DATE" -> DbType.Date
+        | "TIMESTAMP" -> DbType.DateTime
+        | "bit" -> DbType.Boolean
+        | _ -> DbType.String
+
+    /// <summary>
+    /// Reads parameter names and directions from information schema.
+    /// </summary>
+    /// <param name="createConnection">
+    /// Function creating database connection.
+    /// </param>
+    /// <param name="createCommand">
+    /// Function creating database command.
+    /// </param>
+    /// <param name="procedureName">
+    /// The name of the procedure.
+    /// </param>
+    let extractProcParamNames (createConnection: unit -> IDbConnection) (createCommand: IDbConnection -> IDbCommand) (procedureName: string) = 
+        use connection = createConnection()
+        connection.Open()
+        use command = createCommand(connection)
+        command.CommandText <- "select argument_name, in_out, data_type
+                                from user_arguments 
+                                where upper(object_name) = :procedure_name
+                                order by position"
+        let param = command.CreateParameter()
+        param.ParameterName <- ":procedure_name"
+        param.Value <- procedureName.ToUpper().Split('.') |> Seq.last
+        command.Parameters.Add(param) |> ignore
+        use reader = command.ExecuteReader()
+        [ while reader.Read() do 
+            yield reader.GetString(0), reader.GetString(1) <> "IN", getDbTypeEnum(reader.GetString(2))
+        ]
+
 
     /// <summary>
     /// Creates default config for Oracle database.
@@ -80,13 +124,16 @@ module Oracle =
     /// </param>
     let createDefaultConfig createConnection = 
         let lastDefault = Queries.createDefaultConfig createConnection
+        let createCommand (con: IDbConnection) = 
+            let cmd = con.CreateCommand()
+            (cmd :?> OracleCommand).BindByName <- true
+            cmd
         { lastDefault with 
-            createCommand = fun con -> 
-                let cmd = con.CreateCommand()
-                (cmd :?> OracleCommand).BindByName <- true
-                cmd
-            paramNameFinder = ParamBuilder.extractParameterNames ":"
+            createCommand = createCommand
+            paramNameFinder = extractParameterNames ":"
+            procParamFinder = extractProcParamNames lastDefault.createConnection createCommand
             paramBuilder = arrayParamBuilder <+> lastDefault.paramBuilder
             makeDiagnosticCalls = false
+            addReturnParameter = false
         }
 

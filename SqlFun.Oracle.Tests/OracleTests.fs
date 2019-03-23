@@ -8,9 +8,10 @@ open Data
 open System
 open System.Configuration
 open System.Data
+open Oracle.ManagedDataAccess.Types
 
 type TestQueries() =    
- 
+
     static member getBlog: int -> DbAction<Blog> = 
         sql "select blogid, name, title, description, owner, createdAt, modifiedAt, modifiedBy from blog where blogid = :blogid"
 
@@ -19,6 +20,11 @@ type TestQueries() =
 
     static member insertBlogsWithArrays: int[] -> string[] -> string[] -> string[] -> string[] -> DateTime[] -> DbAction<unit> =
         sql "insert into blog (blogid, name, title, description, owner, createdAt) values (:blogid, :name, :title, :description, :owner, :createdAt)"
+
+    static member insertBlogProc: (int * string * string * string * string * DateTime) -> DbAction<unit> =
+        proc "sp_add_blog"
+        >> DbAction.map Transforms.resultOnly
+        
 
 [<TestFixture>]
 type OracleTests() = 
@@ -29,16 +35,21 @@ type OracleTests() =
         Assert.AreEqual("functional-data-access-with-sqlfun", blog.name)        
     
     [<Test>]
-    member this.``Oracle SchemaOnly test``() =    
+    member this.``Oracle stored procedure test``() =    
         use con = new OracleConnection(ConfigurationManager.ConnectionStrings.["SqlFunTests"].ConnectionString)
         con.Open()
         use cmd = con.CreateCommand()
         cmd.BindByName <- true
-        cmd.CommandText <- "select * from blog where blogid = :blogid"
-        cmd.Parameters.Add(":blogid", OracleDbType.Int32, 1 :> obj, ParameterDirection.Input) |> ignore
-        use reader = cmd.ExecuteReader()
-        while reader.Read() do
-            Console.WriteLine(reader.GetString(1))
+        cmd.CommandText <- "sp_get_blog"
+        cmd.CommandType <- CommandType.StoredProcedure
+        cmd.Parameters.Add("P_BLOGID", 1 :> obj) |> ignore
+        let cr = cmd.Parameters.Add("P_RESULT_CR", OracleDbType.RefCursor, ParameterDirection.Output)                
+        
+        use result1 = cmd.ExecuteReader(CommandBehavior.SchemaOnly)
+        let schema = result1.GetSchemaTable()
+        while result1.Read() do
+            Console.WriteLine(result1.GetString(1))
+        
 
     
     [<Test>]
@@ -70,3 +81,19 @@ type OracleTests() =
             [| "jacentino"; "placentino" |]
             [| DateTime.Now; DateTime.Now |]
             |> run
+
+    [<Test>]
+    member this.``Insert to Oracle with stored procedures works as expected``() =    
+
+        Tooling.deleteAllButFirstBlog |> run
+
+        TestQueries.insertBlogProc  
+            ( 5
+            , "test-blog-5"
+            , "Testing simple insert 5"
+            , "Added to check if inserts work properly."
+            , "jacentino"
+            ,  DateTime.Now )
+        |> run
+        |> ignore
+

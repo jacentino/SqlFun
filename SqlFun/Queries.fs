@@ -4,9 +4,7 @@ open System
 open System.Data
 open System.Data.Common
 open System.Reflection
-open System.Linq
 open System.Linq.Expressions
-open System.Text.RegularExpressions
 
 open ExpressionExtensions
 open Types
@@ -44,6 +42,7 @@ module Queries =
 
         static member ExecuteProcedure 
                 (createCommand: IDbConnection -> IDbCommand) 
+                (addReturnParameter: bool)
                 (connection: IDbConnection) 
                 (transaction: IDbTransaction option) 
                 (procName: string) 
@@ -62,10 +61,11 @@ module Queries =
             | None -> ()
             assignParams.Invoke(command) |> ignore
             let retValParam = command.CreateParameter()
-            retValParam.ParameterName <- "@RETURN_VALUE"
-            retValParam.DbType <- DbType.Int32
-            retValParam.Direction <- ParameterDirection.ReturnValue
-            command.Parameters.Add(retValParam) |> ignore
+            if addReturnParameter then
+                retValParam.ParameterName <- "@RETURN_VALUE"
+                retValParam.DbType <- DbType.Int32
+                retValParam.Direction <- ParameterDirection.ReturnValue
+                command.Parameters.Add(retValParam) |> ignore
             use reader = command.ExecuteReader()
             let retVal = if retValParam.Value = null then 0 else unbox (retValParam.Value)
             let outParamVals = buildOutParams.Invoke(command)
@@ -96,6 +96,7 @@ module Queries =
 
         static member ExecuteProcedureAsync 
                 (createCommand: IDbConnection -> IDbCommand) 
+                (addReturnParameter: bool)
                 (connection: IDbConnection) 
                 (transaction: IDbTransaction option) 
                 (procName: string) 
@@ -115,10 +116,11 @@ module Queries =
                 | None -> ()
                 assignParams.Invoke(command) |> ignore
                 let retValParam = command.CreateParameter()
-                retValParam.ParameterName <- "@RETURN_VALUE"
-                retValParam.DbType <- DbType.Int32
-                retValParam.Direction <- ParameterDirection.ReturnValue
-                command.Parameters.Add(retValParam) |> ignore
+                if addReturnParameter then
+                    retValParam.ParameterName <- "@RETURN_VALUE"
+                    retValParam.DbType <- DbType.Int32
+                    retValParam.Direction <- ParameterDirection.ReturnValue
+                    command.Parameters.Add(retValParam) |> ignore
                 use! reader = Async.AwaitTask(command.ExecuteReaderAsync())
                 let! result = buildResult.Invoke(reader)
                 return (if retValParam.Value = null then 0 else retValParam.Value :?> int), buildOutParams.Invoke(command), result                   
@@ -210,29 +212,18 @@ module Queries =
         let valueBound = Expression.Invoke(adapter, convertAsNeeded getter)
         Expression.Invoke(valueBound, command) :> Expression
 
-    let private getDbTypeEnum name = 
-        match name with
-        | "int" -> DbType.Int32
-        | "varchar" -> DbType.String
-        | "nvarchar" -> DbType.String
-        | "text" -> DbType.String
-        | "date" -> DbType.Date
-        | "datetime" -> DbType.DateTime
-        | "bit" -> DbType.Boolean
-        | _ -> DbType.String
-
-    let private createOutParam (command: Expression) (name: string, dbtype: string) =
+    let private createOutParam (command: Expression) (name: string, dbtype: DbType) =
         let param = Expression.Variable(typeof<IDataParameter>)
         Expression.Block(
             [| param |],
             Expression.Assign(param, Expression.Call(command, "CreateParameter")),
             Expression.Assign(Expression.Property(param, "ParameterName"), Expression.Constant(name)),
-            Expression.Assign(Expression.Property(param, "DbType"), Expression.Constant(getDbTypeEnum dbtype)),
+            Expression.Assign(Expression.Property(param, "DbType"), Expression.Constant(dbtype)),
             Expression.Assign(Expression.Property(param, "Direction"), Expression.Constant(ParameterDirection.Output)),
             Expression.Call(Expression.Property(command, "Parameters"), "Add", param)) 
         :> Expression
 
-    let private genParamAssigner (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) (outParams: (string * string) list)= 
+    let private genParamAssigner (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) (outParams: (string * DbType) list)= 
         let command = Expression.Parameter(typeof<IDbCommand>, "command")
         if paramDefs.Length > 0 then
             let inAssignments = paramDefs |> List.map (createInParam command)  
@@ -260,7 +251,17 @@ module Queries =
         | Some (_, texpr, _, _) -> texpr
         | None -> Expression.GetNoneUnionCase typeof<IDbTransaction option> :> Expression
 
-    let private generateSqlCommandCaller (createConnection: unit -> IDbConnection) (createCommand: IDbConnection -> IDbCommand) (commandTimeout: int option) (extractParameterNames: string -> string list) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (makeDiagnosticCalls: bool) (commandText: string)  (t: Type): obj = 
+    let private generateSqlCommandCaller 
+            (createConnection: unit -> IDbConnection) 
+            (createCommand: IDbConnection -> IDbCommand) 
+            (commandTimeout: int option) 
+            (extractParameterNames: string -> string list) 
+            (paramBuilder: ParamBuilder -> ParamBuilder) 
+            (rowBuilder: RowBuilder -> RowBuilder) 
+            (makeDiagnosticCalls: bool) 
+            (commandText: string)  
+            (t: Type)
+            : obj = 
 
         let makeDiagnosticCall (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) = 
             use connection = createConnection()
@@ -329,6 +330,8 @@ module Queries =
             commandTimeout: int option
             /// Function searching for parameter names in a command text.
             paramNameFinder: string -> string list
+            /// Function searching for parameter names and directions in an information schema.
+            procParamFinder: string -> (string * bool * DbType) list
             /// Function generating code creating query parameters from function parameters.
             paramBuilder: ParamBuilder -> ParamBuilder
             /// Function generating code creating typed result from data reader.
@@ -336,6 +339,8 @@ module Queries =
             /// Determines, whether queries, that don't return results, should be executed
             /// with CommandBehavior.SchemaOnly for diagnostic purposes.
             makeDiagnosticCalls: bool
+            /// Determines, whether to add return value parameter to stored procedure commands.
+            addReturnParameter: bool
         }
         
     /// <summary>
@@ -345,14 +350,18 @@ module Queries =
     /// Database connection - can not be left unspecified.
     /// </param>
     let createDefaultConfig (connectionBuilder: unit -> #IDbConnection) =
+        let createConnection = (connectionBuilder >> unbox<IDbConnection>)
+        let createCommand = fun (c: IDbConnection) -> c.CreateCommand()
         {
-            createConnection = (connectionBuilder >> unbox<IDbConnection>)
-            createCommand = fun c -> c.CreateCommand()
+            createConnection = createConnection
+            createCommand = createCommand
             commandTimeout = None
             paramNameFinder = ParamBuilder.extractParameterNames "@"
+            procParamFinder = ParamBuilder.extractProcParamNames createConnection createCommand
             paramBuilder = ParamBuilder.getParamExpressions
             rowBuilder = ResultBuilder.getRowBuilderExpression
             makeDiagnosticCalls = true
+            addReturnParameter = true
         }
 
     /// <summary>
@@ -380,7 +389,7 @@ module Queries =
         | _ -> 
             failwith "StoredProcedure return type must be 3-element tuple."
 
-    let genOutParamsBuilder (outParams: (string * string) list) (outParamsType: Type) = 
+    let genOutParamsBuilder (outParams: (string * DbType) list) (outParamsType: Type) = 
         let command = Expression.Parameter(typeof<IDbCommand>)
         let getParamExpr name = Expression.Property(
                                     Expression.Convert(
@@ -415,25 +424,20 @@ module Queries =
         Expression.Lambda(expr, command) :> Expression
         
 
-    let private generateStoredProcCaller (createConnection: unit -> IDbConnection) (createCommand: IDbConnection-> IDbCommand) (commandTimeout: int option) (paramBuilder: ParamBuilder -> ParamBuilder) (rowBuilder: RowBuilder -> RowBuilder) (makeDiagnosticCalls: bool) (procedureName: string) (t: Type): obj =
+    let private generateStoredProcCaller 
+            (createConnection: unit -> IDbConnection) 
+            (createCommand: IDbConnection-> IDbCommand) 
+            (commandTimeout: int option) 
+            (paramBuilder: ParamBuilder -> ParamBuilder) 
+            (rowBuilder: RowBuilder -> RowBuilder) 
+            (extractProcParamNames: string -> (string * bool * DbType) list) 
+            (makeDiagnosticCalls: bool) 
+            (addReturnParameter: bool) 
+            (procedureName: string) 
+            (t: Type)
+            : obj =
 
-        let extractProcParamNames (procedureName: string) = 
-            use connection = createConnection()
-            connection.Open()
-            use command = createCommand(connection)
-            command.CommandText <- "select p.parameter_name, p.parameter_mode, p.data_type
-                                    from information_schema.parameters p
-                                         join information_schema.routines r on r.specific_name = p.specific_name
-                                    where r.routine_name = @procedure_name
-                                    order by p.ordinal_position"
-            let param = command.CreateParameter()
-            param.ParameterName <- "@procedure_name"
-            param.Value <- procedureName.Split('.') |> Seq.last
-            command.Parameters.Add(param) |> ignore
-            use reader = command.ExecuteReader()
-            reader |> rmap (fun r -> (if r.GetString(0).StartsWith("@") then r.GetString(0).Substring(1) else r.GetString(0)), r.GetString(1) <> "IN", r.GetString(2))
-
-        let makeDiagnosticCall (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) (outParams: (string * string) list) = 
+        let makeDiagnosticCall (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) (outParams: (string * DbType) list) = 
             use connection = createConnection()
             connection.Open()
             use command = connection.CreateCommand()
@@ -444,12 +448,12 @@ module Queries =
             for name, dbtype in outParams do
                 let param = command.CreateParameter()
                 param.ParameterName <- name
-                param.DbType <- getDbTypeEnum dbtype
+                param.DbType <- dbtype
                 param.Direction <- ParameterDirection.Output
                 command.Parameters.Add param |> ignore
             command.ExecuteReader(CommandBehavior.SchemaOnly).Dispose()
 
-        let getResultMetadata (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) (outParams: (string * string) list) = 
+        let getResultMetadata (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) (outParams: (string * DbType) list) = 
             use connection = createConnection()
             connection.Open()
             use command = connection.CreateCommand()
@@ -460,7 +464,7 @@ module Queries =
             for name, dbtype in outParams do
                 let param = command.CreateParameter()
                 param.ParameterName <- name
-                param.DbType <- getDbTypeEnum dbtype
+                param.DbType <- dbtype
                 param.Direction <- ParameterDirection.Output
                 command.Parameters.Add param |> ignore
 
@@ -474,7 +478,7 @@ module Queries =
         let genExecutor createCommand paramDefs outParams returnType = 
             let queryParamDefs = paramDefs |> withoutConnectionAndTransaction
             let assignParams = genParamAssigner queryParamDefs outParams      
-            let metadata = if returnType <> typeof<unit> && not (Types.isAsyncOf returnType typeof<unit>) // Npgsql hangs on NextResult if no first result exists
+            let metadata = if returnType <> typeof<int * unit * unit> && not (Types.isAsyncOf returnType typeof<int * unit * unit>) // Npgsql hangs on NextResult if no first result exists
                             then 
                                 getResultMetadata queryParamDefs outParams
                             else 
@@ -485,18 +489,19 @@ module Queries =
             let transaction = getTransactionExpr paramDefs
             let sql = Expression.Constant(procedureName) :> Expression
             let createCmd = Expression.Constant(createCommand) :> Expression
+            let addRetParam = Expression.Constant(addReturnParameter)
             let timeout = Expression.Constant(commandTimeout, typeof<int option>) :> Expression
             match returnType with
             | AsyncOf underlyingType ->
                 let (outParamsType, resultType) = getStoredProcElementTypes underlyingType
                 let buildResult = generateResultBuilder rowBuilder metadata resultType true
                 let outParamBuilder = genOutParamsBuilder outParams outParamsType
-                Expression.Call([| resultType; outParamsType |], "ExecuteProcedureAsync", createCmd, connection, transaction, sql, timeout, assignParams, buildResult, outParamBuilder)
+                Expression.Call([| resultType; outParamsType |], "ExecuteProcedureAsync", createCmd, addRetParam, connection, transaction, sql, timeout, assignParams, buildResult, outParamBuilder)
             | _ -> 
                 let (outParamsType, resultType) = getStoredProcElementTypes returnType
                 let buildResult = generateResultBuilder rowBuilder metadata resultType false
                 let outParamBuilder = genOutParamsBuilder outParams outParamsType
-                Expression.Call([| resultType; outParamsType |], "ExecuteProcedure", createCmd, connection, transaction, sql, timeout, assignParams, buildResult, outParamBuilder)
+                Expression.Call([| resultType; outParamsType |], "ExecuteProcedure", createCmd, addRetParam, connection, transaction, sql, timeout, assignParams, buildResult, outParamBuilder)
 
         try
             let parameters = extractProcParamNames procedureName 
@@ -530,6 +535,6 @@ module Queries =
     /// A function of type 't executing stored procedure given by procedureName parameter.
     /// </returns>
     let proc<'t> (config: GeneratorConfig) (procedureName: string): 't =
-        generateStoredProcCaller config.createConnection config.createCommand config.commandTimeout config.paramBuilder config.rowBuilder config.makeDiagnosticCalls procedureName typeof<'t> :?> 't
+        generateStoredProcCaller config.createConnection config.createCommand config.commandTimeout config.paramBuilder config.rowBuilder config.procParamFinder config.makeDiagnosticCalls config.addReturnParameter procedureName typeof<'t> :?> 't
 
     let test () = ()
