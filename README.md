@@ -29,7 +29,7 @@ In its core SqlFun does not use any features specific to some db provider, so it
 There are three extensions, enabling provider-specific features:
 * the extension for MS SQL, that allows to use table valued parameters
 * the extension for PostgreSQL, making use of array parameters possible and adding more comfortable version of Bulk Copy
-* the extension for Oracle, adding some adaptations, like binding parameters by name, and allowing to user array parameters
+* the extension for Oracle, adding some adaptations, like binding parameters by name, and allowing to use array parameters
 
 ## How it works
 Most of us think about data access code as a separate layer. We don't like to spread SQL queries across all the application.
