@@ -26,6 +26,10 @@ type TestQueries() =
         >> DbAction.map Transforms.resultOnly
         
 
+    static member getBlogProc: int -> DbAction<Blog> =
+        proc "sp_get_blog"
+        >> DbAction.map Transforms.resultOnly
+
 [<TestFixture>]
 type OracleTests() = 
     
@@ -44,7 +48,6 @@ type OracleTests() =
         cmd.CommandType <- CommandType.StoredProcedure
         cmd.Parameters.Add("P_BLOGID", 1 :> obj) |> ignore
         let cr = cmd.Parameters.Add("P_RESULT_CR", OracleDbType.RefCursor, ParameterDirection.Output)                
-        
         use result1 = cmd.ExecuteReader(CommandBehavior.SchemaOnly)
         let schema = result1.GetSchemaTable()
         while result1.Read() do
@@ -97,3 +100,8 @@ type OracleTests() =
         |> run
         |> ignore
 
+    
+    [<Test>]
+    member this.``Oracle stored procedures return valid results``() = 
+        let blog = TestQueries.getBlogProc 1 |> run
+        Assert.AreEqual("functional-data-access-with-sqlfun", blog.name)        

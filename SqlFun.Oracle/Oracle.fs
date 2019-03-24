@@ -71,19 +71,23 @@ module Oracle =
             defaultPB prefix name expr names
 
     let private getDbTypeEnum name = 
-        match name with
-        | "INT"
-        | "INTEGER" -> DbType.Int32
-        | "SMALLINT" -> DbType.Int16
-        | "NUMBER" -> DbType.Decimal
-        | "VARCHAR" 
-        | "VARCHAR2"
-        | "NVARCHAR"
-        | "NVARCHAR2" -> DbType.String
-        | "DATE" -> DbType.Date
-        | "TIMESTAMP" -> DbType.DateTime
-        | "bit" -> DbType.Boolean
-        | _ -> DbType.String
+        if name = "REF CURSOR" then
+            OracleDbType.RefCursor :> obj
+        else
+            match name with
+            | "INT"
+            | "INTEGER" -> DbType.Int32
+            | "SMALLINT" -> DbType.Int16
+            | "NUMBER" -> DbType.Decimal
+            | "VARCHAR" 
+            | "VARCHAR2"
+            | "NVARCHAR"
+            | "NVARCHAR2" -> DbType.String
+            | "DATE" -> DbType.Date
+            | "TIMESTAMP" -> DbType.DateTime
+            | "BIT" -> DbType.Boolean
+            | _ -> DbType.String
+            :> obj
 
     /// <summary>
     /// Reads parameter names and directions from information schema.

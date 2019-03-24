@@ -111,7 +111,8 @@ module ParamBuilder =
         | "date" -> DbType.Date
         | "datetime" -> DbType.DateTime
         | "bit" -> DbType.Boolean
-        | _ -> DbType.String
+        | _ -> DbType.String 
+        :> obj
 
     /// <summary>
     /// Reads parameter names and directions from information schema.
