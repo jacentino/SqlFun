@@ -26,9 +26,10 @@ It's available as a [NuGet package](https://www.nuget.org/packages/SqlFun)
 ## Supported databases
 In its core SqlFun does not use any features specific to some db provider, so it works with all ADO.NET providers. 
 
-There are two extensions, enabling provider-specific features:
+There are three extensions, enabling provider-specific features:
 * the extension for MS SQL, that allows to use table valued parameters
-* the extension for PostgreSQL, making use of array parameters possible
+* the extension for PostgreSQL, making use of array parameters possible and adding more comfortable version of Bulk Copy
+* the extension for Oracle, adding some adaptations, like binding parameters by name, and allowing to user array parameters
 
 ## How it works
 Most of us think about data access code as a separate layer. We don't like to spread SQL queries across all the application.
