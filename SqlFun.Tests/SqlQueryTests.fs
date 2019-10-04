@@ -186,6 +186,12 @@ type TestQueries() =
     static member getBlogsByCreatedBeforeDate: DateTimeOffset -> DataContext -> Blog list Async = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where createdAt < @createdAt"
         
+    static member getPostArrayByIds: int list -> DataContext -> PostWithArray array = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
+
+    static member getPostSeqByIds: int list -> DataContext -> PostWithSeq seq = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
+
 
 [<TestFixture>]
 type SqlQueryTests() = 
@@ -518,3 +524,13 @@ type SqlQueryTests() =
     member this.``DateTimeOffset is handled correctly``() = 
         let d = DateTimeOffset.Now
         TestQueries.getBlogsByCreatedBeforeDate d |> runAsync |> Async.RunSynchronously |> ignore
+
+    [<Test>]
+    member this.``Results and fields can be arrays``() =
+        let p = TestQueries.getPostArrayByIds [1; 2; 3] |> run
+        Assert.IsNotEmpty(p)
+
+    [<Test>]
+    member this.``Results and fields can be sequences``() =
+        let p = TestQueries.getPostSeqByIds [1; 2; 3] |> run
+        Assert.IsNotEmpty(p)

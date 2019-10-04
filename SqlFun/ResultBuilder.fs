@@ -35,10 +35,26 @@ module ResultBuilder =
     let private dataRecordGetValueMethod = typeof<IDataRecord>.GetMethod("GetValue")
 
 
-    let private rmap (f: IDataReader -> 't) (r: IDataReader):'t list =
+    let private mapReaderToList (f: IDataReader -> 't) (r: IDataReader):'t list =
         [ while r.Read() do yield f r ]
 
-    let private rmapAsync f r = async { return rmap f r }
+    let private mapReaderToListAsync f r = async { return mapReaderToList f r }
+
+    let private mapReaderToArray (f: IDataReader -> 't) (r: IDataReader):'t array =
+        [| while r.Read() do yield f r |]
+
+    let private mapReaderToArrayAsync f r = async { return mapReaderToArray f r }
+
+    let private mapReaderToSet (f: IDataReader -> 't) (r: IDataReader):'t Set =
+        seq { while r.Read() do yield f r } |> Set.ofSeq
+
+    let private mapReaderToSetAsync f r = async { return mapReaderToSet f r }
+
+    let private mapReaderToSeq (f: IDataReader -> 't) (r: IDataReader):'t seq =
+        [ while r.Read() do yield f r ] |> List.toSeq
+
+    let private mapReaderToSeqAsync f r = async { return mapReaderToSeq f r }
+
 
     type StructuredMetadata = 
         | Direct of Map<string, (int * Type)>
@@ -62,16 +78,25 @@ module ResultBuilder =
     type Toolbox() = 
 
         static member BuildSingleResult (resultBuilder: Func<IDataReader, 't>) = 
-            Func<IDataReader, 't>(fun (reader: IDataReader) -> if reader.Read() then resultBuilder.Invoke(reader) else failwith "Value does not exist. Use option type.")
+            Func<IDataReader, 't>(fun reader -> if reader.Read() then resultBuilder.Invoke(reader) else failwith "Value does not exist. Use option type.")
         
         static member BuildOptionalResult (resultBuilder: Func<IDataReader, 't>) = 
-            Func<IDataReader, 't option>(fun (reader: IDataReader) -> if reader.Read() then Some (resultBuilder.Invoke(reader)) else None)
+            Func<IDataReader, 't option>(fun reader -> if reader.Read() then Some (resultBuilder.Invoke(reader)) else None)
 
-        static member BuildCollectionResult (resultBuilder: Func<IDataReader, 't>) = 
-            Func<IDataReader, 't list>(fun (reader: IDataReader) -> reader |> rmap resultBuilder.Invoke)
+        static member BuildListResult (resultBuilder: Func<IDataReader, 't>) = 
+            Func<IDataReader, 't list>(mapReaderToList resultBuilder.Invoke)
+
+        static member BuildSeqResult (resultBuilder: Func<IDataReader, 't>) = 
+            Func<IDataReader, 't seq>(mapReaderToSeq resultBuilder.Invoke)
+
+        static member BuildArrayResult (resultBuilder: Func<IDataReader, 't>) = 
+            Func<IDataReader, 't array>(mapReaderToArray resultBuilder.Invoke)
+
+        static member BuildSetResult (resultBuilder: Func<IDataReader, 't>) = 
+            Func<IDataReader, 't Set>(mapReaderToSet resultBuilder.Invoke)
 
         static member BuildSingleResultAsync (resultBuilder: Func<IDataReader, 't>) = 
-            Func<DbDataReader, Async<'t>>(fun (reader: DbDataReader) -> 
+            Func<DbDataReader, Async<'t>>(fun reader -> 
                 async {
                     let! read = Async.AwaitTask(reader.ReadAsync())
                     if read 
@@ -88,8 +113,18 @@ module ResultBuilder =
                     else return None
                 })
 
-        static member BuildCollectionResultAsync (resultBuilder: Func<IDataReader, 't>) = 
-            Func<DbDataReader, Async<'t list>>(fun (reader: DbDataReader) -> reader |> rmapAsync resultBuilder.Invoke)
+        static member BuildListResultAsync (resultBuilder: Func<IDataReader, 't>) = 
+            Func<DbDataReader, Async<'t list>>(fun (reader: DbDataReader) -> reader |> mapReaderToListAsync resultBuilder.Invoke)
+
+        static member BuildArrayResultAsync (resultBuilder: Func<IDataReader, 't>) = 
+            Func<DbDataReader, Async<'t array>>(fun (reader: DbDataReader) -> reader |> mapReaderToArrayAsync resultBuilder.Invoke)
+
+        static member BuildSetResultAsync (resultBuilder: Func<IDataReader, 't>) = 
+            Func<DbDataReader, Async<'t Set>>(fun (reader: DbDataReader) -> reader |> mapReaderToSetAsync resultBuilder.Invoke)
+
+        static member BuildSeqResultAsync (resultBuilder: Func<IDataReader, 't>) = 
+            Func<DbDataReader, Async<'t seq>>(fun (reader: DbDataReader) -> reader |> mapReaderToSeqAsync resultBuilder.Invoke)
+            
 
         static member AsyncBind (v: 't Async, f: Func<'t, 'u Async>) =
             async.Bind(v, f.Invoke)
@@ -102,6 +137,15 @@ module ResultBuilder =
 
         static member NewList(): 't list =
             List.empty
+
+        static member NewArray(): 't array =
+            Array.empty
+
+        static member NewSet(): 't Set =
+            Set.empty
+
+        static member NewSeq(): 't seq =
+            Seq.empty
 
         static member IntToEnum(value: int): 't =
                 LanguagePrimitives.EnumOfValue value
@@ -224,6 +268,15 @@ module ResultBuilder =
 
             checkWithType field.PropertyType
 
+    let private getEmptyCollectionBuilderName (collectionType: Type) = 
+        if collectionType.IsArray then 
+            "NewArray"
+        else
+            [ typedefof<List<_>>, "NewList"; typedefof<Set<_>>, "NewSet"; typedefof<seq<_>>, "NewSeq" ]
+            |> List.tryFind (fst >> ((=) (collectionType.GetGenericTypeDefinition()))) 
+            |> Option.map snd
+            |> Option.defaultWith (fun () -> failwith (sprintf "Unsupported collection type %s" collectionType.FullName))
+
     let rec getRowBuilderExpression nextRB reader metadata (prefix: string) (fieldName: string) returnType =
         match returnType with
         | SimpleType | SimpleTypeOption ->
@@ -249,7 +302,7 @@ module ResultBuilder =
                             |> List.ofSeq                
             Expression.NewTuple(accessors)
         | CollectionOf t ->
-            Expression.Call([| t |], "NewList") :> Expression
+            Expression.Call([| t |], getEmptyCollectionBuilderName returnType) :> Expression
         | Record fields ->
             let accessors = fields
                             |> Seq.map (fun field -> nextRB reader metadata (prefix + getFieldPrefix field) field.Name field.PropertyType)
@@ -277,6 +330,13 @@ module ResultBuilder =
         first
 
 
+    let private getCollectionResultBuilderName (collectionType: Type) = 
+        if collectionType.IsArray then "BuildArrayResult"
+        else
+            [ typedefof<List<_>>, "BuildListResult"; typedefof<Set<_>>, "BuildSetResult"; typedefof<seq<_>>, "BuildSeqResult" ]
+            |> List.tryFind (fst >> ((=) (collectionType.GetGenericTypeDefinition()))) 
+            |> Option.map snd
+            |> Option.defaultWith (fun () -> failwith (sprintf "Unsupported collection type %s" collectionType.FullName))
 
     let generateResultBuilder rowBuilder metadata returnType isAsync = 
 
@@ -299,7 +359,7 @@ module ResultBuilder =
                 let resultBuilder = if isSimpleType t 
                                     then buildScalar metadata t
                                     else buildRow metadata t
-                generateCall t "BuildCollectionResult" resultBuilder :> Expression
+                generateCall t (getCollectionResultBuilderName returnType) resultBuilder :> Expression
             | OptionOf t ->
                 let resultBuilder = buildRow metadata t
                 generateCall t "BuildOptionalResult" resultBuilder :> Expression

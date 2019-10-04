@@ -14,9 +14,6 @@ open SqlFun.ResultBuilder
 
 module Queries =
 
-    let private rmap (f: IDataReader -> 't) (r: IDataReader): 't list =
-        [ while r.Read() do yield f r ]
-
     type Toolbox() = 
         inherit ExpressionExtensions.Toolbox()
 
@@ -27,7 +24,7 @@ module Queries =
                 (commandText: string) 
                 (commandTimeout: int option) 
                 (assignParams: Func<IDbCommand, int>) 
-                (buildResult: Func<IDataReader, 't>) =
+                (buildResult: Func<IDbCommand, 't>) =
             use command = createCommand(connection)
             match transaction with
             | Some t -> command.Transaction <- t
@@ -37,8 +34,7 @@ module Queries =
             | Some ct -> command.CommandTimeout <- ct
             | None -> ()
             assignParams.Invoke(command) |> ignore
-            use reader = command.ExecuteReader()
-            buildResult.Invoke(reader)
+            buildResult.Invoke(command)
 
         static member ExecuteProcedure 
                 (createCommand: IDbConnection -> IDbCommand) 

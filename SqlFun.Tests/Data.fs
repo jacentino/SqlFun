@@ -148,6 +148,36 @@ module Data =
         posts: PostWithoutAnyIds list
     }
 
+    type PostWithArray = {
+        id: int
+        blogId: int
+        name: string
+        title: string
+        content: string
+        author: string
+        createdAt: DateTime
+        modifiedAt: DateTime option
+        modifiedBy: string option
+        status: PostStatus
+        commentArray: Comment array
+        tagArray: Tag array
+    }
+
+    type PostWithSeq = {
+        id: int
+        blogId: int
+        name: string
+        title: string
+        content: string
+        author: string
+        createdAt: DateTime
+        modifiedAt: DateTime option
+        modifiedBy: string option
+        status: PostStatus
+        commentSeq: Comment seq
+        tagSeq: Tag seq
+    }
+
 
 open Data
 
