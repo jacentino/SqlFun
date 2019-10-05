@@ -31,11 +31,11 @@ module Transforms =
 
 
     /// <summary>
-    /// Transforms list by getting an aliasedItem attribute values of each item.
-    /// Used to add "item_" alias to detail set in group.
+    /// Transforms sequence by getting an aliasedItem attribute values of each item.
+    /// Used to add "item_" alias to detail set in a group.
     /// </summary>
-    let aliasedAsItem (items: ItemAlias<'t> list): 't list =
-        items |> List.map (fun alias -> alias.aliasedItem)
+    let aliasedAsItem (items: ItemAlias<'t> seq): 't seq =
+        items |> Seq.map (fun alias -> alias.aliasedItem)
 
     /// <summary>
     /// Provides basic set of result transformation functions.
@@ -43,24 +43,41 @@ module Transforms =
     module Standard = 
 
         /// <summary>
-        /// Performs grouping on tuple list, taking the first element of a tuple as a key, and the second as a value list.
+        /// Performs grouping on tuple sequence, taking the first element of a tuple as a key, and the second as a value list.
         /// </summary>
-        let group (combine: 't1 -> 't2 list -> 't1) (list: ('t1 * 't2 option) list) = 
-            list |> Seq.groupBy fst 
-                 |> Seq.map (fun (fst, grplist) -> combine fst (grplist |> Seq.map snd |> Seq.choose id |> List.ofSeq))
-                 |> List.ofSeq
+        /// <param name="combine">
+        /// Combines an element with a detail list.
+        /// </param>
+        /// <param name="seq">
+        /// The source sequence of tuples.
+        /// </param>
+        let group (combine: 't1 -> 't2 seq -> 't1) (seq: ('t1 * 't2 option) seq) = 
+            seq |> Seq.groupBy fst 
+                |> Seq.map (fun (fst, grpseq) -> combine fst (grpseq |> Seq.map snd |> Seq.choose id))
     
         /// <summary>
-        /// Joins two lists by key.
+        /// Joins two sequences by key.
         /// </summary>
-        let join (getKey1: 't1 -> 'k) (getKey2: 't2 -> 'k) (combine: 't1 -> 't2 list -> 't1) (list1: 't1 list, list2: 't2 list) = 
-            if list1.Length > 10 then
-                let list2ByKey = list2 |> Seq.groupBy getKey2 |> Map.ofSeq
-                list1 |> List.map (fun item -> match Map.tryFind (getKey1 item) list2ByKey with
-                                                | Some values -> combine item (values |> List.ofSeq)
-                                                | None -> item)
-            else
-                list1 |> List.map (fun item -> combine item (list2 |> List.filter (fun v -> (getKey2 v) = (getKey1 item))))
+        /// <param name="getKey1">
+        /// Calculates a key of element of a first sequence.
+        /// </param>
+        /// <param name="getKey2">
+        /// Calculates a key of element of a second sequence.
+        /// </param>
+        /// <param name="combine">
+        /// Combines an element with a detail list.
+        /// </param>
+        /// <param name="seq1">
+        /// First sequence participating in join.
+        /// </param>
+        /// <param name="seq2">
+        /// Second sequence participating in join.
+        /// </param>
+        let join (getKey1: 't1 -> 'k) (getKey2: 't2 -> 'k) (combine: 't1 -> 't2 seq -> 't1) (seq1: 't1 seq, seq2: 't2 seq) = 
+            let seq2ByKey = seq2 |> Seq.groupBy getKey2 |> Map.ofSeq
+            seq1 |> Seq.map (fun item -> match Map.tryFind (getKey1 item) seq2ByKey with
+                                            | Some values -> combine item (values |> List.ofSeq)
+                                            | None -> item)
 
         /// <summary>
         /// Joins three results by combining two joins.
@@ -72,13 +89,13 @@ module Transforms =
         /// Function performing second join.
         /// </param>
         /// <param name="l1">
-        /// First list participating in join.
+        /// First sequence participating in join.
         /// </param>
         /// <param name="l2">
-        /// Second list participating in join.
+        /// Second sequence participating in join.
         /// </param>
         /// <param name="l3">
-        /// Third list participating in join.
+        /// Third sequence participating in join.
         /// </param>
         let combineTransforms (join1: ('t1 * 't2) -> 'r1) (join2: ('r1 * 't3) -> 'r2) (l1: 't1, l2: 't2, l3: 't3) = 
             (join1 (l1, l2), l3) |> join2
@@ -151,7 +168,7 @@ module Transforms =
 
         static let combiner = fun p c -> RelationshipBuilder<'Parent, 'Child>.combine (p, c)
 
-        static member join (p: 'Parent list, cs: 'Child list) = 
+        static member join (p: 'Parent seq, cs: 'Child seq) = 
             match parentKeyGetter, childKeyGetter with
             | None, _ -> failwith <| sprintf "Parent key of %s -> %s relation not found. Its name should be one of %s" 
                                              typeof<'Parent>.Name typeof<'Child>.Name 
@@ -183,46 +200,84 @@ module Transforms =
             keyType 
             |> Option.map (fun ktype -> 
                 let builder = typedefof<RelationshipBuilder<_, _, _>>.MakeGenericType(typeof<'Parent>, typeof<'Child>, ktype)
-                let parents = Expression.Parameter(typeof<'Parent list>)
-                let children = Expression.Parameter(typeof<'Child list>)
+                let parents = Expression.Parameter(typeof<'Parent seq>)
+                let children = Expression.Parameter(typeof<'Child seq>)
                 let joinMethod = builder.GetMethod("join", BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
-                let joiner = Expression.Lambda<Func<'Parent list, 'Child list, 'Parent list>>(
+                let joiner = Expression.Lambda<Func<'Parent seq, 'Child seq, 'Parent seq>>(
                                 Expression.Call(null, joinMethod, parents, children), parents, children).Compile()                        
                 joiner.Invoke)
 
-        
+        static let fsharpCore = Assembly.Load("FSharp.Core")
+
+        static let headMethodInfo = 
+            fsharpCore.GetType("Microsoft.FSharp.Collections.SeqModule")
+              .GetMethod("Head", BindingFlags.Static ||| BindingFlags.Public)
+              .MakeGenericMethod(typeof<'Child>)
+
         static let tryHeadMethodInfo = 
-            [].GetType().Assembly.GetType("Microsoft.FSharp.Collections.ListModule")
+            fsharpCore.GetType("Microsoft.FSharp.Collections.SeqModule")
               .GetMethod("TryHead", BindingFlags.Static ||| BindingFlags.Public)
               .MakeGenericMethod(typeof<'Child>)
+
+        static let listOfSeqMethodInfo = 
+            fsharpCore.GetType("Microsoft.FSharp.Collections.ListModule")
+              .GetMethod("OfSeq", BindingFlags.Static ||| BindingFlags.Public)
+              .MakeGenericMethod(typeof<'Child>)
+
+        static let arrayOfSeqMethodInfo = 
+            fsharpCore.GetType("Microsoft.FSharp.Collections.ArrayModule")
+              .GetMethod("OfSeq", BindingFlags.Static ||| BindingFlags.Public)
+              .MakeGenericMethod(typeof<'Child>)
+
+        static let setOfSeqMethodInfo = 
+            fsharpCore.GetType("Microsoft.FSharp.Collections.SetModule")
+              .GetMethod("OfSeq", BindingFlags.Static ||| BindingFlags.Public)
+              .MakeGenericMethod(typeof<'Child>)
+
+        static let setType = typedefof<Set<_>>.MakeGenericType(typeof<'Child>)
+
+        static let supportedFieldTypes = [ 
+            typeof<'Child list>
+            typeof<'Child array>
+            setType
+            typeof<'Child seq>
+            typeof<'Child option>
+            typeof<'Child> 
+        ]
 
         static member ParentKeyNames = parentKeyNames    
         static member ChildKeyNames = childKeyNames
         static member ParentKeyProp = tryGetKeyProp typeof<'Parent> typeof<IdAttribute> parentKeyNames
         static member ChildKeyProp = tryGetKeyProp typeof<'Child> typeof<ParentIdAttribute> childKeyNames
 
-        static member join (p: 'Parent list, c: 'Child list): 'Parent list = 
+        static member join (p: 'Parent seq, c: 'Child seq): 'Parent seq = 
             let joiner = joinerOpt |> Option.defaultWith (fun () -> failwithf "Can not determine key type for: %A" typeof<'Parent>)
             joiner (p, c)
 
-        static member val combine: 'Parent * 'Child list -> 'Parent = 
+        static member val combine: 'Parent * 'Child seq -> 'Parent = 
             let fieldTypes = FSharpType.GetRecordFields typeof<'Parent> |> Array.map (fun p -> p.PropertyType)
             let construct = typeof<'Parent>.GetConstructor(fieldTypes)
             let parent = Expression.Parameter(typeof<'Parent>)
-            let children = Expression.Parameter(typeof<'Child list>)
+            let children = Expression.Parameter(typeof<'Child seq>)
             let values = 
                 FSharpType.GetRecordFields typeof<'Parent>
                 |> Array.map (fun prop -> 
-                                if prop.PropertyType = typeof<'Child list>
+                                if prop.PropertyType = typeof<'Child seq>
                                 then children :> Expression 
+                                elif prop.PropertyType = typeof<'Child list>
+                                then Expression.Call(listOfSeqMethodInfo, children) :> Expression
+                                elif prop.PropertyType = typeof<'Child array>
+                                then Expression.Call(arrayOfSeqMethodInfo, children) :> Expression
+                                elif prop.PropertyType = setType
+                                then Expression.Call(setOfSeqMethodInfo, children) :> Expression
                                 elif prop.PropertyType = typeof<'Child>
-                                then Expression.PropertyOrField(children, "Head") :> Expression
+                                then Expression.Call(headMethodInfo, children) :> Expression
                                 elif prop.PropertyType = typeof<'Child option>
                                 then Expression.Call(tryHeadMethodInfo, children) :> Expression
                                 else Expression.MakeMemberAccess(parent, prop) :> Expression)
-            match values |> Seq.filter (fun v -> [ typeof<'Child list>; typeof<'Child option>; typeof<'Child> ] |> List.contains v.Type) |> Seq.length with
+            match values |> Seq.filter (fun v -> supportedFieldTypes |> List.contains v.Type) |> Seq.length with
             | 1 ->
-                let builder = Expression.Lambda<Func<'Parent, 'Child list, 'Parent>>(Expression.New(construct, values), parent, children).Compile()         
+                let builder = Expression.Lambda<Func<'Parent, 'Child seq, 'Parent>>(Expression.New(construct, values), parent, children).Compile()         
                 fun (p, cs) -> builder.Invoke(p, cs)
             | 0 ->
                 failwithf "Property of type %s list not found in parent type %s" typeof<'Child>.Name typeof<'Parent>.Name
@@ -282,29 +337,29 @@ module Transforms =
         /// - parent has a property of child list type.
         ///</remarks>
         /// <param name="p">
-        /// Perent record list.
+        /// Perent sequence.
         /// </param>
         /// <param name="c">
-        /// Child record list.
+        /// Child sequence.
         /// </param>
         let join<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.join(p, c)
 
         /// <summary>
-        /// Combines a parent record with child record list.
+        /// Combines a parent record with child record sequence.
         /// </summary>
         /// <param name="p">
         /// Parent record.
         /// </param>
         /// <param name="c">
-        /// Child record list.
+        /// Child record sequence.
         /// </param>
         let combine<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.combine(p, c)
 
         /// <summary>
-        /// Builds parent record list from list of parent * child tuples.
+        /// Builds parent record sequence from list of parent * child tuples.
         /// </summary>
         /// <param name="pc">
-        /// List of parent * child tuples.
+        /// Sequence of parent * child tuples.
         /// </param>
         let group<'p, 'c when 'p: equality>(pc) = 
             pc |> Standard.group (RelationshipBuilder<'p, 'c>.combine |> curry)

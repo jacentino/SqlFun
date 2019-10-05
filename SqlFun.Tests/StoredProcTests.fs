@@ -16,7 +16,8 @@ type StoredProcs() =
             >> AsyncDb.map (resultOnly
                             >> (combineTransforms 
                                     (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree)) 
-                                    (join Post.Id Tag.PostId (Post.withTags id))))
+                                    (join Post.Id Tag.PostId (Post.withTags List.ofSeq)))
+                            >> List.ofSeq)
 
         static member FindPostsFull: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> (int * unit * Post list) =
             proc "FindPosts"

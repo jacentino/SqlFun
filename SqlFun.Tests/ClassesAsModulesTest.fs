@@ -69,7 +69,7 @@ module ClassesAsModules =
                     sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
                          select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
                          select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
-                    >> AsyncDb.map (join<_, Tag> >-> (mapSnd Tooling.buildTree >> join<_, Comment>))
+                    >> AsyncDb.map (join<_, Tag> >-> (mapSnd Tooling.buildTree >> join<_, Comment>) >> List.ofSeq)
                     
 
     module Service = 

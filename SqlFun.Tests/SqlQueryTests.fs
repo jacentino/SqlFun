@@ -54,7 +54,8 @@ type TestQueries() =
     static member getPostsWithTags: int -> DataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
-        >> join Post.Id Tag.PostId (Post.withTags id)
+        >> join Post.Id Tag.PostId (Post.withTags List.ofSeq)
+        >> List.ofSeq
         |> curry 
 
     static member getSomePostsByIds: int list -> DataContext -> Post list = 
@@ -71,7 +72,8 @@ type TestQueries() =
                    t.postId as item_postId, t.name as item_name
             from post p left join tag t on t.postId = p.id
             where p.id = @id" 
-        >> group (Post.withTags aliasedAsItem)       
+        >> group (Post.withTags (aliasedAsItem >> List.ofSeq))
+        >> List.ofSeq
         |> curry
 
     static member getPostsWithTagsAndComments: int -> DataContext -> Post list = 
@@ -79,8 +81,9 @@ type TestQueries() =
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
         >> combineTransforms 
-            (join Post.Id Tag.PostId (Post.withTags id)) 
+            (join Post.Id Tag.PostId (Post.withTags List.ofSeq)) 
             (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree))
+        >> List.ofSeq
         |> curry 
 
     static member findPostsByCriteria: PostSearchCriteria -> DataContext -> Post list = 
@@ -114,15 +117,16 @@ type TestQueries() =
     static member getPostsWithTagsAsync: int -> DataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
-        >> AsyncDb.map (join Post.Id Tag.PostId (Post.withTags id))
+        >> AsyncDb.map (join Post.Id Tag.PostId (Post.withTags List.ofSeq) >> List.ofSeq)
 
     static member getPostsWithTagsAndCommentsAsync: int -> DataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
         >> AsyncDb.map (combineTransforms 
-                            (join Post.Id Tag.PostId (Post.withTags id)) 
-                            (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree)))
+                            (join Post.Id Tag.PostId (Post.withTags List.ofSeq)) 
+                            (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree))
+                        >> List.ofSeq)
 
     static member getPostWithOneCommentAsync: int -> DataContext -> PostWithLimitedSubItems Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status, 
@@ -141,13 +145,13 @@ type TestQueries() =
     static member getPostsWithTagsRel: int -> DataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
-        >> DbAction.map Conventions.join<_, Tag>
+        >> DbAction.map (Conventions.join<_, Tag> >> List.ofSeq)
 
     static member getPostsWithTagsAndCommentsAsyncTOps: int -> DataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
-        >> AsyncDb.map (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment>))
+        >> AsyncDb.map (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment> >> List.ofSeq))
 
     static member getBlogWithPostsWithTagsAndCommentsAsyncTOps: int -> DataContext -> Blog Async = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id

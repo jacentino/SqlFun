@@ -48,8 +48,8 @@ module Data =
     with
         static member Id (p: Post) = p.id
         static member BlogId (p: Post) = p.blogId
-        static member withTags (transform: 't list -> Tag list) (p: Post) (tags: 't list) = { p with tags = transform tags }
-        static member withComments (transform: 't list -> Comment list) (p: Post) (comments: 't list) = { p with comments = transform comments }
+        static member withTags (transform: 't seq -> Tag list) (p: Post) (tags: 't seq) = { p with tags = tags |> transform }
+        static member withComments (transform: 't seq -> Comment list) (p: Post) (comments: 't seq) = { p with comments = transform comments }
 
     type PostWithLimitedSubItems = {
         id: int
@@ -221,7 +221,7 @@ module Tooling =
                             | None -> []
         }
 
-    let buildTree (comments: Comment list) = 
+    let buildTree (comments: Comment seq) = 
         let (roots, children) = comments |> Seq.groupBy Comment.ParentId 
                                          |> List.ofSeq 
                                          |> List.partition (fst >> Option.isNone)

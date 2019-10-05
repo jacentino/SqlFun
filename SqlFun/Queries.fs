@@ -24,7 +24,7 @@ module Queries =
                 (commandText: string) 
                 (commandTimeout: int option) 
                 (assignParams: Func<IDbCommand, int>) 
-                (buildResult: Func<IDbCommand, 't>) =
+                (buildResult: Func<IDataReader, 't>) =
             use command = createCommand(connection)
             match transaction with
             | Some t -> command.Transaction <- t
@@ -34,7 +34,8 @@ module Queries =
             | Some ct -> command.CommandTimeout <- ct
             | None -> ()
             assignParams.Invoke(command) |> ignore
-            buildResult.Invoke(command)
+            use reader = command.ExecuteReader()
+            buildResult.Invoke(reader)
 
         static member ExecuteProcedure 
                 (createCommand: IDbConnection -> IDbCommand) 
