@@ -1,26 +1,22 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>SqlFun.Oracle</AssemblyName>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DocumentationFile>bin\Debug\netstandard2.0\SqlFun.Oracle.XML</DocumentationFile>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DocumentationFile>bin\Release\netstandard2.0\SqlFun.Oracle.XML</DocumentationFile>
   </PropertyGroup>
-
   <ItemGroup>
     <Compile Include="..\SqlFun.Oracle\AssemblyInfo.fs" />
     <Compile Include="..\SqlFun.Oracle\Oracle.fs" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.18.5" />
-    <PackageReference Include="SqlFun" Version="0.3.1-alpha" />
   </ItemGroup>
-
+  <ItemGroup>
+    <ProjectReference Include="..\SqlFun.NetStandard\SqlFun.NetStandard.fsproj" />
+  </ItemGroup>
 </Project>

@@ -17,6 +17,26 @@ module Queries =
     type Toolbox() = 
         inherit ExpressionExtensions.Toolbox()
 
+        static let setTransaction (cmd: IDbCommand) txn = 
+            match txn with
+            | Some t -> cmd.Transaction <- t
+            | None -> ()
+
+        static let setTimeout (cmd: IDbCommand) timeout = 
+            match timeout with
+            | Some ct -> cmd.CommandTimeout <- ct
+            | None -> ()
+
+        static let addRetValParam (command: IDbCommand) attach = 
+            let retValParam = command.CreateParameter()
+            if attach then
+                retValParam.ParameterName <- "@RETURN_VALUE"
+                retValParam.DbType <- DbType.Int32
+                retValParam.Direction <- ParameterDirection.ReturnValue
+                command.Parameters.Add(retValParam) |> ignore
+            retValParam
+
+
         static member ExecuteSql 
                 (createCommand: IDbConnection -> IDbCommand) 
                 (connection: IDbConnection) 
@@ -26,13 +46,9 @@ module Queries =
                 (assignParams: Func<IDbCommand, int>) 
                 (buildResult: Func<IDataReader, 't>) =
             use command = createCommand(connection)
-            match transaction with
-            | Some t -> command.Transaction <- t
-            | None -> ()
+            setTransaction command transaction
             command.CommandText <- commandText
-            match commandTimeout with
-            | Some ct -> command.CommandTimeout <- ct
-            | None -> ()
+            setTimeout command commandTimeout
             assignParams.Invoke(command) |> ignore
             use reader = command.ExecuteReader()
             buildResult.Invoke(reader)
@@ -50,19 +66,10 @@ module Queries =
             use command = createCommand(connection)
             command.CommandText <- procName
             command.CommandType <- CommandType.StoredProcedure
-            match transaction with
-            | Some t -> command.Transaction <- t
-            | None -> ()
-            match commandTimeout with
-            | Some ct -> command.CommandTimeout <- ct
-            | None -> ()
+            setTransaction command transaction
+            setTimeout command commandTimeout
             assignParams.Invoke(command) |> ignore
-            let retValParam = command.CreateParameter()
-            if addReturnParameter then
-                retValParam.ParameterName <- "@RETURN_VALUE"
-                retValParam.DbType <- DbType.Int32
-                retValParam.Direction <- ParameterDirection.ReturnValue
-                command.Parameters.Add(retValParam) |> ignore
+            let retValParam = addRetValParam command addReturnParameter
             use reader = command.ExecuteReader()
             let retVal = if retValParam.Value = null then 0 else unbox (retValParam.Value)
             let outParamVals = buildOutParams.Invoke(command)
@@ -80,12 +87,8 @@ module Queries =
             async {
                 use command = createCommand(connection) :?> DbCommand
                 command.CommandText <- commandText
-                match transaction with
-                | Some t -> command.Transaction <- t :?> DbTransaction
-                | None -> ()
-                match commandTimeout with
-                | Some ct -> command.CommandTimeout <- ct
-                | None -> ()
+                setTransaction command transaction
+                setTimeout command commandTimeout
                 assignParams.Invoke(command) |> ignore
                 use! reader = Async.AwaitTask(command.ExecuteReaderAsync())
                 return! buildResult.Invoke(reader)
@@ -105,22 +108,45 @@ module Queries =
                 use command = createCommand(connection) :?> DbCommand
                 command.CommandText <- procName
                 command.CommandType <- CommandType.StoredProcedure
-                match transaction with
-                | Some t -> command.Transaction <- t :?> DbTransaction
-                | None -> ()
-                match commandTimeout with
-                | Some ct -> command.CommandTimeout <- ct
-                | None -> ()
+                setTransaction command transaction
+                setTimeout command commandTimeout
                 assignParams.Invoke(command) |> ignore
-                let retValParam = command.CreateParameter()
-                if addReturnParameter then
-                    retValParam.ParameterName <- "@RETURN_VALUE"
-                    retValParam.DbType <- DbType.Int32
-                    retValParam.Direction <- ParameterDirection.ReturnValue
-                    command.Parameters.Add(retValParam) |> ignore
+                let retValParam = addRetValParam command addReturnParameter
                 use! reader = Async.AwaitTask(command.ExecuteReaderAsync())
                 let! result = buildResult.Invoke(reader)
                 return (if retValParam.Value = null then 0 else retValParam.Value :?> int), buildOutParams.Invoke(command), result                   
+            }
+
+        static member ExecuteSqlStream 
+                (createCommand: IDbConnection -> IDbCommand) 
+                (connection: IDbConnection) 
+                (transaction: IDbTransaction option) 
+                (commandText: string) 
+                (commandTimeout: int option) 
+                (assignParams: Func<IDbCommand, int>) 
+                (buildResult: Func<IDbCommand, 't>) =
+            let command = createCommand(connection)
+            setTransaction command transaction
+            command.CommandText <- commandText
+            setTimeout command commandTimeout
+            assignParams.Invoke(command) |> ignore
+            buildResult.Invoke(command)
+
+        static member ExecuteSqlStreamAsync 
+                (createCommand: IDbConnection -> IDbCommand) 
+                (connection: IDbConnection) 
+                (transaction: IDbTransaction option) 
+                (commandText: string) 
+                (commandTimeout: int option) 
+                (assignParams: Func<IDbCommand, int>) 
+                (buildResult: Func<DbCommand, Async<'t>>) =
+            async {
+                let command = createCommand(connection) :?> DbCommand
+                command.CommandText <- commandText
+                setTransaction command transaction
+                setTimeout command commandTimeout
+                assignParams.Invoke(command) |> ignore
+                return! buildResult.Invoke(command)
             }
 
         static member UnpackOption (value: 't option) = 
@@ -195,7 +221,6 @@ module Queries =
     
         static member Call (genericParams: Type array, methodName: string, [<ParamArray>]arguments: Expression array ) =
             Expression.Call(typeof<Toolbox>, genericParams, methodName, arguments)
-
 
     let private convertAsNeeded (expr: Expression) =
         match expr.Type with
@@ -290,6 +315,9 @@ module Queries =
             let initial = getOneResultMetadata ()
             initial :: List.unfold (fun _ -> if schemaOnlyReader.NextResult() then Some (getOneResultMetadata(), ()) else None) ()
 
+        let isResultStream (t: Type) = 
+            t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<ResultStream<_>>
+
         let genExecutor createCommand paramDefs returnType = 
             let queryParamDefs = paramDefs |> withoutConnectionAndTransaction
             let assignParams = genParamAssigner typeof<IDataParameter> queryParamDefs []    
@@ -308,10 +336,12 @@ module Queries =
             match returnType with
             | AsyncOf t ->
                 let buildResult = generateResultBuilder rowBuilder metadata t true
-                Expression.Call([| t |], "ExecuteSqlAsync", createCmd, connection, transaction, sql, timeout, assignParams, buildResult) 
+                let executorName = if isResultStream t then "ExecuteSqlStreamAsync" else "ExecuteSqlAsync"
+                Expression.Call([| t |], executorName, createCmd, connection, transaction, sql, timeout, assignParams, buildResult) 
             | _ ->
                 let buildResult = generateResultBuilder rowBuilder metadata returnType false
-                Expression.Call([| returnType |], "ExecuteSql", createCmd, connection, transaction, sql, timeout, assignParams, buildResult) 
+                let executorName = if isResultStream returnType then "ExecuteSqlStream" else "ExecuteSql"
+                Expression.Call([| returnType |], executorName, createCmd, connection, transaction, sql, timeout, assignParams, buildResult) 
 
         try
             let parameterNames = extractParameterNames commandText

@@ -4,6 +4,7 @@ open System.Data
 
 [<AutoOpen>]
 module ComputationBuilder = 
+    open System
 
     type DbAction<'t> = DataContext -> 't
 
@@ -152,14 +153,22 @@ module ComputationBuilder =
             member this.Return(x: 't): DbAction<'t> = fun ctx -> x
             member this.ReturnFrom(x: DbAction<'t>): DbAction<'t> = x
             member this.Bind(x: DbAction<'t1>, f: 't1 -> DbAction<'t2>): DbAction<'t2> = fun ctx -> (f <| x ctx) ctx                   
-            member this.Zero(x: DbAction<'t>) = fun ctx -> ()
+            member this.Zero(x) = fun ctx -> ()
             member this.Combine(x: DbAction<'t1>, y: DbAction<'t2>) = this.Bind(x, fun x' -> y)
             member this.Delay(f) = f() 
             member this.For (items: seq<'t>,  f: 't -> DbAction<unit>): DbAction<unit> = 
                 fun ctx ->
                     for x in items do 
                         f x ctx
-                
+            member this.Using(x: 't, f: 't -> DbAction<'u> when 't :> IDisposable) =
+                fun ctx ->
+                    try
+                        f x ctx
+                    finally
+                        x.Dispose()
+
+
+
 
     let dbaction = DbActionBuilder()
 
@@ -178,6 +187,13 @@ module ComputationBuilder =
                 fun ctx -> async {
                     for x in items do 
                         do! f x ctx
+                }
+            member this.Using(x: 't, f: 't -> AsyncDb<'u> when 't :> IDisposable) =
+                fun ctx -> async {
+                    try
+                        return! f x ctx
+                    finally
+                        x.Dispose()
                 }
 
 

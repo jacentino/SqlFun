@@ -14,11 +14,11 @@ module Transforms =
 
 
     /// <summary>
-    /// Transforms list by getting an aliasedItem attribute values of each item.
+    /// Transforms a sequence by getting an aliasedItem attribute values of each item.
     /// Used to add alias defined by PrefixedAttribute of the aliasedItem attribute to detail set in group.
     /// </summary>
-    let inline aliased (items: ^t list): ^u list =
-        items |> List.map unwrapAlias
+    let inline aliased (items: ^t seq): ^u seq =
+        items |> Seq.map unwrapAlias
 
 
     /// <summary>
@@ -364,7 +364,6 @@ module Transforms =
         let group<'p, 'c when 'p: equality>(pc) = 
             pc |> Standard.group (RelationshipBuilder<'p, 'c>.combine |> curry)
 
-    
 
     type private CopyBuilder<'Source, 'Target>() = 
 

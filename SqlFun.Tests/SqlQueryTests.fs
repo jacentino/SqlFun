@@ -190,11 +190,36 @@ type TestQueries() =
     static member getBlogsByCreatedBeforeDate: DateTimeOffset -> DataContext -> Blog list Async = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where createdAt < @createdAt"
         
-    static member getPostArrayByIds: int list -> DataContext -> PostWithArray array = 
+    static member getPostArrayByIds: int array -> DataContext -> PostWithArray array = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
 
-    static member getPostSeqByIds: int list -> DataContext -> PostWithSeq seq = 
+    static member getPostSeqByIds: int seq -> DataContext -> PostWithSeq seq = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
+
+    static member getPostSetByIds: int Set -> DataContext -> PostWithSet Set = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
+
+    static member getPostStreamByIds: int list -> DataContext -> PostWithResultStream ResultStream = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
+
+
+    static member getSomePostsByTagsWithStream: string list -> DataContext -> Post ResultStream = 
+        sql "select id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status from 
+             post p join tag t on t.postId = p.id
+             where t.name in (@tagName)
+             group by id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status"
+
+    static member getSomePostsByTagsAsyncWithStream: string list -> DataContext -> Post ResultStream Async = 
+        sql "select id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status from 
+             post p join tag t on t.postId = p.id
+             where t.name in (@tagName)
+             group by id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status"
+
+
+    static member getPostAndItsCommentsResultStream: int -> DataContext -> (Post * Comment ResultStream) = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id = @id;
+             select id, postId, parentId, content, author, createdAt from comment where postId = @id"
+
 
 
 [<TestFixture>]
@@ -531,10 +556,45 @@ type SqlQueryTests() =
 
     [<Test>]
     member this.``Results and fields can be arrays``() =
-        let p = TestQueries.getPostArrayByIds [1; 2; 3] |> run
+        let p = TestQueries.getPostArrayByIds [| 1; 2; 3 |] |> run
         Assert.IsNotEmpty(p)
 
     [<Test>]
     member this.``Results and fields can be sequences``() =
-        let p = TestQueries.getPostSeqByIds [1; 2; 3] |> run
+        let p = TestQueries.getPostSeqByIds (seq { yield 1; yield 2; yield 3 }) |> run
         Assert.IsNotEmpty(p)
+
+    [<Test>]
+    member this.``Results and fields can be sets``() =
+        let p = TestQueries.getPostSetByIds (Set [1; 2; 3]) |> run
+        Assert.IsNotEmpty(p)
+        
+
+    [<Test>]
+    member this.``Fields can not be result streams``() =
+        let exn = Assert.Throws<CompileTimeException>(fun () -> TestQueries.getPostStreamByIds [1; 2; 3] |> run |> ignore) 
+        StringAssert.Contains("Unsupported collection type", exn.InnerException.Message)
+
+
+    [<Test>]
+    member this.``Query results can be streamed``() =
+        let posts = 
+            dbaction {
+                use! p = TestQueries.getSomePostsByTagsWithStream ["framework"; "options"] 
+                return p |> List.ofSeq       
+            } |> run
+        Assert.IsNotEmpty(posts) 
+            
+
+    [<Test>]
+    member this.``Query results can be streamed in async methods``() =
+        asyncdb {
+            use! p = TestQueries.getSomePostsByTagsAsyncWithStream ["framework"; "options"]
+            Assert.IsNotEmpty(p)
+        } |> runAsync |> Async.RunSynchronously
+
+
+    [<Test>]
+    member this.``MultiResult queries can not use ResultStream``() = 
+        let exn = Assert.Throws<CompileTimeException>(fun () -> TestQueries.getPostAndItsCommentsResultStream 1 |> run |> ignore)
+        StringAssert.Contains("Unsupported collection type", exn.InnerException.Message)

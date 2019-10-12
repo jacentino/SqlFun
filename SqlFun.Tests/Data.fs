@@ -178,6 +178,36 @@ module Data =
         tagSeq: Tag seq
     }
 
+    type PostWithSet = {
+        id: int
+        blogId: int
+        name: string
+        title: string
+        content: string
+        author: string
+        createdAt: DateTime
+        modifiedAt: DateTime option
+        modifiedBy: string option
+        status: PostStatus
+        commentSet: Comment Set
+        tagSet: Tag Set
+    }
+
+
+    type PostWithResultStream = {
+        id: int
+        blogId: int
+        name: string
+        title: string
+        content: string
+        author: string
+        createdAt: DateTime
+        modifiedAt: DateTime option
+        modifiedBy: string option
+        status: PostStatus
+        commentStream: Comment ResultStream
+        tagStream: Tag ResultStream
+    }
 
 open Data
 

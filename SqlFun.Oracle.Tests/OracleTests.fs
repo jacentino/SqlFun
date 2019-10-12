@@ -9,6 +9,7 @@ open System
 open System.Configuration
 open System.Data
 open Oracle.ManagedDataAccess.Types
+open System.Diagnostics
 
 type TestQueries() =    
 
@@ -84,6 +85,35 @@ type OracleTests() =
             [| "jacentino"; "placentino" |]
             [| DateTime.Now; DateTime.Now |]
             |> run
+    
+    [<Test>]
+    member this.``Oracle array parameters are faster in bulk operations``() =    
+
+        Tooling.deleteAllButFirstBlog |> run
+
+        let sw = Stopwatch()
+        sw.Start()
+
+        for i in 0..9 do
+
+            let ids = Array.init 200 ((+) (i * 200 + 2))
+            let names = ids |> Array.map (sprintf "test-blog-%d")
+            let titles = ids |> Array.map (sprintf "Testing array parameters %d")
+            let descriptions = ids |> Array.map (sprintf "Add to check if VARRAY parameters work as expected (%d).")
+            let owners = ids |> Array.map (fun _ -> "jacentino")
+            let creationDates = ids |> Array.map (fun _ -> DateTime.Now)
+
+            TestQueries.insertBlogsWithArrays  
+                ids
+                names
+                titles
+                descriptions
+                owners
+                creationDates
+                |> run
+
+        sw.Stop()
+        printfn "Elapsed time %O" sw.Elapsed
 
     [<Test>]
     member this.``Insert to Oracle with stored procedures works as expected``() =    
