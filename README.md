@@ -22,6 +22,7 @@ It's available as a [NuGet package](https://www.nuget.org/packages/SqlFun)
 * Composable, template-based queries
 * Auto-generated CRUD operations
 * Computation expressions for connection and transaction handling
+* Support for large dataset processing
 
 ## Supported databases
 In its core SqlFun does not use any features specific to some db provider, so it works with all ADO.NET providers. 
