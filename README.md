@@ -190,7 +190,7 @@ but there are transformers, that allow to ignore parts of it:
 ```fsharp 
 let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list Async =
     proc "FindPosts"
-    >> AsyncDb.map (resultOnly id)
+    >> AsyncDb.map resultOnly
 ```	 
 ### Utilizing `dbaction` and `asyncdb` computation expressions
 It's easy to execute one query with `runAsync` or `run` function. To execute more queries in a context of one open connection, computation expression can be used:
