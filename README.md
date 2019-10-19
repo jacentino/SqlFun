@@ -113,7 +113,7 @@ At that stage, all the type checking is performed, so it's easy to make type che
 The generating process uses reflection heavily, but no reflection is used while processing a query, since generated code is executed.
 
 ### Executing queries
-Since your queries have a DataContext as a last parameter, they can be passed to the `run` function after applying preceding parameters.
+Since your queries return `DbAction<'t>`, they can be passed to the `run` function after applying preceding parameters.
 ```fsharp 
 let blog = Blogging.getBlog 1 |> run
 ```
