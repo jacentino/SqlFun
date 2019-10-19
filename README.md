@@ -96,12 +96,12 @@ The best way of defining queries is to create variables for them and place in so
 ```fsharp 
 module Blogging =    
  
-    let getBlog: int -> DataContext -> Blog = 
+    let getBlog: int -> DbAction<Blog> = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
              from Blog 
              where id = @id"
             
-    let getPosts: int -> DataContext -> Post list = 
+    let getPosts: int -> DbAction<Post list> = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status 
              from post 
              where blogId = @blogId"
@@ -135,7 +135,7 @@ async {
 ### Result transformations
 Since the ADO.NET allows to execute many sql commands at once, it's possible to utilize it with SqlFun. The result is a tuple:
 ```fsharp 
-let getBlogWithPosts: int -> DataContext -> Async<Blog * Post list> = 
+let getBlogWithPosts: int -> AsyncDb<Blog * Post list> = 
     sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
          from Blog 
          where id = @id;
@@ -146,7 +146,7 @@ let getBlogWithPosts: int -> DataContext -> Async<Blog * Post list> =
  The call of `sql` returns some function, thus it can be composed with another function, possibly performing result transformations.
  Let extend the blog type with a `posts: Post list` property. In this case, two results can be combined with simple function:
  ```fsharp 
-let getBlogWithPosts: int -> DataContext -> Blog Async = 
+let getBlogWithPosts: int -> AsyncDb<Blog> = 
     sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
          from Blog 
          where id = @id;
@@ -158,7 +158,7 @@ let getBlogWithPosts: int -> DataContext -> Blog Async =
 In simple cases, when code follows conventions, transormations can be specified more declarative way:
 
 ```fsharp 
-let getBlogWithPosts: int -> DataContext -> Blog Async = 
+let getBlogWithPosts: int -> AsyncDb<Blog> = 
     sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
          from Blog 
          where id = @id;
@@ -172,7 +172,7 @@ There are also functions that allow to combine multi-row results by joining many
 ### Compound parameters
 Records can be parameters as well:
 ```fsharp 
-let insertPost: Post -> DataContext -> int Async = 
+let insertPost: Post -> AsyncDb<int> = 
     sql "insert into post 
                 (blogId, name, title, content, author, createdAt, status)
          values (@blogId, @name, @title, @content, @author, @createdAt, @status);
@@ -183,12 +183,12 @@ The record fields are mapped to query parameters by name.
 ### Stored procedures
 The result of a function calling stored procedure should be a three-element tuple (return code, output params, result):
 ```fsharp 	
-let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Async<int * unit * Post list> =
+let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> AsyncDb<int * unit * Post list> =
     proc "FindPosts"
 ```	
 but there are transformers, that allow to ignore parts of it:
 ```fsharp 
-let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list Async =
+let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> Post list AsyncDb =
     proc "FindPosts"
     >> AsyncDb.map resultOnly
 ```	 
