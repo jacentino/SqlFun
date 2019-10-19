@@ -120,7 +120,7 @@ let blog = Blogging.getBlog 1 |> run
 ### Async support
 The preferrable way is to define query as asynchronous:
 ```fsharp 
-let getBlog: int -> DataContext -> Blog Async = 
+let getBlog: int -> AsyncDb<Blog> = 
     sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy 
          from Blog 
          where id = @id"
@@ -185,7 +185,7 @@ The result of a function calling stored procedure should be a three-element tupl
 ```fsharp 	
 let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> AsyncDb<int * unit * Post list> =
     proc "FindPosts"
-```	
+```
 but there are transformers, that allow to ignore parts of it:
 ```fsharp 
 let findPosts: (PostSearchCriteria * SignatureSearchCriteria) -> Post list AsyncDb =
