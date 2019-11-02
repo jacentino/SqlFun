@@ -6,10 +6,10 @@ It's fast, type safe and gives you all powers of SQL, no custom query language c
 It's also lightweight, you need to know a [general idea](https://github.com/jacentino/SqlFun/wiki/Basic-concepts) and few functions (and, of course SQL).
 
 It's available as a [NuGet package](https://www.nuget.org/packages/SqlFun)
-
+There are also extensions for [PostgreSQL](https://www.nuget.org/packages/SqlFun.NpgSql) and [Oracle](https://www.nuget.org/packages/SqlFun.Oracle)
 
 ## Features
-* Works with any  ADO.NET provider
+* Works with any ADO.NET provider
 * All SQL features available
 * Type safety
 * High performance
@@ -25,12 +25,16 @@ It's available as a [NuGet package](https://www.nuget.org/packages/SqlFun)
 * Support for large dataset processing
 
 ## Supported databases
-In its core SqlFun does not use any features specific to some db provider, so it works with all ADO.NET providers. 
+In its core SqlFun does not use any features specific to some db provider, so it works with any ADO.NET provider. 
+The only limitation is properly working commands executed in `SchemaOnly` mode.
+
+It was tested against MS SqlServer, PostgreSQL, Oracle, MySQL and SQLite.
 
 There are three extensions, enabling provider-specific features:
 * the extension for MS SQL, that allows to use table valued parameters
-* the extension for PostgreSQL, making use of array parameters possible and adding more comfortable version of Bulk Copy
+* the extension for PostgreSQL, making use of array parameters possible and adding more comfortable Bulk Copy mechanism
 * the extension for Oracle, adding some adaptations, like binding parameters by name, and allowing to use array parameters
+
 
 ## How it works
 Most of us think about data access code as a separate layer. We don't like to spread SQL queries across all the application.
