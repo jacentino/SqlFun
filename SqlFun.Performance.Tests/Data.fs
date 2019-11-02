@@ -4,7 +4,7 @@ module Data =
     open System
     open System.Data.SqlClient
     open System.Configuration
-    open SqlFun.Queries
+    open SqlFun.GeneratorConfig
 
     type Comment = {
         id: int
