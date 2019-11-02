@@ -32,7 +32,7 @@ It was tested against MS SqlServer, PostgreSQL, Oracle, MySQL and SQLite.
 
 There are three extensions, enabling provider-specific features:
 * the extension for MS SQL, that allows to use table valued parameters
-* the extension for PostgreSQL, making use of array parameters possible and adding more comfortable version of Bulk Copy
+* the extension for PostgreSQL, making use of array parameters possible and adding more comfortable Bulk Copy mechanism
 * the extension for Oracle, adding some adaptations, like binding parameters by name, and allowing to use array parameters
 
 
