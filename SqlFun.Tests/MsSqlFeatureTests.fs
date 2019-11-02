@@ -6,11 +6,9 @@ open Data
 open Common
 open SqlFun.MsSql
 
-module MsSqlTestQueries = 
-    open SqlFun.Queries
-    
+module MsSqlTestQueries =    
 
-    let generatorConfig = MsSql.createDefaultConfig createConnection
+    let generatorConfig = createDefaultConfig createConnection
 
     let sqlTm tm commandText = Queries.sql { generatorConfig with commandTimeout = Some tm } commandText
 

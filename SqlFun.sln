@@ -21,7 +21,11 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Oracle.Tests", "SqlF
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Oracle", "SqlFun.Oracle\SqlFun.Oracle.fsproj", "{B172625E-F4CB-4DC9-82B5-B81B67FCED00}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Oracle.NetStandard", "SqlFun.Oracle.NetStandard\SqlFun.Oracle.NetStandard.fsproj", "{60BD4DEF-5EC3-485B-8FAF-FD555290C705}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.Oracle.NetStandard", "SqlFun.Oracle.NetStandard\SqlFun.Oracle.NetStandard.fsproj", "{60BD4DEF-5EC3-485B-8FAF-FD555290C705}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Sqlite.Tests", "SqlFun.Sqlite.Tests\SqlFun.Sqlite.Tests.fsproj", "{55171F45-F5E8-4A15-B444-321EC6729FAD}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.MySql.Tests", "SqlFun.MySql.Tests\SqlFun.MySql.Tests.fsproj", "{8C544F2E-3DC8-426E-817A-39AC71349E8D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -69,6 +73,14 @@ Global
 		{60BD4DEF-5EC3-485B-8FAF-FD555290C705}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{60BD4DEF-5EC3-485B-8FAF-FD555290C705}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{60BD4DEF-5EC3-485B-8FAF-FD555290C705}.Release|Any CPU.Build.0 = Release|Any CPU
+		{55171F45-F5E8-4A15-B444-321EC6729FAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{55171F45-F5E8-4A15-B444-321EC6729FAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{55171F45-F5E8-4A15-B444-321EC6729FAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{55171F45-F5E8-4A15-B444-321EC6729FAD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8C544F2E-3DC8-426E-817A-39AC71349E8D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8C544F2E-3DC8-426E-817A-39AC71349E8D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8C544F2E-3DC8-426E-817A-39AC71349E8D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8C544F2E-3DC8-426E-817A-39AC71349E8D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

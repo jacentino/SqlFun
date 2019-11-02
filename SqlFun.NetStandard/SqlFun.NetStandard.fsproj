@@ -23,9 +23,11 @@
     <Compile Include="..\SqlFun\DbBuilder.fs" />
     <Compile Include="..\SqlFun\ParamBuilder.fs" />
     <Compile Include="..\SqlFun\ResultBuilder.fs" />
+    <Compile Include="..\SqlFun\GeneratorConfig.fs" />
     <Compile Include="..\SqlFun\Queries.fs" />
     <Compile Include="..\SqlFun\Transforms.fs" />
     <Compile Include="..\SqlFun\MsSql.fs" />
+    <Compile Include="..\SqlFun\MySql.fs" />
     <Compile Include="..\SqlFun\Crud.fs" />
     <Compile Include="..\SqlFun\Statements.fs" />
     <Compile Include="..\SqlFun\Composite.fs" />

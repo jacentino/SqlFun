@@ -4,16 +4,15 @@ open System
 open System.Linq.Expressions
 open System.Data
 
-open SqlFun
-open SqlFun.Types
-open SqlFun.ParamBuilder
-open SqlFun.Queries
-
 open Npgsql
 open NpgsqlTypes
 
+open SqlFun
+open SqlFun.Types
+open SqlFun.GeneratorConfig
+
 [<AutoOpen>]
-module NpgSql = 
+module Config = 
 
     /// <summary>
     /// Mapping between .NET types and PostgreSQL types.
@@ -69,6 +68,11 @@ module NpgSql =
         else
             defaultPB prefix name expr names
 
+    let useArrayParameters config = 
+        { config with 
+            paramBuilder = arrayParamBuilder <+> config.paramBuilder 
+        }
+
     /// <summary>
     /// Creates default config for PostgreSQL database.
     /// </summary>
@@ -76,7 +80,5 @@ module NpgSql =
     /// Function creating a database connection.
     /// </param>
     let createDefaultConfig (connectionBuilder: unit -> #IDbConnection) = 
-        let lastDefault = createDefaultConfig connectionBuilder
-        {
-            lastDefault with paramBuilder = arrayParamBuilder <+> lastDefault.paramBuilder 
-        }
+        createDefaultConfig connectionBuilder
+        |> useArrayParameters
