@@ -3,4 +3,4 @@ obj/
 packages/
 .vs/
 nuget-pack/
-SqlFun.Sqlite.Tests/database/SqlFunTests.sqlite
+

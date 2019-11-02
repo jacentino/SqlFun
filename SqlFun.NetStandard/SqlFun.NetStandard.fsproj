@@ -28,6 +28,7 @@
     <Compile Include="..\SqlFun\Transforms.fs" />
     <Compile Include="..\SqlFun\MsSql.fs" />
     <Compile Include="..\SqlFun\MySql.fs" />
+    <Compile Include="..\SqlFun\Sqlite.fs" />
     <Compile Include="..\SqlFun\Crud.fs" />
     <Compile Include="..\SqlFun\Statements.fs" />
     <Compile Include="..\SqlFun\Composite.fs" />
