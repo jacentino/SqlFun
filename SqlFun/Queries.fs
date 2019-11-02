@@ -351,6 +351,52 @@ module Queries =
         with ex ->
             raise <| CompileTimeException(t, "sql command", commandText, ex)
                 
+    /// <summary>
+    /// Values and functions allowing to customize generation of query execution functions.
+    /// </summary>
+    type GeneratorConfig =
+        {
+            /// The function providing a database connection used in generation.
+            createConnection: unit -> IDbConnection 
+            /// The function creating commands.
+            createCommand: IDbConnection -> IDbCommand
+            /// The command timeout.
+            commandTimeout: int option
+            /// Function searching for parameter names in a command text.
+            paramNameFinder: string -> string list
+            /// Function searching for parameter names and directions in an information schema.
+            procParamFinder: string -> (string * bool * obj) list
+            /// Function generating code creating query parameters from function parameters.
+            paramBuilder: ParamBuilder -> ParamBuilder
+            /// Function generating code creating typed result from data reader.
+            rowBuilder: RowBuilder -> RowBuilder
+            /// Determines, whether queries, that don't return results, should be executed
+            /// with CommandBehavior.SchemaOnly for diagnostic purposes.
+            makeDiagnosticCalls: bool
+            /// Determines, whether to add return value parameter to stored procedure commands.
+            addReturnParameter: bool
+        }
+        
+    /// <summary>
+    /// Provides default configuration.
+    /// </summary>
+    /// <param name="connectionBuilder">
+    /// Database connection - can not be left unspecified.
+    /// </param>
+    let createDefaultConfig (connectionBuilder: unit -> #IDbConnection) =
+        let createConnection = (connectionBuilder >> unbox<IDbConnection>)
+        let createCommand = fun (c: IDbConnection) -> c.CreateCommand()
+        {
+            createConnection = createConnection
+            createCommand = createCommand
+            commandTimeout = None
+            paramNameFinder = ParamBuilder.extractParameterNames "@"
+            procParamFinder = ParamBuilder.extractProcParamNames createConnection createCommand
+            paramBuilder = ParamBuilder.getParamExpressions
+            rowBuilder = ResultBuilder.getRowBuilderExpression
+            makeDiagnosticCalls = true
+            addReturnParameter = true
+        }
 
     /// <summary>
     /// Generates function executing a sql command.

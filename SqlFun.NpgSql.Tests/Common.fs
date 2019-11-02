@@ -6,10 +6,12 @@ module Common =
     open SqlFun
     open SqlFun.Queries
     open SqlFun.NpgSql
+    open System.Data
+
 
     let createConnection () = new NpgsqlConnection(ConfigurationManager.ConnectionStrings.["SqlFunTests"].ConnectionString)
 
-    let generatorConfig = createDefaultConfig createConnection
+    let generatorConfig = NpgSql.createDefaultConfig createConnection
 
     let run f = DbAction.run createConnection f
 

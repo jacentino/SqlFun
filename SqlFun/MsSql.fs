@@ -1,17 +1,17 @@
 ﻿namespace SqlFun
 
-
-module MsSql = 
-
-    open System
-    open System.Data
-    open System.Reflection
-    open Microsoft.SqlServer.Server
-    open Microsoft.FSharp.Reflection
+module MsSql =
+    
+    open SqlFun.Queries
+    open SqlFun.ParamBuilder
     open SqlFun.Types
     open System.Linq.Expressions
+    open System.Data
+    open System
+    open Microsoft.FSharp.Reflection
+    open System.Reflection
+    open Microsoft.SqlServer.Server
     open SqlFun.ExpressionExtensions
-    open SqlFun.GeneratorConfig
 
     let private convertIfEnum (expr: Expression) = 
         if expr.Type.IsEnum
@@ -175,24 +175,8 @@ module MsSql =
         | _ ->
             defaultPB prefix name expr names
 
-    /// <summary>
-    /// Adds support for user defined table type parameters.
-    /// Allows to combine bulk operations with usual queries.
-    /// </summary>
-    /// <param name="config">
-    /// The initial config.
-    /// </param>
-    let useTableValuedParameters (config: SqlFun.GeneratorConfig) = 
-        { config with
-            paramBuilder = (tableValueParamBuilder config.createConnection) <+> config.paramBuilder 
-        }
-
-    /// <summary>
-    /// Provides default configuration for MsSql with TVP support.
-    /// </summary>
-    /// <param name="connectionBuilder">
-    /// Function creating database connection.
-    /// </param>
     let createDefaultConfig connectionBuilder = 
-        createDefaultConfig connectionBuilder
-        |> useTableValuedParameters
+        let lastDefault = createDefaultConfig connectionBuilder
+        {
+            lastDefault with paramBuilder = (tableValueParamBuilder connectionBuilder) <+> lastDefault.paramBuilder 
+        }

@@ -7,10 +7,9 @@ open Oracle.ManagedDataAccess.Client
 open SqlFun
 open SqlFun.Types
 open SqlFun.ParamBuilder
-open SqlFun.GeneratorConfig
 
 [<AutoOpen>]
-module Config = 
+module Oracle = 
 
     /// <summary>
     /// Mapping between .NET types and Oracle types.
@@ -31,7 +30,7 @@ module Config =
         else failwith <| sprintf "Unknown array element type: %O" t
         
     /// <summary>
-    /// Parameter builder supporting Oracle array parameters.
+    /// Parameter builder supporting PostgreSQL array parameters.
     /// </summary>
     /// <param name="defaultPB">
     /// Next item in parameter building cycle.
@@ -120,57 +119,6 @@ module Config =
         ]
 
 
-
-    /// <summary>
-    /// Adds support for Oracle array parameters.
-    /// </summary>
-    /// <param name="config">
-    /// The initial config.
-    /// </param>
-    let useArrayParameters config =
-        { config with
-            paramBuilder = arrayParamBuilder <+> config.paramBuilder
-        }
-
-    /// <summary>
-    /// Adds settings needed by generator to work with Oracle databases.
-    /// </summary>
-    /// <remarks>
-    /// * : as a parameter prefix
-    /// * Oracle specific information schema reader
-    /// * turned off return parameter adding
-    /// * turned off execution of schema only commands 
-    ///   for queries, that doesn't create results
-    /// <remarks>
-    /// <param name="config">
-    /// The initial config.
-    /// </param>
-    let addOraclePrerequisites config = 
-        let createCommand (con: IDbConnection) = 
-            let cmd = con.CreateCommand()
-            (cmd :?> OracleCommand).BindByName <- true
-            cmd
-        { config with 
-            createCommand = createCommand
-            paramNameFinder = extractParameterNames ":"
-            procParamFinder = extractProcParamNames config.createConnection config.createCommand
-            makeDiagnosticCalls = false
-            addReturnParameter = false
-        }
-        
-
-    /// <summary>
-    /// Adds support for collections of basic types as query parameters.
-    /// Subsequent collection items are injected as comma separated parameters in a command text.
-    /// </summary>
-    /// <param name="config">
-    /// The initial config.
-    /// </param>
-    let useCollectionParameters config = 
-        { config with 
-            paramBuilder = (listParamBuilder Types.isSimpleType ":") <+> config.paramBuilder
-        }
-
     /// <summary>
     /// Creates default config for Oracle database.
     /// Activates parameter binding by name and sets Oracle parameter naming rule (':' as a prefix).
@@ -179,7 +127,17 @@ module Config =
     /// Function creating a database connection.
     /// </param>
     let createDefaultConfig createConnection = 
-        createDefaultConfig createConnection
-        |> addOraclePrerequisites
-        |> useArrayParameters
+        let lastDefault = Queries.createDefaultConfig createConnection
+        let createCommand (con: IDbConnection) = 
+            let cmd = con.CreateCommand()
+            (cmd :?> OracleCommand).BindByName <- true
+            cmd
+        { lastDefault with 
+            createCommand = createCommand
+            paramNameFinder = extractParameterNames ":"
+            procParamFinder = extractProcParamNames lastDefault.createConnection createCommand
+            paramBuilder = arrayParamBuilder <+> lastDefault.paramBuilder
+            makeDiagnosticCalls = false
+            addReturnParameter = false
+        }
 

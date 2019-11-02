@@ -6,6 +6,7 @@ module Common =
     open SqlFun
     open SqlFun.Queries
     open SqlFun.Oracle
+    open System.Data
 
 
     let createConnection () = new OracleConnection(ConfigurationManager.ConnectionStrings.["SqlFunTests"].ConnectionString)

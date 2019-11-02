@@ -5,6 +5,8 @@ module Transforms =
     open System
     open System.Reflection
     open System.Linq.Expressions
+
+    open Queries
     open Microsoft.FSharp.Reflection
 
     let inline private unwrapAlias (alias: ^t): ^u =

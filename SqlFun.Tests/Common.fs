@@ -5,14 +5,19 @@ module Common =
     open System.Configuration
     open SqlFun
     open SqlFun.Queries
-    open SqlFun.GeneratorConfig
+    open SqlFun.ParamBuilder
+    open SqlFun.Types
 
     let createConnection () = new SqlConnection(ConfigurationManager.ConnectionStrings.["SqlFunTests"].ConnectionString)
 
     let generatorConfig = 
-        createDefaultConfig createConnection
-        |> useCollectionParameters
-        |> intCollectionsAsLiterals
+        let defaultConfig = createDefaultConfig createConnection
+        { defaultConfig with
+            paramBuilder = 
+                (listDirectParamBuilder (string >> Set([string typeof<int>]).Contains) string) <+> 
+                (listParamBuilder isSimpleType "@") <+> 
+                defaultConfig.paramBuilder
+        }
 
     let run f = DbAction.run createConnection f
 

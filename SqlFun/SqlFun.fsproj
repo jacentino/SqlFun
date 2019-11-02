@@ -59,12 +59,9 @@
     <Compile Include="DbBuilder.fs" />
     <Compile Include="ParamBuilder.fs" />
     <Compile Include="ResultBuilder.fs" />
-    <Compile Include="GeneratorConfig.fs" />
     <Compile Include="Queries.fs" />
     <Compile Include="Transforms.fs" />
     <Compile Include="MsSql.fs" />
-    <Compile Include="MySql.fs" />
-    <Compile Include="Sqlite.fs" />
     <Compile Include="Crud.fs" />
     <Compile Include="Statements.fs" />
     <Compile Include="Composite.fs" />
