@@ -230,6 +230,14 @@ module GeneratorConfig =
         }
 
     /// <summary>
+    /// Specifies command timeout.
+    /// </summary>
+    /// <param name="tm">The timeout value.</param>
+    /// <param name="config">The initial config.</param>
+    let addCommandTimeout tm config = 
+        { config with commandTimeout = Some tm }
+
+    /// <summary>
     /// Adds support for collections of basic types as query parameters.
     /// Subsequent collection items are injected as comma separated parameters in a command text.
     /// </summary>

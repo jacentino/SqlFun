@@ -20,7 +20,7 @@ module Common =
 
     let runAsync f = AsyncDb.run createConnection f
 
-    let sqlTm tm commandText = sql { generatorConfig with commandTimeout = Some tm } commandText
+    let sqlTm tm commandText = sql (generatorConfig |> addCommandTimeout tm) commandText
 
     let sql commandText = sql generatorConfig commandText
 
