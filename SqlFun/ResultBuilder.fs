@@ -474,3 +474,4 @@ module ResultBuilder =
                 else buildMultiResultSet true md returnType
             | _ ->
                 failwith "Function return type for multiple result queries must be a tuple."
+

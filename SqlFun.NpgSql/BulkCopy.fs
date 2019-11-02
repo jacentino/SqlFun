@@ -70,7 +70,7 @@ type BulkCopy<'Rec>() =
                             match p.PropertyType with
                             | SimpleType -> 
                                 let valueExpr = convertIfEnum (Expression.Property(root, p))
-                                let npgType = Expression.Constant(NpgSql.getNpgSqlDbType valueExpr.Type)
+                                let npgType = Expression.Constant(getNpgSqlDbType valueExpr.Type)
                                 let write = writeMethod.MakeGenericMethod(valueExpr.Type)
                                 Expression.IfThenElse(
                                     enclosingOptionIsSome,
@@ -80,7 +80,7 @@ type BulkCopy<'Rec>() =
                             | SimpleTypeOption ->
                                 let valueExpr = Expression.Property(root, p)
                                 let optValueExpr = convertIfEnum (Expression.Property (valueExpr, "Value"))
-                                let npgType = Expression.Constant(NpgSql.getNpgSqlDbType optValueExpr.Type)
+                                let npgType = Expression.Constant(getNpgSqlDbType optValueExpr.Type)
                                 let write = writeMethod.MakeGenericMethod(optValueExpr.Type)
                                 Expression.IfThenElse(
                                     Expression.And(enclosingOptionIsSome, Expression.Call(getIsSome valueExpr.Type, valueExpr)),
