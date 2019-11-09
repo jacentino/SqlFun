@@ -48,7 +48,7 @@ SqlFun can be added to your solution from Package Manager Console:
 PM> Install-Package SqlFun
 ```
 
-### Prerequisites
+### Configuration
 First step is to define function creating database connection and config record:
 ```fsharp
 let createConnection () = new SqlConnection(<your database connection string>)
@@ -96,7 +96,7 @@ type Blog = {
 ```    
 The most preferrable way is to use F# record types. Record fields should reflect query result columns, because they are mapped by name.
     
-### Queries
+### Defining queries
 The best way of defining queries is to create variables for them and place in some module:
 ```fsharp 
 module Blogging =    
