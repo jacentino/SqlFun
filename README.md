@@ -39,7 +39,7 @@ There are four extensions, enabling provider-specific features:
 
 ## How it works
 Most of us think about data access code as a separate layer. We don't like to spread SQL queries across all the application.
-Better way is to build an API exposing your database, consisting of structures representing database data, and functions responsible for processing this data (great object-oriented example is [Insight.Database]https://github.com/jonwagner/Insight.Database/wiki/Auto-Interface-Implementation) automatic interface implementation). SqlFun makes it a design requirement.
+Better way is to build an API exposing your database, consisting of structures representing database data, and functions responsible for processing this data (great object-oriented example is [Insight.Database](https://github.com/jonwagner/Insight.Database/wiki/Auto-Interface-Implementation) automatic interface implementation). SqlFun makes it a design requirement.
 
 ### Installation
 SqlFun can be added to your solution from Package Manager Console:
