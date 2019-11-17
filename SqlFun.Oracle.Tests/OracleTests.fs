@@ -40,23 +40,6 @@ type OracleTests() =
         Assert.AreEqual("functional-data-access-with-sqlfun", blog.name)        
     
     [<Test>]
-    member this.``Oracle stored procedure test``() =    
-        use con = new OracleConnection(ConfigurationManager.ConnectionStrings.["SqlFunTests"].ConnectionString)
-        con.Open()
-        use cmd = con.CreateCommand()
-        cmd.BindByName <- true
-        cmd.CommandText <- "sp_get_blog"
-        cmd.CommandType <- CommandType.StoredProcedure
-        cmd.Parameters.Add("P_BLOGID", 1 :> obj) |> ignore
-        let cr = cmd.Parameters.Add("P_RESULT_CR", OracleDbType.RefCursor, ParameterDirection.Output)                
-        use result1 = cmd.ExecuteReader(CommandBehavior.SchemaOnly)
-        let schema = result1.GetSchemaTable()
-        while result1.Read() do
-            Console.WriteLine(result1.GetString(1))
-        
-
-    
-    [<Test>]
     member this.``Inserts to Oracle work as expected``() =    
 
         Tooling.deleteAllButFirstBlog |> run

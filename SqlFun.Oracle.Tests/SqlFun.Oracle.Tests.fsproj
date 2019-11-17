@@ -57,6 +57,7 @@
     <Compile Include="OracleTests.fs" />
     <Content Include="packages.config" />
     <Content Include="App.config" />
+    <None Include="SqlFunTests.sql" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">
@@ -146,8 +147,6 @@
     </Reference>
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\SqlFun.Oracle\SqlFun.Oracle.fsproj">
       <Name>SqlFun.Oracle</Name>
       <Project>{b172625e-f4cb-4dc9-82b5-b81b67fced00}</Project>

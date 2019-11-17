@@ -57,6 +57,7 @@
     <Compile Include="MySqlTests.fs" />
     <Content Include="App.config" />
     <Content Include="packages.config" />
+    <None Include="SqlFunTests.sql" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="BouncyCastle.Crypto">
