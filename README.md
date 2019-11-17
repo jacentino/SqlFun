@@ -6,7 +6,7 @@ It's fast, type safe and gives you all powers of SQL, no custom query language c
 It's also lightweight, you need to know a [general idea](https://github.com/jacentino/SqlFun/wiki/Basic-concepts) and few functions (and, of course SQL).
 
 It's available as a [NuGet package](https://www.nuget.org/packages/SqlFun)
-There are also extensions for [PostgreSQL](https://www.nuget.org/packages/SqlFun.NpgSql) and [Oracle](https://www.nuget.org/packages/SqlFun.Oracle)
+There are also extensions for [PostgreSQL](https://www.nuget.org/packages/SqlFun.NpgSql) and [Oracle](https://www.nuget.org/packages/SqlFun.Oracle) databases.
 
 ## Features
 * Works with any ADO.NET provider
@@ -30,15 +30,16 @@ The only limitation is properly working commands executed in `SchemaOnly` mode.
 
 It was tested against MS SqlServer, PostgreSQL, Oracle, MySQL and SQLite.
 
-There are three extensions, enabling provider-specific features:
+There are four extensions, enabling provider-specific features:
 * the extension for MS SQL, that allows to use table valued parameters
 * the extension for PostgreSQL, making use of array parameters possible and adding more comfortable Bulk Copy mechanism
 * the extension for Oracle, adding some adaptations, like binding parameters by name, and allowing to use array parameters
+* the extension for SQLite, that allows to use date and time values
 
 
 ## How it works
 Most of us think about data access code as a separate layer. We don't like to spread SQL queries across all the application.
-Better way is to build an API exposing your database, consisting of structures representing database data, and functions responsible for processing this data. SqlFun makes it a design requirement.
+Better way is to build an API exposing your database, consisting of structures representing database data, and functions responsible for processing this data (great object-oriented example is [Insight.Database](https://github.com/jonwagner/Insight.Database/wiki/Auto-Interface-Implementation) automatic interface implementation). SqlFun makes it a design requirement.
 
 ### Installation
 SqlFun can be added to your solution from Package Manager Console:
@@ -47,7 +48,7 @@ SqlFun can be added to your solution from Package Manager Console:
 PM> Install-Package SqlFun
 ```
 
-### Prerequisites
+### Configuration
 First step is to define function creating database connection and config record:
 ```fsharp
 let createConnection () = new SqlConnection(<your database connection string>)
@@ -95,7 +96,7 @@ type Blog = {
 ```    
 The most preferrable way is to use F# record types. Record fields should reflect query result columns, because they are mapped by name.
     
-### Queries
+### Defining queries
 The best way of defining queries is to create variables for them and place in some module:
 ```fsharp 
 module Blogging =    
