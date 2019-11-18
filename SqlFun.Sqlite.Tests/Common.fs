@@ -19,7 +19,7 @@ module Common =
 
     let generatorConfig = 
         createDefaultConfig createConnection
-        |> representDatesAsInts
+        |> representDatesAsStrings
 
     let run f = DbAction.run createConnection f
 
