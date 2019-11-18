@@ -14,6 +14,12 @@ type TestQueries() =
     static member getBlog: int -> DataContext -> Blog = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id"
 
+    static member getAllBlogs: DataContext -> Blog list = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog"
+
+    static member getAllBlogsWithUnit: unit -> DataContext -> Blog list = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog"
+
     static member getBlogOptional: int -> DataContext -> Blog option = 
         sql "select * from Blog where id = @id"
 
@@ -113,7 +119,7 @@ type TestQueries() =
       
     static member getBlogAsync: int -> DataContext -> Blog Async = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id"
-        
+
     static member getPostsWithTagsAsync: int -> DataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
@@ -233,6 +239,16 @@ type SqlQueryTests() =
     member this.``Query returning one row returns proper result when the requested row exists``() = 
         let blog = TestQueries.getBlog 1 |> run
         Assert.AreEqual (1, blog.id)
+        
+    [<Test>]
+    member this.``Queries can be defined without parameters``() = 
+        let blogs = TestQueries.getAllBlogs |> run
+        Assert.AreEqual (1, blogs.Length)
+        
+    [<Test>]
+    member this.``Unit can be used as a parameter``() = 
+        let blogs = TestQueries.getAllBlogsWithUnit () |> run
+        Assert.AreEqual (1, blogs.Length)
 
     [<Test>]
     member this.``Query returning one row fails when the requested row does not exist``() = 
@@ -383,6 +399,7 @@ type SqlQueryTests() =
     member this.``Asynchronous query returning one row returns proper result when the requested row exists``() = 
         let blog = TestQueries.getBlogAsync 1 |> runAsync |> Async.RunSynchronously
         Assert.AreEqual (1, blog.id)
+
 
     [<Test>]
     member this.``Two asynchronous queries can be combined by key value with join wrapped in mapAsync``() = 

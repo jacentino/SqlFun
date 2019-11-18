@@ -186,6 +186,8 @@ module ParamBuilder =
         | EnumOf (eType, values) ->
             let expr = Expression.Convert(convertEnum eType values expr, typeof<obj>) :> Expression
             getParamExpressions customPB prefix name expr paramNames
+        | Unit ->
+            []
         | _ ->
             [prefix + name, expr, buildInParam (prefix + name, expr), getFakeValue expr.Type]
 
