@@ -5,7 +5,7 @@ SqlFun is a tool for writing data access code in F# functional way.
 It's fast, type safe and gives you all powers of SQL, no custom query language constraints you.
 It's also lightweight, you need to know a [general idea](https://github.com/jacentino/SqlFun/wiki/Basic-concepts) and few functions (and, of course SQL).
 
-It's available as a [![SqlFun](https://img.shields.io/nuget/v/SqlFun.svg)](https://www.nuget.org/packages/SqlFun/)
+It's available as a [Nuget package](https://www.nuget.org/packages/SqlFun/)
 There are also extensions for [PostgreSQL](https://www.nuget.org/packages/SqlFun.NpgSql) and [Oracle](https://www.nuget.org/packages/SqlFun.Oracle) databases.
 
 ## Features
