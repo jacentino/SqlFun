@@ -1,5 +1,4 @@
 ---
-layout: page
 title: SqlFun
 subtitle: Idiomatic data access for F#
 ---
