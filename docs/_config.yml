@@ -1,4 +1,4 @@
-theme: jekyll-theme-minimal
+theme: jekyll-theme-primer
 title: SqlFun
 description: Idiomatic data access for F#
 logo: /images/sqlfun.png
