@@ -1,7 +1,7 @@
 ---
 title: SqlFun
 description: Idiomatic data access for F#
-logo: /SqlFun/docs/images/sqlfun.png
+logo: /SqlFun/images/sqlfun.png
 ---
 
 SqlFun is a tool for writing data access code in F# functional way. 
