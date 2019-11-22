@@ -1,8 +1,8 @@
 ---
 title: SqlFun
-subtitle: Idiomatic data access for F#
-logo: /images/sqlfun.png
+description: Idiomatic data access for F#
 ---
+
 SqlFun is a tool for writing data access code in F# functional way. 
 It's fast, type safe and gives you all powers of SQL, no custom query language constraints you.
 It's also lightweight, you need to know a [general idea](https://github.com/jacentino/SqlFun/wiki/Basic-concepts) and few functions (and, of course SQL).
