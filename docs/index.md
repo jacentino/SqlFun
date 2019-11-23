@@ -41,7 +41,7 @@ Better way is to build an API exposing your database, consisting of structures r
 ### Installation
 SqlFun can be added to your solution from Package Manager Console:
 
-```PowerShell
+```powershell
 PM> Install-Package SqlFun
 ```
 
