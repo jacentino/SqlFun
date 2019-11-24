@@ -20,6 +20,13 @@ type TestQueries() =
     static member getAllBlogsWithUnit: unit -> DataContext -> Blog list = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog"
 
+    static member getAllBlogsWithExcessiveArg: int -> DataContext -> Blog list = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog"
+
+
+    static member getBlogWithExcessiveArgs: (int * int * int) -> DataContext -> Blog = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id"
+
     static member getBlogOptional: int -> DataContext -> Blog option = 
         sql "select * from Blog where id = @id"
 
@@ -615,3 +622,16 @@ type SqlQueryTests() =
     member this.``MultiResult queries can not use ResultStream``() = 
         let exn = Assert.Throws<CompileTimeException>(fun () -> TestQueries.getPostAndItsCommentsResultStream 1 |> run |> ignore)
         StringAssert.Contains("Unsupported collection type", exn.InnerException.Message)
+
+
+    [<Test>]
+    member this.``Queries with wrong number of curried arguments raise meaningful exceptions``() =
+        let exn = Assert.Throws<CompileTimeException>(fun () -> TestQueries.getAllBlogsWithExcessiveArg 1 |> run |> ignore) 
+        StringAssert.Contains("Function arguments don't match query parameters", exn.InnerException.Message)
+
+
+    [<Test>]
+    member this.``Queries with wrong number of tuple arguments raise meaningful exceptions``() =
+        let exn = Assert.Throws<CompileTimeException>(fun () -> TestQueries.getBlogWithExcessiveArgs (1, 1, 1) |> run |> ignore) 
+        StringAssert.Contains("Function arguments don't match query parameters", exn.InnerException.Message)
+

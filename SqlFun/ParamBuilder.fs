@@ -39,6 +39,12 @@ module ParamBuilder =
         then null 
         else Activator.CreateInstance(dataType)
 
+    let getFirstParamName paramNames = 
+        try 
+            Seq.head paramNames
+        with :? ArgumentException as ex -> 
+            raise <| Exception("Function arguments don't match query parameters", ex)
+
     let skipUsedParamNames paramExprs paramNames = 
         let usedNames = paramExprs 
                         |> Seq.map (fun (name, _, _, _) -> name) 
@@ -55,8 +61,8 @@ module ParamBuilder =
         then
             []
         else
-            let param = Expression.TupleGet(expr, index)
-            let paramExprs = customPB "" (Seq.head paramNames) param paramNames
+            let param = Expression.TupleGet(expr, index)            
+            let paramExprs = customPB "" (getFirstParamName paramNames) param paramNames
             List.append paramExprs (getTupleParamExpressions customPB expr (index + 1) (skipUsedParamNames paramExprs paramNames))
 
 
@@ -194,7 +200,7 @@ module ParamBuilder =
     let rec private buildParamDefsInternal customPB t paramNames paramDefs = 
         match t with
         | Function (firstParamType, remainingParams) ->
-            let param = Expression.Parameter(firstParamType, Seq.head paramNames)
+            let param = Expression.Parameter(firstParamType, getFirstParamName paramNames)
             let paramGetters = customPB "" param.Name param paramNames
             let (paramExprs, paramDefs, retType) = buildParamDefsInternal customPB remainingParams (skipUsedParamNames paramGetters paramNames) (List.append paramDefs paramGetters)
             (param :: paramExprs), paramDefs, retType
