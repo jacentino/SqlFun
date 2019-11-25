@@ -1,6 +1,3 @@
-# SqlFun
-Idiomatic data access for F#
-
 SqlFun is a tool for writing data access code in F# functional way. 
 It's fast, type safe and gives you all powers of SQL, no custom query language constraints you.
 It's also lightweight, you need to know a [general idea](https://github.com/jacentino/SqlFun/wiki/Basic-concepts) and few functions (and, of course SQL).
@@ -44,7 +41,7 @@ Better way is to build an API exposing your database, consisting of structures r
 ### Installation
 SqlFun can be added to your solution from Package Manager Console:
 
-```PowerShell
+```powershell
 PM> Install-Package SqlFun
 ```
 
@@ -226,4 +223,5 @@ Its synchronous equivalent is `DbAction.inTransaction`.
 For more comprehensive documentation refer project [wiki](https://github.com/jacentino/SqlFun/wiki).
 
 For more examples refer [test project](https://github.com/jacentino/SqlFun/tree/master/SqlFun.Tests).
+
 
