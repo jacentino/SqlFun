@@ -218,7 +218,7 @@ asyncdb {
 ```
 Its synchronous equivalent is `DbAction.inTransaction`.
 
-## Documentation & examples
+## Documentation & examples 
 
 For more comprehensive documentation refer project [wiki](https://github.com/jacentino/SqlFun/wiki).
 
