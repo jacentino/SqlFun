@@ -1,4 +1,4 @@
-## Functional way
+# Functional way
 
 Accessing a database is producing side effects. It's unavoidable. But they can be controlled.
 
