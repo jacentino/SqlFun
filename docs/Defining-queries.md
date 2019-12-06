@@ -1,3 +1,5 @@
+# Defining queries
+
 ## Query functions
 
 SqlFun provides two functions responsible for defining queries:
