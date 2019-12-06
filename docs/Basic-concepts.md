@@ -1,4 +1,4 @@
-## Basic concepts
+# Basic concepts
 
 How to represent query in functional code?
 
