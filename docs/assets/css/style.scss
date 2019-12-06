@@ -6,6 +6,8 @@
 .inner { max-width: 800px; };
 
 .logo {
-  float: right;
-  border: None;
+  position: relative;
+  right:20px;
+  top: 20px;
+  border: 0;
 }
