@@ -1,4 +1,4 @@
-## Configuration
+# Configuration
 
 The first step is to define parameterless function creating a database connection:
 ```fsharp 
