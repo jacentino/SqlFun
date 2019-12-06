@@ -1,3 +1,5 @@
+## Basic concepts
+
 How to represent query in functional code?
 
 Of course, as a function. Query parameters could be reflected as function parameters, its result as function return type. 
