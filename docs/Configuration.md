@@ -1,3 +1,5 @@
+## Configuration
+
 The first step is to define parameterless function creating a database connection:
 ```fsharp 
 let createConnection () = new SqlConnection(connectionString)
