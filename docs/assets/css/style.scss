@@ -3,7 +3,9 @@
 
 @import "{{ site.theme }}";
 
-.inner { 
+.inner { max-width: 1000px%; }
+
+.main_inner { 
   max-width: 700px; 
   display: inline-block; 
   vertical-align: top;
