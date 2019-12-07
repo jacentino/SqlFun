@@ -3,7 +3,11 @@
 
 @import "{{ site.theme }}";
 
-.inner { max-width: 600px; display: inline-block; };
+.inner { 
+  max-width: 700px; 
+  display: inline-block; 
+  vertical-align: top;
+};
 
 .logo {
   position: absolute;
@@ -15,6 +19,7 @@
 
 .sidebar_outer {
   display: inline-block; 
+  vertical-align: top;
   width: 200px;
   margin-top: 40px;
   margin-left: 80px;
