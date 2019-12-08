@@ -3,10 +3,10 @@
 ## Query language
 
 Queries are specified as strings containing plain SQL commands. It has many advantages:
-* SQL is more readable than any internal DSL, including linq
-* all constructs of all possible SQl dialects are available, since there is no intermediate language, 
+* SQL is more readable than any internal DSL, including LINQ
+* all constructs of all possible SQL dialects are available, since there is no intermediate language, 
   that must support them - you can write anything in string literal
-* you have full control over SQl commands submitted to the database
+* you have full control over SQL commands submitted to the database
 * you don't need to guess, how your query is translated to the SQL, when something goes wrong
 * you can easily copy inefficient query to a database administration tool, run it with analyzer, 
   fix it and past to your code
