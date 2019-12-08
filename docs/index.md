@@ -6,20 +6,20 @@ It's available as a [Nuget package](https://www.nuget.org/packages/SqlFun/)
 There are also extensions for [PostgreSQL](https://www.nuget.org/packages/SqlFun.NpgSql) and [Oracle](https://www.nuget.org/packages/SqlFun.Oracle) databases.
 
 ## Features
-* Works with any ADO.NET provider
+* [Works with any ADO.NET provider](./#supported-databases)
 * All SQL features available
-* Type safety
+* [Type safety](./Type-safety)
 * High performance
-* Compound, hierarchical query parameters
-* Compound, hierarchical query results
-* Support for parameter conversions
-* Support for result transformations
+* [Compound, hierarchical query parameters](Defining-queries#parameters)
+* [Compound, hierarchical query results](Defining-queries#results)
+* [Support for parameter conversions](Custom-conversions)
+* [Support for result transformations](Transforming-query-results)
 * Support for enum types
-* Asynchronous queries
-* Composable, template-based queries
-* Auto-generated CRUD operations
-* Computation expressions for connection and transaction handling
-* Support for large dataset processing
+* [Asynchronous queries](Async support)
+* [Composable, template-based queries](Composite-queries)
+* [Auto-generated CRUD operations](CRUD-templates)
+* [Computation expressions for connection and transaction handling](Utilizing-dbaction-and-asyncdb-computation-expressions)
+* [Support for large dataset processing](Processing-large-results)
 
 ## Supported databases
 In its core SqlFun does not use any features specific to some db provider, so it works with any ADO.NET provider. 
