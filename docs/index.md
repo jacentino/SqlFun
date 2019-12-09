@@ -14,7 +14,7 @@ There are also extensions for [PostgreSQL](https://www.nuget.org/packages/SqlFun
 * [Compound, hierarchical query results](Defining-queries#results)
 * [Support for parameter conversions](Custom-conversions)
 * [Support for result transformations](Transforming-query-results)
-* Support for enum types
+* [Support for enum types](Enum-support)
 * [Asynchronous queries](#async-support)
 * [Composable, template-based queries](Composite-queries)
 * [Auto-generated CRUD operations](CRUD-templates)
