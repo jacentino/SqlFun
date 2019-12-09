@@ -17,4 +17,4 @@ type PostStatus =
      | [<EnumValue("P")>] Published = 1
      | [<EnumValue("A")>] Archived = 2
 ```
-Arguments of `EnumValueAttribute` can be any values, that can be written do a database.
+Arguments of `EnumValueAttribute` can be any values, that can be written do a database (integers, strings, etc.).
