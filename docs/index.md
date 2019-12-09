@@ -9,7 +9,7 @@ There are also extensions for [PostgreSQL](https://www.nuget.org/packages/SqlFun
 * [Works with any ADO.NET provider](#supported-databases)
 * [All SQL features available](Defining-queries#query-language)
 * [Type safety](Type-safety)
-* High performance
+* [High performance](Performance)
 * [Compound, hierarchical query parameters](Defining-queries#parameters)
 * [Compound, hierarchical query results](Defining-queries#results)
 * [Support for parameter conversions](Custom-conversions)
