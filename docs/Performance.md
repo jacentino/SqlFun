@@ -4,7 +4,7 @@ SqlFun allows to write high-performance data access layer because:
 * you have full control over your queries; you can easily analyze and tune them
 * all plumbing code is generated before first use; after that not reflection is used
 * provides extensions, that allow to write more query analyzer-friendly SQL
-  * [inlined collection parameters](Non-standard-parameter-conversions#simple-collection-parameters)
+  * [inlined collection parameters](Non-standard-parameter-conversions#inlining-parameter-values)
   * [composite queries](Composite-queries)
 * some provider-specific extensions are implemented:
   * [MS SQL TVP parameters](Non-standard-parameter-conversions#tvp-parameters)
