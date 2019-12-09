@@ -1,4 +1,4 @@
-## Enum Support
+## Enum support
 
 By default enums are represented as integer values.
 
