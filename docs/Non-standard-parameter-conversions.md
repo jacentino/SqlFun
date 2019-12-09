@@ -3,7 +3,7 @@
 There are also built-in parameter conversions:
 
 ### Simple collection parameters
-* `listParamBuilder` modifies sql statement by replacing one parameter with many parameters representing elements of the 
+`listParamBuilder` modifies sql statement by replacing one parameter with many parameters representing elements of the 
   list. E.g. the query:
   ```sql 
   select * from post where id in (@postIds)
@@ -18,8 +18,8 @@ There are also built-in parameter conversions:
       createDefaultConfig createConnection
       |> useCollectionParameters
   ```
-
-* `listDirectParamBuilder` modifies sql statement by replacing parameter with list of comma-separated values. E.g.
+### Inlining parameter values
+`listDirectParamBuilder` modifies sql statement by replacing parameter with list of comma-separated values. E.g.
   ```sql 
   select * from post where id in (@postIds)
   ```  
