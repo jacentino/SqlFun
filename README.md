@@ -223,7 +223,7 @@ Its synchronous equivalent is `DbAction.inTransaction`.
 
 ## Documentation & examples
 
-For more comprehensive documentation refer project [wiki](https://github.com/jacentino/SqlFun/wiki).
+For more comprehensive documentation refer project [github pages](https://jacentino.github.io/SqlFun/Performance).
 
 For more examples refer [test project](https://github.com/jacentino/SqlFun/tree/master/SqlFun.Tests).
 
