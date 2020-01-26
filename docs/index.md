@@ -6,20 +6,20 @@ It's available as a [Nuget package](https://www.nuget.org/packages/SqlFun/)
 There are also extensions for [PostgreSQL](https://www.nuget.org/packages/SqlFun.NpgSql) and [Oracle](https://www.nuget.org/packages/SqlFun.Oracle) databases.
 
 ## Features
-* Works with any ADO.NET provider
-* All SQL features available
-* Type safety
-* High performance
-* Compound, hierarchical query parameters
-* Compound, hierarchical query results
-* Support for parameter conversions
-* Support for result transformations
-* Support for enum types
-* Asynchronous queries
-* Composable, template-based queries
-* Auto-generated CRUD operations
-* Computation expressions for connection and transaction handling
-* Support for large dataset processing
+* [Works with any ADO.NET provider](#supported-databases)
+* [All SQL features available](Defining-queries#query-language)
+* [Type safety](Type-safety)
+* [High performance](Performance)
+* [Compound, hierarchical query parameters](Defining-queries#parameters)
+* [Compound, hierarchical query results](Defining-queries#results)
+* [Support for parameter conversions](Custom-conversions)
+* [Support for result transformations](Transforming-query-results)
+* [Support for enum types](Enum-support)
+* [Asynchronous queries](#async-support)
+* [Composable, template-based queries](Composite-queries)
+* [Auto-generated CRUD operations](CRUD-templates)
+* [Computation expressions for connection and transaction handling](#utilizing-dbaction-and-asyncdb-computation-expressions)
+* [Support for large dataset processing](Processing-large-results)
 
 ## Supported databases
 In its core SqlFun does not use any features specific to some db provider, so it works with any ADO.NET provider. 
@@ -218,7 +218,7 @@ asyncdb {
 ```
 Its synchronous equivalent is `DbAction.inTransaction`.
 
-## Documentation & examples
+## Documentation & examples 
 
 For more comprehensive documentation refer project [wiki](https://github.com/jacentino/SqlFun/wiki).
 
