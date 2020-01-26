@@ -35,7 +35,8 @@ module MsSql =
     
     let private getIsSome (t: Type) = t.GetMethod("get_IsSome", BindingFlags.Public ||| BindingFlags.Static)
 
-    let private getSetter (t: Type) = typeof<SqlDataRecord>.GetMethod("Set" + t.Name)
+    let private getSetter (t: Type) = 
+        typeof<SqlDataRecord>.GetMethod("Set" + t.Name)
 
     let private getOptValue expr = Expression.Property (expr, "Value")
 
@@ -52,6 +53,16 @@ module MsSql =
                        not (isSimpleType p.PropertyType || isSimpleTypeOption p.PropertyType) || positions.ContainsKey p.Name 
                     then
                         yield match p.PropertyType with
+                              | t when t = typeof<byte[]> ->
+                                    let valueExpr = Expression.Property(root, p)
+                                    let setter = typeof<SqlDataRecord>.GetMethod("SetBytes")
+                                    Expression.Call (record, setter, 
+                                        Expression.Constant(positions.[p.Name]), 
+                                        Expression.Constant(int64(0)),
+                                        valueExpr,
+                                        Expression.Constant(0),
+                                        Expression.ArrayLength(valueExpr)) 
+                                    :> Expression
                               | SimpleType -> 
                                     let valueExpr = convertIfEnum (Expression.Property(root, p))
                                     let setter = getSetter valueExpr.Type

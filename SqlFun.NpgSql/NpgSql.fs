@@ -30,7 +30,8 @@ module Config =
         elif t = typeof<Guid> then NpgsqlDbType.Uuid
         elif t = typeof<string> then NpgsqlDbType.Varchar
         elif t = typeof<double> then NpgsqlDbType.Double
-        else failwith <| sprintf "Unknown array element type: %O" t
+        elif t = typeof<byte[]> then NpgsqlDbType.Bytea
+        else failwith <| sprintf "Unmappable type: %O" t
         
     /// <summary>
     /// Parameter builder supporting PostgreSQL array parameters.

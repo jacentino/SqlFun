@@ -8,6 +8,7 @@ open SqlFun.Transforms
 open SqlFun.NpgSql
 open System.Diagnostics
 open System
+open System.IO
 
 type TestQueries() =    
  
@@ -92,3 +93,22 @@ type NpgSqlTests() =
         let numOfBlogs = Tooling.getNumberOfBlogs |> run        
         Tooling.deleteAllButFirstBlog |> run
         Assert.AreEqual(200, numOfBlogs)
+
+    [<Test>]
+    member this.``BulkCopy handles byte array fields properly``() = 
+
+        Tooling.deleteAllUsers |> run
+
+        let assemblyFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+        let users = [
+            {
+                id = "jacirru"
+                name = "Jacirru Placirru"
+                email = "jacirru.placirru@pp.com"
+                avatar = File.ReadAllBytes(Path.Combine(assemblyFolder, "jacenty.jpg"))
+            }
+        ]
+        Assert.DoesNotThrow(fun () -> BulkCopy.WriteToServer users |> runAsync |> Async.RunSynchronously)
+ 
+
+    

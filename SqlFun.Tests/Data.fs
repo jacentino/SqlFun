@@ -209,13 +209,21 @@ module Data =
         tagStream: Tag ResultStream
     }
 
+    type UserProfile = {
+        id: string
+        name: string
+        email: string
+        avatar: byte array
+    }
+
 open Data
 
 module Tooling = 
     
     let cleanup: DataContext -> unit = 
         sql "delete from post where id > 2;
-             delete from tag where postId = 2"
+             delete from tag where postId = 2
+             delete from UserProfile where id <> 'jacenty'"
 
     let getNumberOfPosts: DataContext -> int = 
         sql "select count(*) from post"

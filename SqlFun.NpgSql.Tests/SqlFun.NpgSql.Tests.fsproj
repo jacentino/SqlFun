@@ -58,6 +58,9 @@
     <Content Include="App.config" />
     <Content Include="packages.config" />
     <None Include="SqlFunTests.sql" />
+    <None Include="jacenty.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

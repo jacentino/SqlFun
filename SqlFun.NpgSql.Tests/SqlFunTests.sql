@@ -182,6 +182,17 @@ CREATE TABLE post (
 
 ALTER TABLE post OWNER TO postgres;
 
+CREATE TABLE userprofile
+(
+  id character(20) NOT NULL,
+  name character varying(80) NOT NULL,
+  email character varying(200),
+  avatar bytea NOT NULL,
+  CONSTRAINT userprofile_pkey PRIMARY KEY (id)
+);
+
+ALTER TABLE public.userprofile
+  OWNER TO postgres;
 --
 -- TOC entry 189 (class 1259 OID 16765)
 -- Name: post_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -295,7 +306,6 @@ COPY post (postid, blogid, name, title, content, author, createdat, modifiedat, 
 1	1	another-sql-framework	Yet another sql framework	There are so many solutions for this problem. What is the case for another one?	jacenty	2017-06-01 00:00:00	\N	\N	P
 2	1	whats-wrong-with-existing-f	What's wrong with existing frameworks	Shortly - they not align with functional paradigm.	jacenty	2017-06-01 00:00:00	\N	\N	P
 \.
-
 
 --
 -- TOC entry 2176 (class 0 OID 0)

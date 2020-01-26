@@ -35,6 +35,8 @@ module ParamBuilder =
         then DateTime.Now :> obj
         elif dataType = typeof<string>
         then "" :> obj
+        elif dataType = typeof<byte[]>
+        then Array.empty<byte> :> obj
         elif dataType.IsClass || dataType.IsInterface
         then null 
         else Activator.CreateInstance(dataType)

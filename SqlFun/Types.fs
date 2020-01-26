@@ -63,9 +63,11 @@ module Types =
         typeof<System.Collections.IEnumerable>.IsAssignableFrom(t) && t <> typeof<string> && t <> typeof<byte[]>
 
     let (|CollectionOf|_|) (t: Type) = 
-        if t.IsArray 
+        if t = typeof<byte[]> 
+        then None
+        elif t.IsArray 
         then Some <| t.GetElementType()
-        elif typeof<System.Collections.IEnumerable>.IsAssignableFrom(t) && t <> typeof<string> && t <> typeof<byte[]> 
+        elif typeof<System.Collections.IEnumerable>.IsAssignableFrom(t) && t <> typeof<string> 
         then Some <| t.GetGenericArguments().[0]
         else None
 

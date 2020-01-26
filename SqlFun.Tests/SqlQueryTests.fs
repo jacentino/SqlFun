@@ -8,6 +8,7 @@ open SqlFun.Transforms
 open SqlFun.Transforms.Standard
 open Common
 open System
+open System.IO
 
 type TestQueries() =    
 
@@ -233,7 +234,12 @@ type TestQueries() =
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id = @id;
              select id, postId, parentId, content, author, createdAt from comment where postId = @id"
 
+    static member insertUser: UserProfile -> DataContext -> unit = 
+        sql "insert into UserProfile (id, name, email, avatar) 
+             values (@id, @name, @email, @avatar)"
 
+    static member getUsers: DataContext -> UserProfile list = 
+        sql "select id, name, email, avatar from UserProfile"
 
 [<TestFixture>]
 type SqlQueryTests() = 
@@ -635,3 +641,27 @@ type SqlQueryTests() =
         let exn = Assert.Throws<CompileTimeException>(fun () -> TestQueries.getBlogWithExcessiveArgs (1, 1, 1) |> run |> ignore) 
         StringAssert.Contains("Function arguments don't match query parameters", exn.InnerException.Message)
 
+    [<Test>]
+    member this.``Byte array parameters are handled properly``() = 
+        let assemblyFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+        let user = {
+            id = "jacentino"
+            name = "Jacentino Placentino"
+            email = "jacentino.placentino@pp.com"
+            avatar = File.ReadAllBytes(Path.Combine(assemblyFolder, "jacenty.jpg"))
+        }
+        Assert.DoesNotThrow(fun () -> TestQueries.insertUser user |> run)
+
+    [<Test>]
+    member this.``Records with byte array fields are loaded correctly``() =
+        let assemblyFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+        let expected = [
+            {
+                id = "jacenty"
+                name = "Jacek Placek"
+                email = "jacek.placek@pp.com"
+                avatar = File.ReadAllBytes(Path.Combine(assemblyFolder, "jacenty.jpg"))
+            }
+        ]
+        let users = TestQueries.getUsers |> run
+        Assert.AreEqual(expected, users)

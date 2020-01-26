@@ -36,6 +36,14 @@ module Data =
         posts: Post list
     }
 
+    type UserProfile = {
+        id: string
+        name: string
+        email: string
+        avatar: byte array
+    }
+
+
 module Tooling = 
     
     let getNumberOfBlogs: DataContext -> int = 
@@ -44,3 +52,5 @@ module Tooling =
     let deleteAllButFirstBlog: DataContext -> unit = 
         sql "delete from blog where blogid > 1"
 
+    let deleteAllUsers: DataContext -> unit = 
+        sql "delete from userprofile"

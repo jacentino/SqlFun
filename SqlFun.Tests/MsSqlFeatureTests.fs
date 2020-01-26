@@ -75,9 +75,14 @@ module MsSqlTestQueries =
         sql "delete from tag where postId = @id;
              insert into tag (postId, name) select @id, name from @tags"
 
+    let insertManyUsers: UserProfile list -> DataContext -> unit = 
+        sql "insert into UserProfile (id, name, email, avatar) 
+                select id, name, email, avatar from @users"
+
 open MsSqlTestQueries
 open System.Linq.Expressions
 open System.Diagnostics
+open System.IO
 
 [<TestFixture>]
 type MsSqlTests() = 
@@ -184,7 +189,20 @@ type MsSqlTests() =
         Assert.AreEqual(200, numOfBlogs)
         
 
+    [<Test>]
+    member this.``TVP parameters containing byte arrays are handled properly``() = 
+        let assemblyFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+        let users = [
+            {
+                id = "jacirru"
+                name = "Jacirru Placirru"
+                email = "jacirru.placirru@pp.com"
+                avatar = File.ReadAllBytes(Path.Combine(assemblyFolder, "jacenty.jpg"))
+            }
+        ]
+        Assert.DoesNotThrow(fun () -> insertManyUsers users |> run)
 
+    
     
 
 

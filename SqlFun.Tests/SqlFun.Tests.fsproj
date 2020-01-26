@@ -66,6 +66,9 @@
     <Compile Include="ClassesAsModulesTest.fs" />
     <Content Include="packages.config" />
     <Content Include="App.config" />
+    <None Include="jacenty.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="SqlFunTests.sql" />
   </ItemGroup>
   <ItemGroup>

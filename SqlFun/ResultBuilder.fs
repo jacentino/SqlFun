@@ -223,11 +223,25 @@ module ResultBuilder =
         | _ -> Expression.Convert(expr, targetType) :> Expression
 
 
+    let private getByteArray = 
+        Func<IDataReader, int, byte[]>(fun reader ordinal ->
+            let length = reader.GetBytes(ordinal, 0L, null, 0, 0)
+            if length = 0L then [||]
+            else
+                let buffer = Array.zeroCreate(int32(length))
+                reader.GetBytes(ordinal, 0L, buffer, 0, Int32.MaxValue) |> ignore
+                buffer)
+
+
     let private buildColumnAccessor (reader: ParameterExpression) colType ordinal targetType = 
-        let accessMethod = dataRecordColumnAccessMethodByType |> List.tryFind (fst >> (=) colType) 
-                           |> Option.map snd
-                           |> Option.defaultValue dataRecordGetValueMethod
-        let call = Expression.Call(reader, accessMethod, Expression.Constant(ordinal))    
+        let call = 
+            if colType = typeof<byte[]> then
+                Expression.Invoke(Expression.Constant(getByteArray), reader, Expression.Constant(ordinal)) :> Expression
+            else
+                let accessMethod = dataRecordColumnAccessMethodByType |> List.tryFind (fst >> (=) colType) 
+                                   |> Option.map snd
+                                   |> Option.defaultValue dataRecordGetValueMethod
+                Expression.Call(reader, accessMethod, Expression.Constant(ordinal)) :> Expression
         if isOption targetType
         then 
             Expression.Condition(
@@ -338,9 +352,10 @@ module ResultBuilder =
         | CollectionOf t ->
             Expression.Call([| t |], getEmptyCollectionBuilderName returnType) :> Expression
         | Record fields ->
-            let accessors = fields
-                            |> Seq.map (fun field -> nextRB reader metadata (prefix + getFieldPrefix field) field.Name field.PropertyType)
-                            |> List.ofSeq
+            let accessors = 
+                fields
+                |> Seq.map (fun field -> nextRB reader metadata (prefix + getFieldPrefix field) field.Name field.PropertyType)
+                |> List.ofSeq
             Expression.NewRecord(returnType, accessors)
         | t -> typeNotSupported t
 
