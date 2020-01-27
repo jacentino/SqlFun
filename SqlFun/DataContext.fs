@@ -15,8 +15,8 @@ type DataContext =
         member this.Dispose() =
             match this.transaction with
             | Some t -> t.Dispose()
-            | None -> ()
-            this.connection.Dispose()
+            | None -> this.connection.Dispose()
+            
 
     /// <summary>
     /// Creates a new DataContext object.
