@@ -32,6 +32,7 @@
     <Compile Include="..\SqlFun\Crud.fs" />
     <Compile Include="..\SqlFun\Statements.fs" />
     <Compile Include="..\SqlFun\Composite.fs" />
+    <Compile Include="Testing.fs" />
   </ItemGroup>
 
   <ItemGroup>

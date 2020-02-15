@@ -68,6 +68,7 @@
     <Compile Include="Crud.fs" />
     <Compile Include="Statements.fs" />
     <Compile Include="Composite.fs" />
+    <Compile Include="Testing.fs" />
     <None Include="app.config" />
     <Content Include="packages.config" />
   </ItemGroup>
