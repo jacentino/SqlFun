@@ -16,8 +16,17 @@ the followin test is enough:
     member this.``Blogging module passes type checks``() = 
         let x = Blogging.getBlog
 ```
-Accessing one module member triggers initialization of remaining members. During code generation SqlFun executes query in `SchemaOnly` mode and tries to generate all needed type conversions. Typos in SQL and incorrect parameter or return types results in exceptions. 
-The downside is, that NULL checks can not be performed this way.
+Accessing one module member triggers initialization of remaining members. During code generation SqlFun executes query in `SchemaOnly` mode and tries to generate all needed type conversions. Typos in SQL, incorrect parameters or return types result in `TypeInitializationException`. 
+
+Unfortunately, the information about failing function is somewhere in the stack trace of the inner exception. To make it easier to find, wrap the code accessing module in a `testQueries` function:
+
+```fsharp 
+    [<Test>]
+    member this.``Blogging module passes type checks``() = 
+        Testing.testQueries <| fun () ->  Blogging.getBlog
+```
+
+The downside is, that null checks cannot be performed this way.
 
 ## Composite queries
 
