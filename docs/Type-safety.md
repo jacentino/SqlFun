@@ -18,7 +18,7 @@ the followin test is enough:
 ```
 Accessing one module member triggers initialization of remaining members. During code generation SqlFun executes query in `SchemaOnly` mode and tries to generate all needed type conversions. Typos in SQL, incorrect parameters or return types result in `TypeInitializationException`. 
 
-Unfortunately, the information about failing function is somewhere in the stack trace of the inner exception. To make it easier to find, wrap the code accessing module in a `testQueries` function:
+Unfortunately, the information about failing function is somewhere in the stack trace of the inner exception. To make it easier to find, the code accessing module can be wrapped in the `testQueries` function:
 
 ```fsharp 
     [<Test>]
@@ -26,7 +26,7 @@ Unfortunately, the information about failing function is somewhere in the stack 
         Testing.testQueries <| fun () ->  Blogging.getBlog
 ```
 
-The downside is, that null checks cannot be performed this way.
+The downside of this technique is, that null checks cannot be performed this way.
 
 ## Composite queries
 
