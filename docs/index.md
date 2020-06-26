@@ -220,7 +220,7 @@ Its synchronous equivalent is `DbAction.inTransaction`.
 
 ## Documentation & examples 
 
-For more comprehensive documentation refer project [wiki](https://github.com/jacentino/SqlFun/wiki).
+For more detail documentation refer sections under **Basic Usage** topic, starting from  [Configuration](Configuration) section.
 
 For more examples refer [test project](https://github.com/jacentino/SqlFun/tree/master/SqlFun.Tests).
 
