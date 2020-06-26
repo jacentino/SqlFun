@@ -30,9 +30,9 @@
     <Compile Include="..\SqlFun\MySql.fs" />
     <Compile Include="..\SqlFun\Sqlite.fs" />
     <Compile Include="..\SqlFun\Crud.fs" />
-    <Compile Include="..\SqlFun\Statements.fs" />
     <Compile Include="..\SqlFun\Composite.fs" />
-    <Compile Include="Testing.fs" />
+    <Compile Include="..\SqlFun\Templating.fs" />
+    <Compile Include="..\SqlFun\Testing.fs" />
   </ItemGroup>
 
   <ItemGroup>

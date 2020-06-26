@@ -6,11 +6,11 @@ open Data
 open Common
 open System
 open Composite
-open Templating.Simplistic
+open Templating
 
 open FsCheck
 
-module CompositeQueries =
+module CompositeQueryTemplating =
     
     type PostCriteria = {
         TitleContains: string option
@@ -44,60 +44,69 @@ module CompositeQueries =
 
     type PostSortOrder = SortColumn * SortDirection
         
-    
+    let holes = [
+        "WHERE-CLAUSE",     { pattern = "where {0}";    separator = " and " }
+        "ORDER-BY-CLAUSE",  { pattern = "order by {0}"; separator = ", "    }
+        "JOIN-CLAUSES",     { pattern = "{0}";          separator = " "     }
+        "GROUP-BY-CLAUSE",  { pattern = "group by {0}"; separator = ", "    }
+        "HAVING-CLAUSE",    { pattern = "having {0}";   separator = " and " }
+    ]
+
+    let withWhere       = withValue     "WHERE-CLAUSE"
+    let withWhereT      = withSubtmpl   "WHERE-CLAUSE"
+    let withOrderByT    = withSubtmpl   "ORDER-BY"
+    let withJoin        = withValue     "JOIN-CLAUSES"
+    let withGroupBy     = withValue     "GROUP-BY-CLAUSE"
+    let withHaving      = withValue     "HAVING-CLAUSE"
             
-    let expandWhere = expandTemplate "WHERE-CLAUSE" "where " " and "
-    let expandOrderBy = expandTemplate "ORDER-BY-CLAUSE" "order by " ", "
-    let expandJoins = expandTemplate "JOIN-CLAUSES" "" " "
-    let expandGroupBy = expandTemplate "GROUP-BY-CLAUSE" "group by " ", "
-    let expandHaving = expandTemplate "HAVING-CLAUSE" "having " " and "
-    
+    let orExpr items = items |> list "({0})" " or "
+
+    let fieldList items = items |> list "{0}" ", "
+
 
     let buildQuery ctx = async {
-        return FinalQueryPart(ctx, generatorConfig, cleanUpTemplate) :> IQueryPart<_>
+        return FinalQueryPart(ctx, generatorConfig, stringify) :> IQueryPart<_>
     }
 
     let rec filterPosts (criteria: PostCriteria) (next: AsyncDb<IQueryPart<_>>) = 
             match criteria with
             | { TitleContains = Some title }  ->
                 let intermediate = filterPosts { criteria with TitleContains = None } next
-                transformWithValue (expandWhere "title like '%' + @title + '%'") title intermediate
+                transformWithValue (withWhere "title like '%' + @title + '%'") title intermediate
             | { ContentContains = Some content }  ->
                 let intermediate = filterPosts { criteria with ContentContains = None } next
-                transformWithValue (expandWhere "content like '%' + @content + '%'") content intermediate
+                transformWithValue (withWhere "content like '%' + @content + '%'") content intermediate
             | { AuthorIs = Some author } ->
                 let intermediate = filterPosts { criteria with AuthorIs = None } next
-                transformWithValue (expandWhere "author = @author") author intermediate
+                transformWithValue (withWhere "author = @author") author intermediate
             | { HasTag = Some tag } ->
                 let intermediate = filterPosts { criteria with HasTag = None } next
-                transformWithValue (expandWhere "t1.name = @tag1"
-                                    >> expandJoins "join tag t1 on t1.postId = p.id" 
-                                    >> expandGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status")
-                                    tag
-                                    intermediate
-            | { HasOneOfTags = tags } when not (tags |> List.isEmpty) ->
-                let condition = tags |> Seq.mapi (fun i _ -> "t1n.name = @tag1N" + string(i)) |> String.concat " or "
+                transformWithValue (withWhere "t1.name = @tag1"
+                                    >> withJoin "join tag t1 on t1.postId = p.id"
+                                    >> withGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status")
+                                   tag
+                                   intermediate
+            | { HasOneOfTags = tags } when not tags.IsEmpty ->
                 let intermediate = filterPosts { criteria with HasOneOfTags = [] } next
-                transformWithList (expandWhere ("(" + condition + ")")
-                              >> expandJoins "join tag t1n on t1n.postId = p.id" 
-                              >> expandGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status")
-                             tags
-                             intermediate
-            | { HasAllTags = tags } when not (tags |> List.isEmpty)  ->
-                let condition = tags |> Seq.mapi (fun i _ -> "tnn.name = @tagNN" + string(i)) |> String.concat " or "
+                transformWithList (withWhereT (List.init tags.Length (sprintf "t1n.name = @tag1N%d" >> raw) |> orExpr)
+                                    >> withJoin "join tag t1n on t1n.postId = p.id" 
+                                    >> withGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status")
+                                  tags
+                                  intermediate
+            | { HasAllTags = tags } when not tags.IsEmpty  ->
                 let intermediate = filterPosts { criteria with HasAllTags = [] } next
-                transformWithList (expandWhere ("(" + condition + ")")
-                              >> expandJoins "join tag tnn on tnn.postId = p.id" 
-                              >> expandGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status"
-                              >> expandHaving ("count(tnn.name) = " + string(tags |> List.length)))
-                             tags
-                             intermediate
+                transformWithList (withWhereT (List.init tags.Length (sprintf "tnn.name = @tagNN%d" >> raw) |> orExpr)
+                                    >> withJoin "join tag tnn on tnn.postId = p.id"
+                                    >> withGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status"
+                                    >> withHaving ("count(tnn.name) = " + string(tags |> List.length)))
+                                  tags
+                                  intermediate
             | { CreatedAfter = Some date } -> 
                 let intermediate = filterPosts { criteria with CreatedAfter = None } next
-                transformWithValue (expandWhere "createdAt >= @afterDate") date intermediate
+                transformWithValue (withWhere "createdAt >= @afterDate") date intermediate
             | { CreatedBefore = Some date } -> 
                 let intermediate = filterPosts { criteria with CreatedBefore = None } next
-                transformWithValue (expandWhere "createdAt <= @beforeDate") date intermediate
+                transformWithValue (withWhere "createdAt <= @beforeDate") date intermediate
             | _ -> next
         
     let getOrderSql (col, dir) = 
@@ -110,30 +119,33 @@ module CompositeQueries =
         | Desc -> name + " desc"
 
     let sortPostsBy orders next = 
-        if not (List.isEmpty orders)
-        then
-            let cols = orders |> Seq.map getOrderSql |> String.concat ", "
-            transformWithText (expandOrderBy cols) next
+        if not (List.isEmpty orders) then
+            transformWithText (orders |> List.map (getOrderSql >> raw) |> fieldList |> withOrderByT) next
         else 
             next
 
     let selectPosts next: AsyncDb<Post list> =
-        next |> withTemplate "select p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status
-                              from post p {{JOIN-CLAUSES}}
-                              {{WHERE-CLAUSE}}
-                              {{GROUP-BY-CLAUSE}}
-                              {{HAVING-CLAUSE}}
-                              {{ORDER-BY-CLAUSE}}"
+        next |> withTemplate {
+            pattern = 
+                "select p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status
+                    from post p {{JOIN-CLAUSES}}
+                    {{WHERE-CLAUSE}}
+                    {{GROUP-BY-CLAUSE}}
+                    {{HAVING-CLAUSE}}
+                    {{ORDER-BY-CLAUSE}}"
+            holes = holes
+            values = Map.empty
+        }
 
     type Arbs = 
         static member strings() =
             Arb.filter ((<>) null) <| Arb.Default.String()
 
-open CompositeQueries
 
+open CompositeQueryTemplating
 
 [<TestFixture>]
-type CompositeQueryTests() = 
+type CompositeQueryTemplatingTests() = 
 
     [<Test>]
     member this.``Composite queries return valid results``() =
@@ -187,3 +199,4 @@ type CompositeQueryTests() =
 
         let cfg = { Config.QuickThrowOnFailure with Arbitrary = [ typeof<Arbs> ] }
         Check.One(cfg, property)
+

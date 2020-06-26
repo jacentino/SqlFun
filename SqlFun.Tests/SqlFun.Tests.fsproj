@@ -61,6 +61,7 @@
     <Compile Include="CrudTemplateTests.fs" />
     <Compile Include="StoredProcTests.fs" />
     <Compile Include="CompositeQueryTests.fs" />
+    <Compile Include="CompositeQueryTemplatingTests.fs" />
     <Compile Include="MsSqlFeatureTests.fs" />
     <Compile Include="RecordsAsModulesTest.fs" />
     <Compile Include="ClassesAsModulesTest.fs" />
