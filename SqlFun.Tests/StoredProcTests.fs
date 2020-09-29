@@ -26,6 +26,14 @@ type StoredProcs() =
             proc "FindPosts"
             >> DbAction.map resultOnly
 
+        static member FindPostsStream: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post ResultStream =
+            proc "FindPosts"
+            >> DbAction.map resultOnly
+
+        static member FindPostsStreamAsync: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post ResultStream Async =
+            proc "FindPosts"
+            >> AsyncDb.map resultOnly
+
 
 [<TestFixture>]
 type StoredProcTests() = 
@@ -75,4 +83,52 @@ type StoredProcTests() =
                     }) 
                     |> run 
                     |> List.head  
+        Assert.AreEqual("Yet another sql framework", p.title)
+
+    [<Test>]
+    member this.``Stored procedure results can be streamed``() = 
+        let p = 
+            dbaction {
+                use! s = StoredProcs.FindPostsStream
+                            ({
+                                blogId = Some 1
+                                title = Some "another"
+                                content = None
+                            }, {
+                                author = None
+                                createdAtFrom = Some <| DateTime(2017, 04, 20)
+                                createdAtTo = None
+                                modifiedAtFrom = None
+                                modifiedAtTo = None
+                                modifiedBy = None
+                                status = Some PostStatus.Published
+                            }) 
+                return s |> Seq.head
+            }
+            |> run 
+        Assert.AreEqual("Yet another sql framework", p.title)
+
+
+    [<Test>]
+    member this.``Stored procedure async results can be streamed``() = 
+        let p = 
+            asyncdb {
+                use! s = StoredProcs.FindPostsStreamAsync
+                            ({
+                                blogId = Some 1
+                                title = Some "another"
+                                content = None
+                            }, {
+                                author = None
+                                createdAtFrom = Some <| DateTime(2017, 04, 20)
+                                createdAtTo = None
+                                modifiedAtFrom = None
+                                modifiedAtTo = None
+                                modifiedBy = None
+                                status = Some PostStatus.Published
+                            }) 
+                return s |> Seq.head
+            }
+            |> runAsync 
+            |> Async.RunSynchronously
         Assert.AreEqual("Yet another sql framework", p.title)

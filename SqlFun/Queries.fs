@@ -149,6 +149,52 @@ module Queries =
                 return! buildResult.Invoke(command)
             }
 
+        static member ExecuteProcedureStream 
+                (createCommand: IDbConnection -> IDbCommand) 
+                (addReturnParameter: bool)
+                (connection: IDbConnection) 
+                (transaction: IDbTransaction option) 
+                (procName: string) 
+                (commandTimeout: int option) 
+                (assignParams: Func<IDbCommand, int>) 
+                (buildResult: Func<IDbCommand, 't>) 
+                (buildOutParams: Func<IDbCommand, 'u>) =
+            use command = createCommand(connection)
+            command.CommandText <- procName
+            command.CommandType <- CommandType.StoredProcedure
+            setTransaction command transaction
+            setTimeout command commandTimeout
+            assignParams.Invoke(command) |> ignore
+            let result = buildResult.Invoke(command)
+            let retValParam = addRetValParam command addReturnParameter
+            let retVal = if retValParam.Value = null then 0 else unbox (retValParam.Value)
+            let outParamVals = buildOutParams.Invoke(command)
+            retVal, outParamVals, result
+
+        static member ExecuteProcedureStreamAsync 
+                (createCommand: IDbConnection -> IDbCommand) 
+                (addReturnParameter: bool)
+                (connection: IDbConnection) 
+                (transaction: IDbTransaction option) 
+                (procName: string) 
+                (commandTimeout: int option) 
+                (assignParams: Func<IDbCommand, int>) 
+                (buildResult: Func<DbCommand, Async<'t>>) 
+                (buildOutParams: Func<IDbCommand, 'u>) =
+            async {
+                use command = createCommand(connection) :?> DbCommand
+                command.CommandText <- procName
+                command.CommandType <- CommandType.StoredProcedure
+                setTransaction command transaction
+                setTimeout command commandTimeout
+                assignParams.Invoke(command) |> ignore
+                let! result = buildResult.Invoke(command)
+                let retValParam = addRetValParam command addReturnParameter
+                return (if retValParam.Value = null then 0 else retValParam.Value :?> int), buildOutParams.Invoke(command), result                   
+            }
+
+
+
         static member UnpackOption (value: 't option) = 
             match value with
             | Some v -> v :> obj
@@ -280,6 +326,10 @@ module Queries =
         | Some (_, texpr, _, _) -> texpr
         | None -> Expression.GetNoneUnionCase typeof<IDbTransaction option> :> Expression
 
+
+    let private isResultStream (t: Type) = 
+        t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<ResultStream<_>>
+
     let private generateSqlCommandCaller 
             (createConnection: unit -> IDbConnection) 
             (createCommand: IDbConnection -> IDbCommand) 
@@ -314,9 +364,6 @@ module Queries =
                                             |> Map.ofSeq
             let initial = getOneResultMetadata ()
             initial :: List.unfold (fun _ -> if schemaOnlyReader.NextResult() then Some (getOneResultMetadata(), ()) else None) ()
-
-        let isResultStream (t: Type) = 
-            t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<ResultStream<_>>
 
         let genExecutor createCommand paramDefs returnType = 
             let queryParamDefs = paramDefs |> withoutConnectionAndTransaction
@@ -494,12 +541,14 @@ module Queries =
                 let (outParamsType, resultType) = getStoredProcElementTypes underlyingType
                 let buildResult = generateResultBuilder rowBuilder metadata resultType true
                 let outParamBuilder = genOutParamsBuilder outParams outParamsType
-                Expression.Call([| resultType; outParamsType |], "ExecuteProcedureAsync", createCmd, addRetParam, connection, transaction, sql, timeout, assignParams, buildResult, outParamBuilder)
+                let executorName = if isResultStream resultType then "ExecuteProcedureStreamAsync" else "ExecuteProcedureAsync"
+                Expression.Call([| resultType; outParamsType |], executorName, createCmd, addRetParam, connection, transaction, sql, timeout, assignParams, buildResult, outParamBuilder)
             | _ -> 
                 let (outParamsType, resultType) = getStoredProcElementTypes returnType
                 let buildResult = generateResultBuilder rowBuilder metadata resultType false
                 let outParamBuilder = genOutParamsBuilder outParams outParamsType
-                Expression.Call([| resultType; outParamsType |], "ExecuteProcedure", createCmd, addRetParam, connection, transaction, sql, timeout, assignParams, buildResult, outParamBuilder)
+                let executorName = if isResultStream resultType then "ExecuteProcedureStream" else "ExecuteProcedure"
+                Expression.Call([| resultType; outParamsType |], executorName, createCmd, addRetParam, connection, transaction, sql, timeout, assignParams, buildResult, outParamBuilder)
 
         try
             let parameters = extractProcParamNames procedureName 
