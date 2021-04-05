@@ -146,8 +146,8 @@ module Composite =
     /// <param name="generator">
     /// The function, that generates a caller of an sql command.
     /// </param>
-    let buildAndRunQuery (ctx: DataContext) (cmd: string) (generator: string -> DataContext -> 'q): 'q =
-        let f = CommandCache<DataContext -> 'q>.GetOrAdd cmd generator
+    let buildAndRunQuery (ctx: IDataContext) (cmd: string) (generator: string -> IDataContext -> 'q): 'q =
+        let f = CommandCache<IDataContext -> 'q>.GetOrAdd cmd generator
         f ctx
 
     /// <summary>
@@ -174,7 +174,7 @@ module Composite =
     /// <typeparam name="'t">
     /// The type of a template.
     /// </typeparam>
-    type FinalQueryPart<'t>(ctx: DataContext, config: GeneratorConfig, stringify: 't -> string) = 
+    type FinalQueryPart<'t>(ctx: IDataContext, config: GeneratorConfig, stringify: 't -> string) = 
         interface IQueryPart<'t> with
             override this.Combine (template: 't) : 'q =
                 let generator = sql config

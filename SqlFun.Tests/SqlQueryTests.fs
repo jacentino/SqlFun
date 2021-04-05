@@ -12,76 +12,76 @@ open System.IO
 
 type TestQueries() =    
 
-    static member getBlog: int -> DataContext -> Blog = 
+    static member getBlog: int -> IDataContext -> Blog = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id"
 
-    static member getAllBlogs: DataContext -> Blog list = 
+    static member getAllBlogs: IDataContext -> Blog list = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog"
 
-    static member getAllBlogsWithUnit: unit -> DataContext -> Blog list = 
+    static member getAllBlogsWithUnit: unit -> IDataContext -> Blog list = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog"
 
-    static member getAllBlogsWithExcessiveArg: int -> DataContext -> Blog list = 
+    static member getAllBlogsWithExcessiveArg: int -> IDataContext -> Blog list = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog"
 
 
-    static member getBlogWithExcessiveArgs: (int * int * int) -> DataContext -> Blog = 
+    static member getBlogWithExcessiveArgs: (int * int * int) -> IDataContext -> Blog = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id"
 
-    static member getBlogOptional: int -> DataContext -> Blog option = 
+    static member getBlogOptional: int -> IDataContext -> Blog option = 
         sql "select * from Blog where id = @id"
 
-    static member getBlogIncomplete: int -> DataContext -> Blog = 
+    static member getBlogIncomplete: int -> IDataContext -> Blog = 
         sql "select id, name, title, description from Blog where id = @id"
 
-    static member incorrect: int -> DataContext -> Blog = 
+    static member incorrect: int -> IDataContext -> Blog = 
         sql "some totally incorrect sql with @id parameter"
 
-    static member getBlogInvalidType: int -> DataContext -> BlogWithInvalidType = 
+    static member getBlogInvalidType: int -> IDataContext -> BlogWithInvalidType = 
         sql "select id, name, title, description, owner from Blog where id = @id"
 
-    static member getNumberOfPosts: int -> DataContext -> int = 
+    static member getNumberOfPosts: int -> IDataContext -> int = 
         sql "select count(*) from post where blogId = @id"
 
-    static member getPostIds: int -> DataContext -> int list = 
+    static member getPostIds: int -> IDataContext -> int list = 
         sql "select id from Post where blogId = @id"
 
-    static member getBlogOwner: int -> DataContext -> string = 
+    static member getBlogOwner: int -> IDataContext -> string = 
         sql "select owner from blog where id = @id"
 
-    static member getBlogOwnerOptional: int -> DataContext -> string option = 
+    static member getBlogOwnerOptional: int -> IDataContext -> string option = 
         sql "select owner from blog where id = @id"
 
-    static member getPostAndItsComments: int -> DataContext -> (Post * Comment list) = 
+    static member getPostAndItsComments: int -> IDataContext -> (Post * Comment list) = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id = @id;
              select id, postId, parentId, content, author, createdAt from comment where postId = @id"
 
-    static member getPostAndItsCommentsAsProduct: int -> DataContext -> (Post * Comment) list = 
+    static member getPostAndItsCommentsAsProduct: int -> IDataContext -> (Post * Comment) list = 
         sql "select p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status,
                     c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from post p
              left join comment c on c.postId = p.id
              where p.id = @id"
 
-    static member getDecomposedPost: int -> DataContext -> DecomposedPost = 
+    static member getDecomposedPost: int -> IDataContext -> DecomposedPost = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id = @id"
 
-    static member getPostsWithTags: int -> DataContext -> Post list = 
+    static member getPostsWithTags: int -> IDataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
         >> join Post.Id Tag.PostId (Post.withTags List.ofSeq)
         >> List.ofSeq
         |> curry 
 
-    static member getSomePostsByIds: int list -> DataContext -> Post list = 
+    static member getSomePostsByIds: int list -> IDataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
 
-    static member getSomePostsByTags: string list -> DataContext -> Post list = 
+    static member getSomePostsByTags: string list -> IDataContext -> Post list = 
         sql "select id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status from 
              post p join tag t on t.postId = p.id
              where t.name in (@tagName)
              group by id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status"
 
-    static member getPostsWithTags2: int -> DataContext -> Post list = 
+    static member getPostsWithTags2: int -> IDataContext -> Post list = 
         sql "select p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status,
                    t.postId as item_postId, t.name as item_name
             from post p left join tag t on t.postId = p.id
@@ -90,7 +90,7 @@ type TestQueries() =
         >> List.ofSeq
         |> curry
 
-    static member getPostsWithTagsAndComments: int -> DataContext -> Post list = 
+    static member getPostsWithTagsAndComments: int -> IDataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
@@ -100,20 +100,20 @@ type TestQueries() =
         >> List.ofSeq
         |> curry 
 
-    static member findPostsByCriteria: PostSearchCriteria -> DataContext -> Post list = 
+    static member findPostsByCriteria: PostSearchCriteria -> IDataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post
              where (blogId = @blogId or @blogId is null)
                and (title like '%' + @title + '%' or @title is null)
                and (content like '%' + @content + '%' or @content is null)"
 
-    static member findPosts: (int option * string option * string option * string option) -> DataContext -> Post list = 
+    static member findPosts: (int option * string option * string option * string option) -> IDataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post
              where (blogId = @blogId or @blogId is null)
                and (title like '%' + @title + '%' or @title is null)
                and (content like '%' + @content + '%' or @content is null)
                and (author = @author or @author is null)"
 
-    static member findPostsByMoreCriteria: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list = 
+    static member findPostsByMoreCriteria: (PostSearchCriteria * SignatureSearchCriteria) -> IDataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post
              where (blogId = @blogId or @blogId is null)
                and (title like '%' + @title + '%' or @title is null)
@@ -125,15 +125,15 @@ type TestQueries() =
                and (modifiedAt <= @modifiedAtTo or @modifiedAtTo is null)
                and (status = @status or @status is null)"
       
-    static member getBlogAsync: int -> DataContext -> Blog Async = 
+    static member getBlogAsync: int -> IDataContext -> Blog Async = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id"
 
-    static member getPostsWithTagsAsync: int -> DataContext -> Post list Async = 
+    static member getPostsWithTagsAsync: int -> IDataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
         >> AsyncDb.map (join Post.Id Tag.PostId (Post.withTags List.ofSeq) >> List.ofSeq)
 
-    static member getPostsWithTagsAndCommentsAsync: int -> DataContext -> Post list Async = 
+    static member getPostsWithTagsAndCommentsAsync: int -> IDataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
@@ -142,103 +142,103 @@ type TestQueries() =
                             (join Post.Id Comment.PostId (Post.withComments Tooling.buildTree))
                         >> List.ofSeq)
 
-    static member getPostWithOneCommentAsync: int -> DataContext -> PostWithLimitedSubItems Async = 
+    static member getPostWithOneCommentAsync: int -> IDataContext -> PostWithLimitedSubItems Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status, 
                     0 as firstCommentid, 0 as firstCommentpostId, 0 as firstCommentparentId, '' as firstCommentcontent, '' as firstCommentauthor, cast('2000/01/01' as datetime) as firstCommentcreatedAt
              from post where id = @id;
              select top 1 c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c where c.postId = @id"
         >> AsyncDb.map Conventions.combine<_, Comment>
 
-    static member getPostWithOneTagAsync: int -> DataContext -> PostWithLimitedSubItems Async = 
+    static member getPostWithOneTagAsync: int -> IDataContext -> PostWithLimitedSubItems Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status, 
                     0 as firstCommentid, 0 as firstCommentpostId, 0 as firstCommentparentId, '' as firstCommentcontent, '' as firstCommentauthor, cast('2000/01/01' as datetime) as firstCommentcreatedAt
              from post where id = @id;
              select t.postId, t.name from tag t where t.postId = @id"
         >> AsyncDb.map Conventions.combine<_, Tag>
 
-    static member getPostsWithTagsRel: int -> DataContext -> Post list = 
+    static member getPostsWithTagsRel: int -> IDataContext -> Post list = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
         >> DbAction.map (Conventions.join<_, Tag> >> List.ofSeq)
 
-    static member getPostsWithTagsAndCommentsAsyncTOps: int -> DataContext -> Post list Async = 
+    static member getPostsWithTagsAndCommentsAsyncTOps: int -> IDataContext -> Post list Async = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
         >> AsyncDb.map (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment> >> List.ofSeq))
 
-    static member getBlogWithPostsWithTagsAndCommentsAsyncTOps: int -> DataContext -> Blog Async = 
+    static member getBlogWithPostsWithTagsAndCommentsAsyncTOps: int -> IDataContext -> Blog Async = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id
              select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
              select t.postId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id;
              select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
         >> AsyncDb.map (Conventions.combine<_, Post> >>- (Conventions.join<_, Tag> >-> (mapSnd Tooling.buildTree >> Conventions.join<_, Comment>)))
 
-    static member getBlogsWithWrongTransform: DataContext -> Blog list Async = 
+    static member getBlogsWithWrongTransform: IDataContext -> Blog list Async = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog;
              select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post"
         |> AsyncDb.map (Conventions.combine<_, Post>)
 
-    static member getBlogWithoutPostsWithoutAnyIds: int -> DataContext -> BlogWithPostsWithoutAnyIds Async = 
+    static member getBlogWithoutPostsWithoutAnyIds: int -> IDataContext -> BlogWithPostsWithoutAnyIds Async = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where id = @id;
              select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id"
         >> AsyncDb.map (Conventions.combine<_, PostWithoutAnyIds>)
 
 
-    static member insertPost: Post -> DataContext -> int Async = 
+    static member insertPost: Post -> IDataContext -> int Async = 
         sql "insert into post 
                     (blogId, name, title, content, author, createdAt, status)
              values (@blogId, @name, @title, @content, @author, @createdAt, @status);
              select scope_identity()"
 
-    static member insertTag: Tag -> DataContext -> unit Async = 
+    static member insertTag: Tag -> IDataContext -> unit Async = 
         sql "insert into tag (postId, name) values (@postId, @name)"
 
-    static member getSpid: DataContext -> int Async = 
+    static member getSpid: IDataContext -> int Async = 
         sql "select @@spid"
 
-    static member statementWithDeclare: int -> DataContext -> Post list Async = 
+    static member statementWithDeclare: int -> IDataContext -> Post list Async = 
         sql "declare @postId int; set @postId = @p;
              select * from post where id = @postId"
 
-    static member getBlogsByCreatedBeforeDate: DateTimeOffset -> DataContext -> Blog list Async = 
+    static member getBlogsByCreatedBeforeDate: DateTimeOffset -> IDataContext -> Blog list Async = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog where createdAt < @createdAt"
         
-    static member getPostArrayByIds: int array -> DataContext -> PostWithArray array = 
+    static member getPostArrayByIds: int array -> IDataContext -> PostWithArray array = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
 
-    static member getPostSeqByIds: int seq -> DataContext -> PostWithSeq seq = 
+    static member getPostSeqByIds: int seq -> IDataContext -> PostWithSeq seq = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
 
-    static member getPostSetByIds: int Set -> DataContext -> PostWithSet Set = 
+    static member getPostSetByIds: int Set -> IDataContext -> PostWithSet Set = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
 
-    static member getPostStreamByIds: int list -> DataContext -> PostWithResultStream ResultStream = 
+    static member getPostStreamByIds: int list -> IDataContext -> PostWithResultStream ResultStream = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id in (@postId)"
 
 
-    static member getSomePostsByTagsWithStream: string list -> DataContext -> Post ResultStream = 
+    static member getSomePostsByTagsWithStream: string list -> IDataContext -> Post ResultStream = 
         sql "select id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status from 
              post p join tag t on t.postId = p.id
              where t.name in (@tagName)
              group by id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status"
 
-    static member getSomePostsByTagsAsyncWithStream: string list -> DataContext -> Post ResultStream Async = 
+    static member getSomePostsByTagsAsyncWithStream: string list -> IDataContext -> Post ResultStream Async = 
         sql "select id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status from 
              post p join tag t on t.postId = p.id
              where t.name in (@tagName)
              group by id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status"
 
 
-    static member getPostAndItsCommentsResultStream: int -> DataContext -> (Post * Comment ResultStream) = 
+    static member getPostAndItsCommentsResultStream: int -> IDataContext -> (Post * Comment ResultStream) = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id = @id;
              select id, postId, parentId, content, author, createdAt from comment where postId = @id"
 
-    static member insertUser: UserProfile -> DataContext -> unit = 
+    static member insertUser: UserProfile -> IDataContext -> unit = 
         sql "insert into UserProfile (id, name, email, avatar) 
              values (@id, @name, @email, @avatar)"
 
-    static member getUsers: DataContext -> UserProfile list = 
+    static member getUsers: IDataContext -> UserProfile list = 
         sql "select id, name, email, avatar from UserProfile"
 
 [<TestFixture>]

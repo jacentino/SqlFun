@@ -11,7 +11,7 @@ open System
 
 type StoredProcs() = 
         
-        static member GetAllPosts: int -> DataContext -> Post list Async = 
+        static member GetAllPosts: int -> IDataContext -> Post list Async = 
             proc "GetAllPosts"
             >> AsyncDb.map (resultOnly
                             >> (combineTransforms 
@@ -19,18 +19,18 @@ type StoredProcs() =
                                     (join Post.Id Tag.PostId (Post.withTags List.ofSeq)))
                             >> List.ofSeq)
 
-        static member FindPostsFull: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> (int * unit * Post list) =
+        static member FindPostsFull: (PostSearchCriteria * SignatureSearchCriteria) -> IDataContext -> (int * unit * Post list) =
             proc "FindPosts"
 
-        static member FindPostsResultOnly: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post list =
-            proc "FindPosts"
-            >> DbAction.map resultOnly
-
-        static member FindPostsStream: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post ResultStream =
+        static member FindPostsResultOnly: (PostSearchCriteria * SignatureSearchCriteria) -> IDataContext -> Post list =
             proc "FindPosts"
             >> DbAction.map resultOnly
 
-        static member FindPostsStreamAsync: (PostSearchCriteria * SignatureSearchCriteria) -> DataContext -> Post ResultStream Async =
+        static member FindPostsStream: (PostSearchCriteria * SignatureSearchCriteria) -> IDataContext -> Post ResultStream =
+            proc "FindPosts"
+            >> DbAction.map resultOnly
+
+        static member FindPostsStreamAsync: (PostSearchCriteria * SignatureSearchCriteria) -> IDataContext -> Post ResultStream Async =
             proc "FindPosts"
             >> AsyncDb.map resultOnly
 

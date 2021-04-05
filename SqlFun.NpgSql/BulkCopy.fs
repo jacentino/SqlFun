@@ -114,8 +114,8 @@ type BulkCopy<'Rec>() =
     /// <param name="ctx">
     /// SqlFun data context.
     /// </param>
-    static member WriteToServer (records: 'Rec seq) (ctx: DataContext): unit Async =
-        let npgcon = ctx.connection :?> NpgsqlConnection
+    static member WriteToServer (records: 'Rec seq) (ctx: IDataContext): unit Async =
+        let npgcon = ctx.Connection :?> NpgsqlConnection
         async {
             use writer = npgcon.BeginBinaryImport(copyCommand)
             for r in records do

@@ -3,6 +3,14 @@
 open System
 open System.Data
 
+type IDataContext = 
+    inherit IDisposable
+    abstract Connection: IDbConnection
+    abstract Transaction: IDbTransaction option
+    abstract BeginTransaction: IsolationLevel option -> IDataContext
+    abstract Commit: unit -> unit
+    abstract Rollback: unit -> unit
+
 /// <summary>
 /// Manages open connection.
 /// </summary>
@@ -16,6 +24,16 @@ type DataContext =
             match this.transaction with
             | Some t -> t.Dispose()
             | None -> this.connection.Dispose()
+    interface IDataContext with
+        member this.Connection = this.connection
+        member this.Transaction = this.transaction
+        member this.BeginTransaction isolationLevel = 
+            this |> DataContext.beginTransaction isolationLevel :> IDataContext
+        member this.Commit() = 
+            DataContext.commit this
+        member this.Rollback() = 
+            DataContext.rollback this
+
             
 
     /// <summary>

@@ -55,7 +55,7 @@ module ParamBuilder =
         let length = List.length usedNames
         if paramNames |> Seq.take length |> Seq.except usedNames |> Seq.isEmpty
         then paramNames |> List.skip length
-        else failwith "Inconsistent parameter list."
+        else failwithf "Inconsistent parameter list: %A." (paramNames |> Seq.take length |> Seq.except usedNames)
 
     let rec private getTupleParamExpressions (customPB: ParamBuilder) (expr: Expression) (index: int) (paramNames: string list) = 
         let tupleItemTypes = FSharpType.GetTupleElements expr.Type
@@ -180,6 +180,13 @@ module ParamBuilder =
         | TransactionOption ->
             ["<transaction>", expr, (fun _ _ -> 0), null :> obj] 
         | Record fields ->
+            let exprs = 
+                fields
+                |> Seq.collect (fun p -> customPB (prefix + getFieldPrefix p) p.Name (Expression.Property(expr, p)) paramNames)
+                |> Seq.filter (fun (name, _, _, _) -> ("<connection>" :: "<transaction>" :: paramNames) |> Seq.exists ((=) name))
+                |> List.ofSeq
+            exprs
+        | Interface fields ->
             let exprs = 
                 fields
                 |> Seq.collect (fun p -> customPB (prefix + getFieldPrefix p) p.Name (Expression.Property(expr, p)) paramNames)

@@ -10,16 +10,16 @@ open System
 
 type CrudQueries() =
     
-    static member insertPost: Post -> DataContext -> unit = 
+    static member insertPost: Post -> IDataContext -> unit = 
         sql <| Crud.Insert<Post> ["id"; "comments"; "tags"]
 
-    static member updatePost: Post -> DataContext -> unit = 
+    static member updatePost: Post -> IDataContext -> unit = 
         sql <| Crud.Update<Post> (["id"], ["comments"; "tags"])
 
-    static member deletePost: int -> DataContext -> unit =
+    static member deletePost: int -> IDataContext -> unit =
         sql <| Crud.DeleteByKey<Post> ["id"]
 
-    static member getPost: int -> DataContext -> Post = 
+    static member getPost: int -> IDataContext -> Post = 
         sql <| Crud.SelectByKey<Post> ["id"]
 
 

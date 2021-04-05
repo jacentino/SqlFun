@@ -12,14 +12,14 @@ open System.IO
 
 type TestQueries() =    
  
-    static member getBlog: int -> DataContext -> Blog = 
+    static member getBlog: int -> IDataContext -> Blog = 
         sql "select blogid, name, title, description, owner, createdAt, modifiedAt, modifiedBy from blog where blogid = @id"
 
-    static member spGetBlog: int -> DataContext -> Blog = 
+    static member spGetBlog: int -> IDataContext -> Blog = 
         proc "getblog"
         >> DbAction.map resultOnly
         
-    static member getPosts: int array -> DataContext -> Post list = 
+    static member getPosts: int array -> IDataContext -> Post list = 
         sql "select p.postid, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status
              from post p join unnest(@ids) ids on p.postid = ids"
 

@@ -88,3 +88,8 @@ module Types =
         if FSharpType.IsFunction t
         then Some <| FSharpType.GetFunctionElements t
         else None
+
+    let (|Interface|_|) (t: Type) = 
+        if t.IsInterface 
+        then Some <| t.GetProperties()
+        else None

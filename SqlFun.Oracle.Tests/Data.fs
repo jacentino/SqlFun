@@ -19,7 +19,7 @@ module Data =
 module Tooling = 
     open SqlFun
 
-    let deleteAllButFirstBlog: DataContext -> unit = 
+    let deleteAllButFirstBlog: IDataContext -> unit = 
         sql "delete from blog where blogid > 1"
 
 

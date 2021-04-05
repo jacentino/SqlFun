@@ -47,35 +47,35 @@ module MsSqlTestQueries =
         status: TagStatusInt
     }
 
-    let insertBlogs: Blog list -> DataContext -> unit =
+    let insertBlogs: Blog list -> IDataContext -> unit =
         sqlTm 60 "insert into blog ([name],[title],[description],[owner],[createdAt],[modifiedAt],[modifiedBy])
                   select [name],[title],[description],[owner],[createdAt],[modifiedAt],[modifiedBy] from @blogs"
 
-    let updateTags: Post -> DataContext -> unit = 
+    let updateTags: Post -> IDataContext -> unit = 
         sql "delete from tag where postId = @id;
              insert into tag (postId, name) select @id, name from @tags"
 
-    let updateTags2: int -> Tag2 list -> DataContext -> unit = 
+    let updateTags2: int -> Tag2 list -> IDataContext -> unit = 
         sql "delete from tag where postId = @id;
              insert into tag (postId, name) select @id, name from @tags"
 
-    let updateTags3: int -> Tag3 list -> DataContext -> unit = 
+    let updateTags3: int -> Tag3 list -> IDataContext -> unit = 
         sql "delete from tag where postId = @id;
              insert into tag (postId, name) select @id, name from @tags"
 
-    let updateTags4: int -> Tag4 list -> DataContext -> unit = 
+    let updateTags4: int -> Tag4 list -> IDataContext -> unit = 
         sql "delete from tag where postId = @id;
              insert into tag (postId, name) select @id, name from @tags"
 
-    let updateTags5: int -> Tag5 list -> DataContext -> unit = 
+    let updateTags5: int -> Tag5 list -> IDataContext -> unit = 
         sql "delete from tag where postId = @id;
              insert into tag (postId, name) select @id, name from @tags"
 
-    let updateTags6: int -> Tag6 list -> DataContext -> unit = 
+    let updateTags6: int -> Tag6 list -> IDataContext -> unit = 
         sql "delete from tag where postId = @id;
              insert into tag (postId, name) select @id, name from @tags"
 
-    let insertManyUsers: UserProfile list -> DataContext -> unit = 
+    let insertManyUsers: UserProfile list -> IDataContext -> unit = 
         sql "insert into UserProfile (id, name, email, avatar) 
                 select id, name, email, avatar from @users"
 

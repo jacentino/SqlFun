@@ -46,11 +46,11 @@ module Data =
 
 module Tooling = 
     
-    let getNumberOfBlogs: DataContext -> int = 
+    let getNumberOfBlogs: IDataContext -> int = 
         sql "select count(*) from blog"
 
-    let deleteAllButFirstBlog: DataContext -> unit = 
+    let deleteAllButFirstBlog: IDataContext -> unit = 
         sql "delete from blog where blogid > 1"
 
-    let deleteAllUsers: DataContext -> unit = 
+    let deleteAllUsers: IDataContext -> unit = 
         sql "delete from userprofile"

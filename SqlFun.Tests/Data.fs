@@ -220,37 +220,37 @@ open Data
 
 module Tooling = 
     
-    let cleanup: DataContext -> unit = 
+    let cleanup: IDataContext -> unit = 
         sql "delete from post where id > 2;
              delete from tag where postId = 2
              delete from UserProfile where id <> 'jacenty'"
 
-    let getNumberOfPosts: DataContext -> int = 
+    let getNumberOfPosts: IDataContext -> int = 
         sql "select count(*) from post"
 
-    let getNumberOfBlogs: DataContext -> int = 
+    let getNumberOfBlogs: IDataContext -> int = 
         sql "select count(*) from blog"
 
 
-    let deleteAllButFirstBlog: DataContext -> unit = 
+    let deleteAllButFirstBlog: IDataContext -> unit = 
         sqlTm 60 "delete from blog where id > 1"
 
-    let getPostByName: string -> DataContext -> Post = 
+    let getPostByName: string -> IDataContext -> Post = 
         sql "select * from post where name = @name"
 
-    let getPost: int -> DataContext -> Post option = 
+    let getPost: int -> IDataContext -> Post option = 
         sql "select * from post where id = @id"
 
-    let insertPost: Post -> DataContext -> int = 
+    let insertPost: Post -> IDataContext -> int = 
         sql "insert into post 
                     (blogId, name, title, content, author, createdAt, status)
              values (@blogId, @name, @title, @content, @author, @createdAt, @status);
              select scope_identity()"
 
-    let deletePost: int -> DataContext -> unit =
+    let deletePost: int -> IDataContext -> unit =
         sql "delete from post where id = @id"
 
-    let getTags: int -> DataContext -> Tag list = 
+    let getTags: int -> IDataContext -> Tag list = 
         sql "select postId, name from Tag where postId = @postId"
 
     let rec buildSubtree (parenting: Map<int option, Comment seq>) (c: Comment) = 

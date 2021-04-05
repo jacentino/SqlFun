@@ -6,7 +6,7 @@ open System.Data
 module ComputationBuilder = 
     open System
 
-    type DbAction<'t> = DataContext -> 't
+    type DbAction<'t> = IDataContext -> 't
 
     module DbAction = 
 
@@ -27,13 +27,13 @@ module ComputationBuilder =
         /// <param name="dc">
         /// The data context object.
         /// </param>
-        let inTransaction (f: DataContext -> 't) (dc: DataContext) = 
-            match dc.transaction with
+        let inTransaction (f: IDataContext -> 't) (dc: IDataContext) = 
+            match dc.Transaction with
             | Some _ -> f dc
             | None ->
-                use t = DataContext.beginTransaction None dc 
+                use t = dc.BeginTransaction None
                 let r = f t
-                DataContext.commit t
+                t.Commit()
                 r
 
         /// <summary>
@@ -48,13 +48,13 @@ module ComputationBuilder =
         /// <param name="dc">
         /// The data context object.
         /// </param>
-        let inTransactionWith (isolationLevel: IsolationLevel) (f: DataContext -> 't) (dc: DataContext) = 
-            match dc.transaction with
+        let inTransactionWith (isolationLevel: IsolationLevel) (f: IDataContext -> 't) (dc: IDataContext) = 
+            match dc.Transaction with
             | Some _ -> f dc
             | None ->
-                use t = DataContext.beginTransaction (Some isolationLevel) dc 
+                use t = dc.BeginTransaction (Some isolationLevel)  
                 let r = f t
-                DataContext.commit t
+                t.Commit()
                 r
 
         /// <summary>
@@ -70,7 +70,7 @@ module ComputationBuilder =
             let connection = createConnection()
             connection.Open()
             use dc = DataContext.create connection
-            f dc
+            f (dc :> IDataContext)
 
 
 
@@ -98,13 +98,13 @@ module ComputationBuilder =
         /// <param name="dc">
         /// The data context object.
         /// </param>
-        let inTransaction (f: DataContext -> 't Async) (dc: DataContext) = async {
-            match dc.transaction with
+        let inTransaction (f: IDataContext -> 't Async) (dc: IDataContext) = async {
+            match dc.Transaction with
             | Some _ -> return! f dc
             | None -> 
-                use t = DataContext.beginTransaction None dc 
+                use t = dc.BeginTransaction None  
                 let! r = f t
-                DataContext.commit t
+                t.Commit()
                 return r
         }
 
@@ -120,13 +120,13 @@ module ComputationBuilder =
         /// <param name="dc">
         /// The data context object.
         /// </param>
-        let inTransactionWith (isolationLevel: IsolationLevel) (f: DataContext -> 't Async) (dc: DataContext) = async {
-            match dc.transaction with
+        let inTransactionWith (isolationLevel: IsolationLevel) (f: IDataContext -> 't Async) (dc: IDataContext) = async {
+            match dc.Transaction with
             | Some _ -> return! f dc
             | None -> 
-                use t = DataContext.beginTransaction (Some isolationLevel) dc 
+                use t = dc.BeginTransaction (Some isolationLevel) 
                 let! r = f t
-                DataContext.commit t
+                t.Commit()
                 return r
         }        
 
@@ -144,7 +144,7 @@ module ComputationBuilder =
                 let connection = createConnection()
                 connection.Open()
                 use dc = DataContext.create connection
-                return! f dc
+                return! f (dc :> IDataContext)
             }
 
 
@@ -182,7 +182,7 @@ module ComputationBuilder =
                     }                    
             member this.Zero(x) = fun ctx -> async { return () }
             member this.Combine(x: AsyncDb<'t1>, y: AsyncDb<'t2>): AsyncDb<'t2> = this.Bind(x, fun x' -> y)
-            member this.Delay(f: unit-> DataContext -> 't Async) = fun ctx -> async { return! f () ctx }
+            member this.Delay(f: unit-> IDataContext -> 't Async) = fun ctx -> async { return! f () ctx }
             member this.For (items: seq<'t>,  f: 't -> AsyncDb<unit>): AsyncDb<unit> = 
                 fun ctx -> async {
                     for x in items do 

@@ -20,7 +20,7 @@ module RecordsAsModules =
             getPosts: int -> 'deps -> Post list Async
         }
 
-        let ComposeBlogging(extract: 'deps -> DataContext) =      
+        let ComposeBlogging(extract: 'deps -> IDataContext) =      
             let mapDeps f p deps= mapDeps extract f p deps
             { 
                 getBlog = 
@@ -53,7 +53,7 @@ module RecordsAsModules =
 
     module CompositionRoot = 
 
-        type Dependencies = { dctx: DataContext }
+        type Dependencies = { dctx: IDataContext }
 
         let run f = async {
             return! runAsync (fun ctx -> f { dctx = ctx })
