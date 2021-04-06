@@ -216,6 +216,33 @@ module Data =
         avatar: byte array
     }
 
+    type PostChild<'t> = 
+        {
+            PostWithTagsWithoutKeysId: int
+            Child: 't
+        }
+        interface SqlFun.Transforms.IChildObject<'t> with
+            member this.Child = this.Child
+
+    type TagWithoutKey = 
+        {
+            name: string
+        }
+
+    type PostWithTagsWithoutKeys = {
+        id: int
+        blogId: int
+        name: string
+        title: string
+        content: string
+        author: string
+        createdAt: DateTime
+        modifiedAt: DateTime option
+        modifiedBy: string option
+        status: PostStatus
+        tags: TagWithoutKey list
+    }
+
 open Data
 
 module Tooling = 

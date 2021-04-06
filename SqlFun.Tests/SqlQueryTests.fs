@@ -234,6 +234,12 @@ type TestQueries() =
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id = @id;
              select id, postId, parentId, content, author, createdAt from comment where postId = @id"
 
+    static member getBlogWithPostsWithTagsWithoutKeys: int -> IDataContext -> PostWithTagsWithoutKeys list Async = 
+        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
+             select t.postId as PostWithTagsWithoutKeysId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
+        >> AsyncDb.map (Conventions.join<_, PostChild<TagWithoutKey>> >> List.ofSeq)
+
+
     static member insertUser: UserProfile -> IDataContext -> unit = 
         sql "insert into UserProfile (id, name, email, avatar) 
              values (@id, @name, @email, @avatar)"
@@ -247,6 +253,14 @@ type SqlQueryTests() =
     [<SetUp>]
     member this.Setup() =
         Tooling.cleanup |> run
+
+    [<Test>]
+    member this.``IChildObject``() = 
+        let prtag = { PostWithTagsWithoutKeysId = 1; Child = { name = "Something`2" } }
+        let intf = typeof<PostChild<TagWithoutKey>>.GetInterface("IChildObject`1")
+        let childType = intf.GetGenericArguments().[0]
+        let x = typedefof<array<_>>
+        Assert.NotNull(intf)
 
     [<Test>]
     member this.``Query returning one row returns proper result when the requested row exists``() = 
@@ -665,3 +679,11 @@ type SqlQueryTests() =
         ]
         let users = TestQueries.getUsers |> run
         Assert.AreEqual(expected, users)
+
+    [<Test>]
+    member this.``IChildObject works properly``() = 
+        let posts = TestQueries.getBlogWithPostsWithTagsWithoutKeys 1 |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual(2, posts |> List.length)
+        let p = posts |> List.head
+        Assert.AreEqual(1, p.blogId)
+        Assert.AreEqual(3, p.tags |> List.length)

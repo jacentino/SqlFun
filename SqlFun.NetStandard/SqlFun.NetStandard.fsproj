@@ -39,4 +39,8 @@
     <PackageReference Include="System.Data.SqlClient" Version="4.6.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.7.2" />
+  </ItemGroup>
+
 </Project>

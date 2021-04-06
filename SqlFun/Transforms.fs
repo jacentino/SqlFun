@@ -138,18 +138,25 @@ module Transforms =
     /// <summary>
     /// Converts three-arg tupled function to its curried form.
     /// </summary>
-    let curry3 f x y z= f(x, y, z)
+    let curry3 f x y z = f(x, y, z)
 
     /// <summary>
     /// Converts four-arg tupled function to its curried form.
-    /// </summary>
+    /// </summary> 
     let curry4 f x y z t = f(x, y, z, t)
+
+    /// <summary>
+    /// Interface allowing to use convention based transformations
+    /// when child objects have no parent key fields.
+    /// </summary>
+    type IChildObject<'Child> = 
+        abstract member Child: 'Child
 
             
     type private RelationshipBuilder<'Parent, 'Child, 'Key when 'Key: comparison>() = 
                 
         static let parentKeyGetter: ('Parent -> 'Key) option = 
-            let param = Expression.Parameter(typeof<'Parent>)
+            let param = Expression.Parameter(typeof<'Parent>) 
             match RelationshipBuilder<'Parent, 'Child>.ParentKeyProp with
             | Some prop ->
                 let getter = Expression.Lambda<Func<'Parent, 'Key>>(Expression.MakeMemberAccess(param, prop), param).Compile()
@@ -205,82 +212,107 @@ module Transforms =
                                 Expression.Call(null, joinMethod, parents, children), parents, children).Compile()                        
                 joiner.Invoke)
 
+        static let unwrappedChildType = 
+            match typeof<'Child>.GetInterface("IChildObject`1") with
+            | null -> typeof<'Child>
+            | rel  -> rel.GetGenericArguments().[0]
+
         static let fsharpCore = Assembly.Load("FSharp.Core")
 
         static let headMethodInfo = 
             fsharpCore.GetType("Microsoft.FSharp.Collections.SeqModule")
               .GetMethod("Head", BindingFlags.Static ||| BindingFlags.Public)
-              .MakeGenericMethod(typeof<'Child>)
+              .MakeGenericMethod(unwrappedChildType)
 
         static let tryHeadMethodInfo = 
             fsharpCore.GetType("Microsoft.FSharp.Collections.SeqModule")
               .GetMethod("TryHead", BindingFlags.Static ||| BindingFlags.Public)
-              .MakeGenericMethod(typeof<'Child>)
+              .MakeGenericMethod(unwrappedChildType)
 
         static let listOfSeqMethodInfo = 
             fsharpCore.GetType("Microsoft.FSharp.Collections.ListModule")
               .GetMethod("OfSeq", BindingFlags.Static ||| BindingFlags.Public)
-              .MakeGenericMethod(typeof<'Child>)
+              .MakeGenericMethod(unwrappedChildType)
 
         static let arrayOfSeqMethodInfo = 
             fsharpCore.GetType("Microsoft.FSharp.Collections.ArrayModule")
               .GetMethod("OfSeq", BindingFlags.Static ||| BindingFlags.Public)
-              .MakeGenericMethod(typeof<'Child>)
+              .MakeGenericMethod(unwrappedChildType)
 
         static let setOfSeqMethodInfo = 
             fsharpCore.GetType("Microsoft.FSharp.Collections.SetModule")
               .GetMethod("OfSeq", BindingFlags.Static ||| BindingFlags.Public)
-              .MakeGenericMethod(typeof<'Child>)
+              .MakeGenericMethod(unwrappedChildType)
 
-        static let setType = typedefof<Set<_>>.MakeGenericType(typeof<'Child>)
+        static let listType = typedefof<list<_>>.MakeGenericType(unwrappedChildType)
+        static let arrayType = unwrappedChildType.MakeArrayType()
+        static let setType = typedefof<Set<_>>.MakeGenericType(unwrappedChildType)
+        static let seqType = typedefof<seq<_>>.MakeGenericType(unwrappedChildType)
+        static let optionType = typedefof<option<_>>.MakeGenericType(unwrappedChildType)
 
         static let supportedFieldTypes = [ 
-            typeof<'Child list>
-            typeof<'Child array>
+            listType
+            arrayType
             setType
-            typeof<'Child seq>
-            typeof<'Child option>
-            typeof<'Child> 
+            seqType
+            optionType
+            unwrappedChildType 
         ]
 
         static member ParentKeyNames = parentKeyNames    
         static member ChildKeyNames = childKeyNames
-        static member ParentKeyProp = tryGetKeyProp typeof<'Parent> typeof<IdAttribute> parentKeyNames
-        static member ChildKeyProp = tryGetKeyProp typeof<'Child> typeof<ParentIdAttribute> childKeyNames
+
+        static member ParentKeyProp = 
+            tryGetKeyProp typeof<'Parent> typeof<IdAttribute> parentKeyNames
+
+        static member ChildKeyProp =  
+            tryGetKeyProp typeof<'Child> typeof<ParentIdAttribute> childKeyNames
 
         static member join (p: 'Parent seq, c: 'Child seq): 'Parent seq = 
             let joiner = joinerOpt |> Option.defaultWith (fun () -> failwithf "Can not determine key type for: %A" typeof<'Parent>)
             joiner (p, c)
+
+        static member UnwrapChildSeq (children: IChildObject<'RealChild> seq) = 
+            children |> Seq.map (fun c -> c.Child)
 
         static member val combine: 'Parent * 'Child seq -> 'Parent = 
             let fieldTypes = FSharpType.GetRecordFields typeof<'Parent> |> Array.map (fun p -> p.PropertyType)
             let construct = typeof<'Parent>.GetConstructor(fieldTypes)
             let parent = Expression.Parameter(typeof<'Parent>)
             let children = Expression.Parameter(typeof<'Child seq>)
+            let unwrappedChildSeq = 
+                if unwrappedChildType = typeof<'Child> then
+                    children :> Expression
+                else
+                    Expression.Call(typeof<RelationshipBuilder<_, _>>
+                                        .GetMethod("UnwrapChildSeq")
+                                        .MakeGenericMethod(unwrappedChildType), 
+                                    children)
+                    :> Expression
             let values = 
                 FSharpType.GetRecordFields typeof<'Parent>
                 |> Array.map (fun prop -> 
-                                if prop.PropertyType = typeof<'Child seq>
-                                then children :> Expression 
-                                elif prop.PropertyType = typeof<'Child list>
-                                then Expression.Call(listOfSeqMethodInfo, children) :> Expression
-                                elif prop.PropertyType = typeof<'Child array>
-                                then Expression.Call(arrayOfSeqMethodInfo, children) :> Expression
+                                if prop.PropertyType = seqType
+                                then unwrappedChildSeq 
+                                elif prop.PropertyType = listType
+                                then Expression.Call(listOfSeqMethodInfo, unwrappedChildSeq) :> Expression
+                                elif prop.PropertyType = arrayType
+                                then Expression.Call(arrayOfSeqMethodInfo, unwrappedChildSeq) :> Expression
                                 elif prop.PropertyType = setType
-                                then Expression.Call(setOfSeqMethodInfo, children) :> Expression
-                                elif prop.PropertyType = typeof<'Child>
-                                then Expression.Call(headMethodInfo, children) :> Expression
-                                elif prop.PropertyType = typeof<'Child option>
-                                then Expression.Call(tryHeadMethodInfo, children) :> Expression
+                                then Expression.Call(setOfSeqMethodInfo, unwrappedChildSeq) :> Expression
+                                elif prop.PropertyType = unwrappedChildType
+                                then Expression.Call(headMethodInfo, unwrappedChildSeq) :> Expression
+                                elif prop.PropertyType = optionType
+                                then Expression.Call(tryHeadMethodInfo, unwrappedChildSeq) :> Expression
                                 else Expression.MakeMemberAccess(parent, prop) :> Expression)
             match values |> Seq.filter (fun v -> supportedFieldTypes |> List.contains v.Type) |> Seq.length with
             | 1 ->
                 let builder = Expression.Lambda<Func<'Parent, 'Child seq, 'Parent>>(Expression.New(construct, values), parent, children).Compile()         
                 fun (p, cs) -> builder.Invoke(p, cs)
             | 0 ->
-                failwithf "Property of type %s list not found in parent type %s" typeof<'Child>.Name typeof<'Parent>.Name
+                failwithf "Property of type %s list not found in parent type %s" unwrappedChildType.Name typeof<'Parent>.Name
             | _ -> 
-                failwithf "More than one property of type %s list found in parent type %s" typeof<'Child>.Name typeof<'Parent>.Name
+                failwithf "More than one property of type %s list found in parent type %s" unwrappedChildType.Name typeof<'Parent>.Name
 
 
     /// <summary>
