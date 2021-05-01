@@ -23,9 +23,9 @@ module Composite =
 
     /// <summary>
     /// Adds parameters from list as hierarchical tuple to a composite query.
-    /// </summary>
-    /// <param name="template">
-    /// The query template.
+    /// </summary>    
+    /// <param name="expand">
+    /// Function transforming template.
     /// </param>
     /// <param name="items">
     /// Query parameters.
@@ -49,6 +49,12 @@ module Composite =
                 let f = next.Combine template
                 f value
 
+        /// <summary>
+        /// Adds parameters from list as hierarchical tuple to a composite query.
+        /// </summary>
+        /// <param name="template">
+        /// The query template.
+        /// </param>        
         member this.Combine (template: 't) : 'q =
             match items with
             | e :: remaining -> this.buildHTuple<'q, 'e, 'e> (expand template) e remaining next
@@ -105,8 +111,8 @@ module Composite =
     /// <param name="template">
     /// The sql command template.
     /// </param>
-    /// <param name="part">
-    /// The next query part.
+    /// <param name="next">
+    /// The next query part in a composition.
     /// </param>
     /// <typeparam name="'t">
     /// The type of a template.
@@ -153,21 +159,12 @@ module Composite =
     /// <summary>
     /// The part responsible for generating and launching a query.
     /// </summary>
-    /// <param name="ctx>
+    /// <param name="ctx">
     /// The data context.
     /// </param>
-    /// <param name="createConnection">
-    /// The function creating a database connection.
-    /// </param>
-    /// <param name="commandTimeout">
-    /// The command timeout.
-    /// </param>
-    /// <param name="paramBuilder">
-    /// Function generating expression creating sql parameters.
-    /// </param>
-    /// <param name="rowBuilder">
-    /// Function generating expression creating row of results. 
-    /// </param>
+    /// <param name="config">
+    /// The code generation config.
+    /// </param>   
     /// <param name="stringify">
     /// Function converting query template to string. 
     /// </param>

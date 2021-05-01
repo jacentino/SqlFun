@@ -234,10 +234,14 @@ type TestQueries() =
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id = @id;
              select id, postId, parentId, content, author, createdAt from comment where postId = @id"
 
-    static member getBlogWithPostsWithTagsWithoutKeys: int -> IDataContext -> PostWithTagsWithoutKeys list Async = 
-        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
-             select t.postId as PostWithTagsWithoutKeysId, t.name from tag t join post p on t.postId = p.id where p.blogId = @id"
-        >> AsyncDb.map (Conventions.join<_, PostChild<TagWithoutKey>> >> List.ofSeq)
+    static member getBlogsWithPostsWithTagsWithoutKeys: unit -> IDataContext -> BlogWithPostsWithoutKeys list Async = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from Blog;
+             select id, blogId as BlogWithPostsWithoutKeysId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post;
+             select t.postId as PostWithTagsWithoutKeysId, t.name from tag t join post p on t.postId = p.id"
+        >> AsyncDb.map (
+            Conventions.join<_, BlogChild<PostWithTagsWithoutKeys>>
+            >>- Conventions.join<_, PostChild<TagWithoutKey>> 
+            >> List.ofSeq)
 
 
     static member insertUser: UserProfile -> IDataContext -> unit = 
@@ -253,14 +257,6 @@ type SqlQueryTests() =
     [<SetUp>]
     member this.Setup() =
         Tooling.cleanup |> run
-
-    [<Test>]
-    member this.``IChildObject``() = 
-        let prtag = { PostWithTagsWithoutKeysId = 1; Child = { name = "Something`2" } }
-        let intf = typeof<PostChild<TagWithoutKey>>.GetInterface("IChildObject`1")
-        let childType = intf.GetGenericArguments().[0]
-        let x = typedefof<array<_>>
-        Assert.NotNull(intf)
 
     [<Test>]
     member this.``Query returning one row returns proper result when the requested row exists``() = 
@@ -682,8 +678,47 @@ type SqlQueryTests() =
 
     [<Test>]
     member this.``IChildObject works properly``() = 
-        let posts = TestQueries.getBlogWithPostsWithTagsWithoutKeys 1 |> runAsync |> Async.RunSynchronously
+        let blogs = TestQueries.getBlogsWithPostsWithTagsWithoutKeys () |> runAsync |> Async.RunSynchronously
+        let posts = blogs.[0].posts
         Assert.AreEqual(2, posts |> List.length)
         let p = posts |> List.head
-        Assert.AreEqual(1, p.blogId)
         Assert.AreEqual(3, p.tags |> List.length)
+    
+    [<Test>]
+    member this.``RelationshipBuilder fails with meaningful error message - no child key``() = 
+        let blogs = [{
+            id = 1
+            name = "Test blog 1"
+            title = "Test blog 1 title"
+            description= "Test blog 1 description"
+            owner = "me"
+            createdAt = DateTime.Today
+            modifiedAt = None
+            modifiedBy = None
+            posts = []
+        }]
+
+        let posts = []
+
+        let ex = Assert.Throws<Exception>(fun () -> Conventions.join<BlogWithPostsWithoutKeys, PostWithTagsWithoutKeys>(blogs, posts) |> ignore)
+        Assert.AreEqual("Can not determine key type for relation: BlogWithPostsWithoutKeys -> PostWithTagsWithoutKeys", ex.Message)
+        
+   
+    [<Test>]
+    member this.``RelationshipBuilder fails with meaningful error message - no parent key``() = 
+       let blogs = [{
+           name = "Test blog 1"
+           title = "Test blog 1 title"
+           description= "Test blog 1 description"
+           owner = "me"
+           createdAt = DateTime.Today
+           modifiedAt = None
+           modifiedBy = None
+           posts = []
+       }]
+
+       let posts = []
+
+       let ex = Assert.Throws<TypeInitializationException>(fun () -> Conventions.join<BlogWithPostsWithoutAnyIds, BlogChild<PostWithoutAnyIds>>(blogs, posts) |> ignore)
+       Assert.AreEqual("No key fields found in BlogWithPostsWithoutAnyIds type.", ex.InnerException.Message) 
+     

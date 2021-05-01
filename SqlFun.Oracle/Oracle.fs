@@ -141,7 +141,7 @@ module Config =
     /// * turned off return parameter adding
     /// * turned off execution of schema only commands 
     ///   for queries, that doesn't create results
-    /// <remarks>
+    /// </remarks>
     /// <param name="config">
     /// The initial config.
     /// </param>

@@ -6,6 +6,7 @@ module Transforms =
     open System.Reflection
     open System.Linq.Expressions
     open Microsoft.FSharp.Reflection
+    open ExpressionExtensions
 
     let inline private unwrapAlias (alias: ^t): ^u =
         (^t: (member aliasedItem: ^u) alias)
@@ -78,47 +79,56 @@ module Transforms =
                                             | None -> item)
 
         /// <summary>
-        /// Joins three results by combining two joins.
+        /// Builds a tree from a sequence.
         /// </summary>
-        /// <param name="join1">
-        /// Function performing first join.
+        /// <param name="getKey1">
+        /// Calculates a key of the element.
         /// </param>
-        /// <param name="join2">
-        /// Function performing second join.
+        /// <param name="getKey2">
+        /// Calculates a key of the elements parent.
+        /// </param>
+        /// <param name="combine">
+        /// Combines an element with a child list.
+        /// </param>
+        /// <param name="source">
+        /// First sequence to be transformed.
+        /// </param>
+        let tree (getKey1: 't -> 'k) (getKey2: 't -> 'k option) (combine: 't -> 't seq -> 't) (source: 't seq) =
+            let rec makeSubtree (children: Map<'k option, 't seq>) (item: 't) =
+                children 
+                |> Map.tryFind (Some (getKey1 item) )
+                |> Option.map (Seq.map (makeSubtree children) >> combine item) 
+                |> Option.defaultValue item
+            let roots, children = source |> Seq.groupBy getKey2 |> Seq.toList |> List.partition (fst >> Option.isSome)
+            roots |> Seq.collect snd |> Seq.map (makeSubtree (children |> Map.ofList))
+
+        /// <summary>
+        /// Composes bigger transformation from two smaller ones.
+        /// </summary>
+        /// <param name="transform1">
+        /// Function performing first transformation.
+        /// </param>
+        /// <param name="transformation2">
+        /// Function performing second transformation.
         /// </param>
         /// <param name="l1">
-        /// First sequence participating in join.
+        /// First sequence participating in transformation.
         /// </param>
         /// <param name="l2">
-        /// Second sequence participating in join.
+        /// Second sequence participating in transformation.
         /// </param>
         /// <param name="l3">
-        /// Third sequence participating in join.
+        /// Third sequence participating in transformation.
         /// </param>
-        let combineTransforms (join1: ('t1 * 't2) -> 'r1) (join2: ('r1 * 't3) -> 'r2) (l1: 't1, l2: 't2, l3: 't3) = 
-            (join1 (l1, l2), l3) |> join2
+        let combineTransforms (transform1: ('t1 * 't2) -> 'r1) (transform2: ('r1 * 't3) -> 'r2) (l1: 't1, l2: 't2, l3: 't3) = 
+            (transform1 (l1, l2), l3) |> transform2
                             
-
-    /// <summary>
-    /// Transforms a value wrapped in Async object using a given function.
-    /// </summary>
-    /// <param name="f">
-    /// Function transforming wrapped value.
-    /// </param>
-    /// <param name="x">
-    /// Source value.
-    /// </param>
-    let mapAsync (f: 't -> 'v) (v: Async<'t>) = async {
-            let! v1 = v
-            return f(v1)
-        }
 
     /// <summary>
     /// Transforms two single-arg functions to one function with tupled params, returning tuple of results of input functions.
     /// Used to combine two functions executing sql commands, to further join them or whatever. 
     /// </summary>
     let merge (f1: 'x1 -> 'y1) (f2: 'x2 -> 'y2) = fun (x1: 'x1, x2: 'x2) -> f1 x1, f2 x2
-
 
     /// <summary>
     /// Extract result sets from stored procedure result tuple.
@@ -155,51 +165,78 @@ module Transforms =
             
     type private RelationshipBuilder<'Parent, 'Child, 'Key when 'Key: comparison>() = 
                 
-        static let parentKeyGetter: ('Parent -> 'Key) option = 
+        static let parentKeyGetter: 'Parent -> 'Key = 
             let param = Expression.Parameter(typeof<'Parent>) 
-            match RelationshipBuilder<'Parent, 'Child>.ParentKeyProp with
-            | Some prop ->
-                let getter = Expression.Lambda<Func<'Parent, 'Key>>(Expression.MakeMemberAccess(param, prop), param).Compile()
-                Some getter.Invoke
-            | None -> None
+            let getter = Expression.Lambda<Func<'Parent, 'Key>>(RelationshipBuilder<'Parent, 'Child>.GetParentKeyExpression param, param).Compile()
+            getter.Invoke
 
-        static let childKeyGetter: ('Child -> 'Key) option = 
+        static let childKeyGetter: 'Child -> 'Key = 
             let param = Expression.Parameter(typeof<'Child>)
-            match RelationshipBuilder<'Parent, 'Child>.ChildKeyProp with
-            | Some prop ->
-                let getter = Expression.Lambda<Func<'Child, 'Key>>(Expression.MakeMemberAccess(param, prop), param).Compile()
-                Some getter.Invoke
-            | None -> None
+            let getter = Expression.Lambda<Func<'Child, 'Key>>(RelationshipBuilder<'Parent, 'Child>.GetChildKeyExpression param, param).Compile()
+            getter.Invoke
 
         static let combiner = fun p c -> RelationshipBuilder<'Parent, 'Child>.combine (p, c)
 
         static member join (p: 'Parent seq, cs: 'Child seq) = 
-            match parentKeyGetter, childKeyGetter with
-            | None, _ -> failwith <| sprintf "Parent key of %s -> %s relation not found. Its name should be one of %s" 
-                                             typeof<'Parent>.Name typeof<'Child>.Name 
-                                             (RelationshipBuilder<'Parent, 'Child>.ParentKeyNames |> String.concat ", ")
-            | _, None -> failwith <| sprintf "Child key of %s -> %s relation not found. Its name should be one of %s" 
-                                             typeof<'Parent>.Name typeof<'Child>.Name 
-                                             (RelationshipBuilder<'Parent, 'Child>.ChildKeyNames |> String.concat ", ")
-            | Some pkGetter, Some ckGetter ->
-                
-                Standard.join pkGetter ckGetter combiner (p, cs)
+            Standard.join parentKeyGetter childKeyGetter combiner (p, cs)
     
     and RelationshipBuilder<'Parent, 'Child>() =
             
+        static let isChildObjectWrapper (typ: Type) = 
+            typ.GetInterface("IChildObject`1") <> null
+
+        static let isChildProperty (prop: PropertyInfo) = 
+            let intf = prop.DeclaringType.GetInterface("IChildObject`1")
+            intf <> null && intf.GetGenericArguments().[0] = prop.PropertyType
+
+        static let getChildProperty (wrapperType: Type) = 
+            let childType = wrapperType.GetInterface("IChildObject`1").GetGenericArguments().[0]
+            wrapperType.GetProperties() |> Array.find (fun p -> p.PropertyType = childType)
+            
+
+        static let getWrapperChain (t: Type) =
+            let allTypes = 
+                Array.unfold (fun (p: Type) -> 
+                    if p <> null then
+                        let np = p.GetInterface("IChildObject`1")
+                        Some (p, if np <> null then np.GetGenericArguments().[0] else null)
+                    else
+                        None) t
+            Array.take (allTypes.Length - 1) allTypes, Array.last allTypes
+
+        static let _, unwrappedParentType = getWrapperChain typeof<'Parent>
+            
+        static let childWrapperTypes, unwrappedChildType = getWrapperChain typeof<'Child>
+
+        static let unwrappedChildKeyNames = 
+            let pname = unwrappedParentType.Name.Split('`').[0].ToLower() 
+            [ pname + "id"; pname + "_id" ]
+
         static let childKeyNames = 
-            let pname = typeof<'Parent>.Name.Split('`').[0].ToLower() 
-            [pname + "id"; pname + "_id"]
+            (childWrapperTypes 
+             |> Seq.collect (fun wt -> wt.GetProperties() |> Seq.filter (isChildProperty >> not) |> Seq.map (fun p -> p.Name.ToLower()))
+             |> Seq.toList)
+            @ unwrappedChildKeyNames
+
+        static let unwrappedParentKeyNames = "id" :: unwrappedChildKeyNames
 
         static let parentKeyNames = "id" :: childKeyNames
     
-        static let tryGetKeyProp (t: Type) attrib names = 
+        static let tryGetKeyProp attrib names (t: Type) = 
             t.GetProperties() 
             |> Seq.tryFind (fun p -> p.GetCustomAttribute(attrib) <> null || names |> List.exists ((=) (p.Name.ToLower())))
 
         static let keyType = 
-            tryGetKeyProp typeof<'Parent> typeof<IdAttribute> parentKeyNames 
-            |> Option.map (fun p -> p.PropertyType)            
+            if childWrapperTypes.Length <> 0 then
+                childWrapperTypes 
+                |> Array.collect (fun t -> t.GetProperties() |> Array.filter (isChildProperty >> not))
+                |> Some
+            else
+                unwrappedChildType
+                |> tryGetKeyProp typeof<IdAttribute> unwrappedChildKeyNames 
+                |> Option.map Array.singleton
+            |> Option.map (Array.map (fun p -> p.PropertyType) >> FSharpType.MakeTupleType)
+
 
         static let joinerOpt = 
             keyType 
@@ -211,11 +248,6 @@ module Transforms =
                 let joiner = Expression.Lambda<Func<'Parent seq, 'Child seq, 'Parent seq>>(
                                 Expression.Call(null, joinMethod, parents, children), parents, children).Compile()                        
                 joiner.Invoke)
-
-        static let unwrappedChildType = 
-            match typeof<'Child>.GetInterface("IChildObject`1") with
-            | null -> typeof<'Child>
-            | rel  -> rel.GetGenericArguments().[0]
 
         static let fsharpCore = Assembly.Load("FSharp.Core")
 
@@ -259,60 +291,103 @@ module Transforms =
             unwrappedChildType 
         ]
 
-        static member ParentKeyNames = parentKeyNames    
-        static member ChildKeyNames = childKeyNames
+        static let rec getKeyProperties (parent: Expression, target: Type, tryGetKeyProp: Type -> PropertyInfo option) =
+            if parent.Type = target then
+                tryGetKeyProp target 
+                |> Option.map (fun p -> p.Name, Expression.MakeMemberAccess(parent, p) :> Expression) 
+                |> Option.toList
+            else
+            [ for p in parent.Type.GetProperties() do  
+                if not (isChildProperty p) then
+                    p.Name, Expression.MakeMemberAccess(parent, p) :> Expression
+                else
+                    yield! getKeyProperties(Expression.MakeMemberAccess(parent, p), target, tryGetKeyProp)
+            ]
 
-        static member ParentKeyProp = 
-            tryGetKeyProp typeof<'Parent> typeof<IdAttribute> parentKeyNames
+        static let mapMethodInfo = 
+            (typeof<System.Linq.Enumerable>.GetMethods() |> Array.find (fun m -> m.Name = "Select"))
+              .MakeGenericMethod(typeof<'Child>, unwrappedChildType)
 
-        static member ChildKeyProp =  
-            tryGetKeyProp typeof<'Child> typeof<ParentIdAttribute> childKeyNames
+        static member GetParentKeyExpression (parameter: ParameterExpression) = 
+            let keyProps = 
+                getKeyProperties(parameter, unwrappedParentType, tryGetKeyProp typeof<IdAttribute> unwrappedParentKeyNames)
+                |> List.filter (fun (name, _) -> parentKeyNames |> List.contains (name.ToLower()))
+                |> List.sortBy (fun (name, _) -> parentKeyNames |> List.findIndex ((=) (name.ToLower())))
+            if not keyProps.IsEmpty then
+                keyProps |> List.map snd |> Expression.NewTuple 
+            else
+                failwithf "No key fields found in %s type." parameter.Type.Name
+
+        static member GetChildKeyExpression (parameter: ParameterExpression) = 
+            let keyProps = 
+                getKeyProperties(parameter, unwrappedChildType, 
+                    if childWrapperTypes.Length = 0 then
+                        tryGetKeyProp typeof<ParentIdAttribute> unwrappedChildKeyNames
+                    else
+                        fun _ -> None)
+                |> List.map snd
+            if not keyProps.IsEmpty then
+                keyProps |> Expression.NewTuple 
+            else
+                failwithf "No key fields found in %s type. Expected one of: %A" 
+                    parameter.Type.Name 
+                    unwrappedChildKeyNames
+                
 
         static member join (p: 'Parent seq, c: 'Child seq): 'Parent seq = 
-            let joiner = joinerOpt |> Option.defaultWith (fun () -> failwithf "Can not determine key type for: %A" typeof<'Parent>)
+            let joiner = joinerOpt |> Option.defaultWith (fun () -> failwithf "Can not determine key type for relation: %s -> %s" typeof<'Parent>.Name typeof<'Child>.Name)
             joiner (p, c)
 
-        static member UnwrapChildSeq (children: IChildObject<'RealChild> seq) = 
-            children |> Seq.map (fun c -> c.Child)
+        static member GetUnwrapChildExpression (child: Expression): Expression = 
+            if isChildObjectWrapper child.Type then
+                RelationshipBuilder<'Parent, 'Child>.GetUnwrapChildExpression (Expression.MakeMemberAccess(child, getChildProperty child.Type))
+            else    
+                child
+
+        static member GetCombineExpression (parent: Expression, unwrappedChildren: Expression): Expression = 
+            let fields = FSharpType.GetRecordFields parent.Type 
+            let construct = parent.Type.GetConstructor(fields |> Array.map (fun p -> p.PropertyType))
+            let values = 
+                if isChildObjectWrapper parent.Type then
+                    [| for prop in fields do
+                        if not (isChildProperty prop) then
+                            Expression.MakeMemberAccess(parent, prop) :> Expression
+                        else
+                            RelationshipBuilder<'Parent, 'Child>.GetCombineExpression(Expression.MakeMemberAccess(parent, prop), unwrappedChildren)
+                    |]
+                else
+                    let values = 
+                        [| for prop in fields do
+                            if prop.PropertyType = seqType then
+                                yield unwrappedChildren 
+                            elif prop.PropertyType = listType then
+                                yield Expression.Call(listOfSeqMethodInfo, unwrappedChildren) :> Expression
+                            elif prop.PropertyType = arrayType then
+                                yield Expression.Call(arrayOfSeqMethodInfo, unwrappedChildren) :> Expression
+                            elif prop.PropertyType = setType then
+                                yield Expression.Call(setOfSeqMethodInfo, unwrappedChildren) :> Expression
+                            elif prop.PropertyType = unwrappedChildType then
+                                yield Expression.Call(headMethodInfo, unwrappedChildren) :> Expression
+                            elif prop.PropertyType = optionType then
+                                yield Expression.Call(tryHeadMethodInfo, unwrappedChildren) :> Expression
+                            else 
+                                yield Expression.MakeMemberAccess(parent, prop) :> Expression
+                        |]
+                    match values |> Seq.filter (fun v -> supportedFieldTypes |> List.contains v.Type) |> Seq.length with
+                    | 1 -> values  
+                    | 0 -> failwithf "Property of type %s list not found in parent type %s" unwrappedChildType.Name unwrappedParentType.Name
+                    | _ -> failwithf "More than one property of type %s list found in parent type %s" unwrappedChildType.Name unwrappedParentType.Name
+            Expression.New(construct, values) :> Expression
 
         static member val combine: 'Parent * 'Child seq -> 'Parent = 
-            let fieldTypes = FSharpType.GetRecordFields typeof<'Parent> |> Array.map (fun p -> p.PropertyType)
-            let construct = typeof<'Parent>.GetConstructor(fieldTypes)
-            let parent = Expression.Parameter(typeof<'Parent>)
-            let children = Expression.Parameter(typeof<'Child seq>)
-            let unwrappedChildSeq = 
-                if unwrappedChildType = typeof<'Child> then
-                    children :> Expression
-                else
-                    Expression.Call(typeof<RelationshipBuilder<_, _>>
-                                        .GetMethod("UnwrapChildSeq")
-                                        .MakeGenericMethod(unwrappedChildType), 
-                                    children)
-                    :> Expression
-            let values = 
-                FSharpType.GetRecordFields typeof<'Parent>
-                |> Array.map (fun prop -> 
-                                if prop.PropertyType = seqType
-                                then unwrappedChildSeq 
-                                elif prop.PropertyType = listType
-                                then Expression.Call(listOfSeqMethodInfo, unwrappedChildSeq) :> Expression
-                                elif prop.PropertyType = arrayType
-                                then Expression.Call(arrayOfSeqMethodInfo, unwrappedChildSeq) :> Expression
-                                elif prop.PropertyType = setType
-                                then Expression.Call(setOfSeqMethodInfo, unwrappedChildSeq) :> Expression
-                                elif prop.PropertyType = unwrappedChildType
-                                then Expression.Call(headMethodInfo, unwrappedChildSeq) :> Expression
-                                elif prop.PropertyType = optionType
-                                then Expression.Call(tryHeadMethodInfo, unwrappedChildSeq) :> Expression
-                                else Expression.MakeMemberAccess(parent, prop) :> Expression)
-            match values |> Seq.filter (fun v -> supportedFieldTypes |> List.contains v.Type) |> Seq.length with
-            | 1 ->
-                let builder = Expression.Lambda<Func<'Parent, 'Child seq, 'Parent>>(Expression.New(construct, values), parent, children).Compile()         
-                fun (p, cs) -> builder.Invoke(p, cs)
-            | 0 ->
-                failwithf "Property of type %s list not found in parent type %s" unwrappedChildType.Name typeof<'Parent>.Name
-            | _ -> 
-                failwithf "More than one property of type %s list found in parent type %s" unwrappedChildType.Name typeof<'Parent>.Name
+            let parent = Expression.Parameter typeof<'Parent>
+            let children = Expression.Parameter typeof<'Child seq>
+            let child = Expression.Parameter typeof<'Child>
+            let unwrapOneChild = Expression.Lambda(RelationshipBuilder<'Parent, 'Child>.GetUnwrapChildExpression child, child) 
+            let unwrappedChildren = Expression.Call(mapMethodInfo, children, unwrapOneChild)
+            let combineExpr = RelationshipBuilder<'Parent, 'Child>.GetCombineExpression(parent, unwrappedChildren)
+            let builder = Expression.Lambda<Func<'Parent, 'Child seq, 'Parent>>(combineExpr, parent, children).Compile()
+            builder.Invoke
 
 
     /// <summary>

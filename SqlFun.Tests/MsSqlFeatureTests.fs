@@ -163,7 +163,7 @@ type MsSqlTests() =
 
         Tooling.deleteAllButFirstBlog |> run
 
-        let blogsToAdd = 
+        let blogsToAdd: Blog list = 
             [  for i in 2..200 do
                 yield {
                     id = i

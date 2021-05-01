@@ -224,6 +224,14 @@ module Data =
         interface SqlFun.Transforms.IChildObject<'t> with
             member this.Child = this.Child
 
+    type BlogChild<'t> = 
+        {
+            BlogWithPostsWithoutKeysId: int
+            Related: 't
+        }
+        interface SqlFun.Transforms.IChildObject<'t> with
+            member this.Child = this.Related
+
     type TagWithoutKey = 
         {
             name: string
@@ -231,7 +239,6 @@ module Data =
 
     type PostWithTagsWithoutKeys = {
         id: int
-        blogId: int
         name: string
         title: string
         content: string
@@ -241,6 +248,18 @@ module Data =
         modifiedBy: string option
         status: PostStatus
         tags: TagWithoutKey list
+    }
+
+    type BlogWithPostsWithoutKeys = {
+        id: int
+        name: string
+        title: string
+        description: string
+        owner: string
+        createdAt: DateTime
+        modifiedAt: DateTime option
+        modifiedBy: string option
+        posts: PostWithTagsWithoutKeys list
     }
 
 open Data
@@ -294,4 +313,10 @@ module Tooling =
         roots |> List.map snd 
               |> List.collect List.ofSeq 
               |> List.map (buildSubtree parenting)
+
+    let mapAsync (f: 't -> 'v) (v: Async<'t>) = async {
+            let! v1 = v
+            return f(v1)
+        }
+
 
