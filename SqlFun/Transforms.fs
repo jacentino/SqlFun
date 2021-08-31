@@ -108,7 +108,7 @@ module Transforms =
         /// <param name="transform1">
         /// Function performing first transformation.
         /// </param>
-        /// <param name="transformation2">
+        /// <param name="transform2">
         /// Function performing second transformation.
         /// </param>
         /// <param name="l1">
@@ -429,7 +429,7 @@ module Transforms =
 
     /// <summary>
     /// Provides result transformation functions based on conventions.
-    /// <summary>
+    /// </summary>
     module Conventions =         
 
         /// <summary>
@@ -437,8 +437,8 @@ module Transforms =
         /// </summary>
         /// <remarks>
         /// Join can be used when:
-        /// - parent record's key has one of id, <parent-name>Id or <parent-name>_id names, 
-        /// - key in child record has <parent-name>Id or <parent-name>_id name,
+        /// - parent record's key has one of id, {parent-name}Id or {parent-name}_id names, 
+        /// - key in child record has {parent-name}Id or {parent-name}_id name,
         /// - parent has a property of child list type.
         ///</remarks>
         /// <param name="p">
@@ -476,7 +476,6 @@ module Transforms =
             let fieldTypes = FSharpType.GetRecordFields typeof<'Target> |> Array.map (fun p -> p.PropertyType)
             let construct = typeof<'Target>.GetConstructor(fieldTypes)
             let source = Expression.Parameter(typeof<'Source>)
-            let target = Expression.Parameter(typeof<'Target>)
             let srcFields = FSharpType.GetRecordFields typeof<'Source>
                             |> Seq.map (fun p -> (p.Name, p.PropertyType.FullName), p)
                             |> Map.ofSeq
