@@ -62,6 +62,7 @@
     <Compile Include="DapperSuite.fs" />
     <Compile Include="FSharpDataSqlClientSuite.fs" />
     <Compile Include="Benchmarks.fs" />
+    <Compile Include="Preparation.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />

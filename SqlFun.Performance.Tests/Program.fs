@@ -8,6 +8,8 @@ open BenchmarkDotNet.Running
 [<EntryPoint>]
 let main argv = 
 
+    Preparation.createTestData()
+
     let summary1 = BenchmarkRunner.Run<ReadMany>()
     let summary2 = BenchmarkRunner.Run<ReadOneManyTimes>()
 
