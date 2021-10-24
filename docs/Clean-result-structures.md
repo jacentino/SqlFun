@@ -5,7 +5,6 @@ Sometimes return types of query functions are not 100% compliant with business l
     type Comment = {
         id: int
         postId: int
-        parentId: int
         content: string
         author: string
         createdAt: DateTime
@@ -22,7 +21,6 @@ we define two structures:
 
     type Comment = {
         id: int
-        parentId: int
         content: string
         author: string
         createdAt: DateTime
@@ -31,12 +29,39 @@ we define two structures:
     }
 ```
 and define transformations slightly different:
-```fsharp 
-    let buildCommentTree (cl: Comment PostRelated list) = 
-        cl |> Seq.map (fun c -> c.related) |> buildTree
-
+```fsharp     
     let getPostsWithComments: int -> Post list AsyncDb = 
-        sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where blogId = @id;
-             select c.id, c.postId, c.parentId, c.content, c.author, c.createdAt from comment c join post p on c.postId = p.id where p.blogId = @id"
-    >> AsyncDb.map (join (fun p -> p.id) (fun c -> c.postId) (fun p cl -> { p with comments = buildCommentTree cl }))
+        sql "select id, blogId, name, title, content, author, 
+                    createdAt, modifiedAt, modifiedBy, status 
+             from post 
+             where blogId = @id;
+
+             select c.id, c.postId, c.content, c.author, c.createdAt 
+             from comment c join post p on c.postId = p.id 
+             where p.blogId = @id"
+    >> AsyncDb.map (join (fun p -> p.id) 
+                         (fun c -> c.postId) 
+                         (fun p cl -> { p with comments = cl |> Seq.map (fun c -> c.related) }))
+```
+This approach can be used with convention-based transformations too, but you have to mark a wrapper type (i.e. PostRelated<'t>) with the interface `IChildObject<'t>`:
+```fsharp
+    type PostRelated<'t> = {
+        postId: int
+        related: 't
+    }
+    interface IChildObject<'t> with
+        member this.Child = this.related
+```
+and use it when defining transformation:
+```fsharp     
+    let getPostsWithComments: int -> Post list AsyncDb = 
+        sql "select id, blogId, name, title, content, author, 
+                    createdAt, modifiedAt, modifiedBy, status 
+             from post 
+             where blogId = @id;
+
+             select c.id, c.postId, c.content, c.author, c.createdAt 
+             from comment c join post p on c.postId = p.id 
+             where p.blogId = @id"
+    >> AsyncDb.map (join<_, PostRelated<Comment>>)
 ```
