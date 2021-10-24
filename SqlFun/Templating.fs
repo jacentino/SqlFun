@@ -169,6 +169,9 @@ module Templating =
     /// <summary>
     /// Determines, whether the subtemplate exists in a specified hole.
     /// </summary>
+    /// <param name="name">
+    /// Hole name.
+    /// </param>
     /// <param name="subtmpl">
     /// The subtemplate to be searched for.
     /// </param>
@@ -181,6 +184,9 @@ module Templating =
     /// <summary>
     /// Determines, whether the value exists in a specified hole.
     /// </summary>
+    /// <param name="name">
+    /// Hole name.
+    /// </param>
     /// <param name="value">
     /// The value to be searched for.
     /// </param>
