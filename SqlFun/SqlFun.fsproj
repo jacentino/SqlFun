@@ -61,6 +61,7 @@
     <Compile Include="ResultBuilder.fs" />
     <Compile Include="GeneratorConfig.fs" />
     <Compile Include="Queries.fs" />
+    <Compile Include="Diagnostics.fs" />
     <Compile Include="Transforms.fs" />
     <Compile Include="MsSql.fs" />
     <Compile Include="MySql.fs" />

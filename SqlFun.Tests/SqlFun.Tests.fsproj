@@ -58,6 +58,7 @@
     <Compile Include="Common.fs" />
     <Compile Include="Data.fs" />
     <Compile Include="SqlQueryTests.fs" />
+    <Compile Include="LoggedSqlTests.fs" />
     <Compile Include="CrudTemplateTests.fs" />
     <Compile Include="StoredProcTests.fs" />
     <Compile Include="CompositeQueryTests.fs" />
