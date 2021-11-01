@@ -31,3 +31,4 @@ type LoggedSqlTests() =
         Assert.True(report.Contains("\\SqlFun\\SqlFun.Tests\\LoggedSqlTests.fs, line: 15"))
         Assert.True(report.Contains("\\SqlFun\\SqlFun.Tests\\LoggedSqlTests.fs, line: 18"))
 
+    
