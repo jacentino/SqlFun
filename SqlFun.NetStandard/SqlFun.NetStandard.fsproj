@@ -26,7 +26,6 @@
     <Compile Include="..\SqlFun\GeneratorConfig.fs" />
     <Compile Include="..\SqlFun\Queries.fs" />
     <Compile Include="..\SqlFun\Transforms.fs" />
-    <Compile Include="..\SqlFun\MsSql.fs" />
     <Compile Include="..\SqlFun\MySql.fs" />
     <Compile Include="..\SqlFun\Sqlite.fs" />
     <Compile Include="..\SqlFun\Crud.fs" />

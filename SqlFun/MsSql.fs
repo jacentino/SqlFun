@@ -1,12 +1,18 @@
 ﻿namespace SqlFun
 
 
+
 module MsSql = 
 
     open System
     open System.Data
     open System.Reflection
+#if MS_DATA_SQLCLIENT
+    open Microsoft.Data
+    open Microsoft.Data.SqlClient.Server
+#else
     open Microsoft.SqlServer.Server
+#endif
     open Microsoft.FSharp.Reflection
     open SqlFun.Types
     open System.Linq.Expressions
@@ -147,6 +153,9 @@ module MsSql =
     /// Parameter builder supporting user defined table type parameters.
     /// Allows to combine bulk operations with usual queries.
     /// </summary>
+    /// <param name="connectionBuilder">
+    /// Function creating a database connection.
+    /// </param>
     /// <param name="defaultPB">
     /// Next item in parameter building cycle.
     /// </param>
