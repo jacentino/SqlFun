@@ -1,23 +1,18 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DefineConstants>MS_DATA_SQLCLIENT</DefineConstants>
     <AssemblyName>SqlFun.MsDataSql</AssemblyName>
   </PropertyGroup>
-
   <ItemGroup>
     <Compile Include="..\SqlFun\AssemblyInfo.fs" />
     <Compile Include="..\SqlFun\MsSql.fs" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="3.0.0" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\SqlFun.NetStandard\SqlFun.NetStandard.fsproj" />
   </ItemGroup>
-  
 </Project>
