@@ -53,7 +53,7 @@ module Diagnostics =
     /// <returns>
     /// The query function or placeholder that throws exception.
     /// </returns>
-    let logged (log: (exn * string) list Ref) (generator: string -> 'q) (command: string) = 
+    let logCompilationErrors (log: (exn * string) list Ref) (generator: string -> 'q) (command: string) = 
         try
             generator command
         with 

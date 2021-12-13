@@ -9,6 +9,7 @@ module MySql =
     /// * turned off return parameter adding
     /// * turned off execution of schema only commands 
     ///   for queries, that doesn't create results
+    /// </remarks>
     /// <param name="connectionBuilder">
     /// Function creating database connection.
     /// </param>

@@ -10,7 +10,7 @@ module InvalidQueries =
 
     let compilationErrors = ref []
 
-    let sql commandText = Diagnostics.logged compilationErrors sql commandText
+    let sql commandText = Diagnostics.logCompilationErrors compilationErrors sql commandText
 
     let incorrect: int -> AsyncDb<Blog> = 
         sql "some totally incorrect sql with @id parameter"
