@@ -28,6 +28,25 @@ Unfortunately, the information about failing function is somewhere in the stack 
 
 The downside of this technique is, that null checks cannot be performed this way.
 
+## Error reports
+
+Another downside of this approach is, that we cannot obtain full error report, since code generation breaks after first error.
+To improve it, SqlFun has `logCompilationErrors` function, that intercepts code generation exceptions and writes them to mutable variable.
+We can use it by configuring `sql` function differently.
+
+```fsharp
+    let compilationErrors = ref []
+    let sql command = Diagnostics.logCompilationErrors compilationErrors sql command
+```
+The test can use it to launch code generation as well, as to obtain error report:
+
+```fsharp 
+    [<Test>]
+    member this.``Blogging module passes type checks``() = 
+        let report = Diagnostics.buildReport Blogging.compilationErrors
+        Assert.IsEmpty(report, report)
+```
+
 ## Composite queries
 
 Unfortunately, composite queries are not checked during module initialization, since they must be defined as functions, not variables. Each of them should have its own test, sometimes even more, than one. My recommendation is to use [FsCheck](https://fscheck.github.io/FsCheck/) for testing them:
