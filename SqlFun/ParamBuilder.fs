@@ -93,6 +93,9 @@ module ParamBuilder =
     /// <summary>
     /// Searches for parameter names in a command.
     /// </summary>
+    /// <param name="prefix">
+    /// The symbol denoting a parameter in a query.
+    /// </param>
     /// <param name="commandText">
     /// The SQL command.
     /// </param>

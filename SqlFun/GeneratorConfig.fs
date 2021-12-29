@@ -42,8 +42,8 @@ module GeneratorConfig =
     /// <param name="isAllowed">
     /// Function determining if list elements have valid type.
     /// </param>
-    /// <param name="toString">
-    /// Converts element to string representing SQL literal of element.
+    /// <param name="paramPrefix">
+    /// The symbol denoting a parameter in a query, e.g. @ or :.
     /// </param>
     /// <param name="defaultPB">
     /// Next item in parameter building cycle.
@@ -196,10 +196,10 @@ module GeneratorConfig =
     /// <summary>
     /// Composes two builders.
     /// </summary>
-    /// <param name="pb1">
+    /// <param name="b1">
     /// First builder.
     /// </param>
-    /// <param name="pb2">
+    /// <param name="b2">
     /// Second builder.
     /// </param>
     /// <param name="next">
