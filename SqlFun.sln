@@ -27,9 +27,9 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.MySql.Tests", "SqlFu
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Performance.Tests", "SqlFun.Performance.Tests\SqlFun.Performance.Tests.fsproj", "{C2F9AA39-FCDC-4560-80FB-7A947811CB44}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.MsSql.NetStandard", "SqlFun.MsSql.NetStandard\SqlFun.MsSql.NetStandard.fsproj", "{0F7750E0-97BD-4F08-89DF-1806A01DC956}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.MsSql.NetStandard", "SqlFun.MsSql.NetStandard\SqlFun.MsSql.NetStandard.fsproj", "{0F7750E0-97BD-4F08-89DF-1806A01DC956}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.MsDataSql.NetStandard", "SqlFun.MsDataSql.NetStandard\SqlFun.MsDataSql.NetStandard.fsproj", "{00AFE926-6012-4D70-9E97-6F2AE6D8C233}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.MsDataSql.NetStandard", "SqlFun.MsDataSql.NetStandard\SqlFun.MsDataSql.NetStandard.fsproj", "{00AFE926-6012-4D70-9E97-6F2AE6D8C233}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -58,7 +58,6 @@ Global
 		{6C28181A-90EA-4EC3-82EF-7F531B7A94A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6C28181A-90EA-4EC3-82EF-7F531B7A94A2}.Release|Any CPU.Build.0 = Release|Any CPU
 		{77E4720B-E69B-49A8-B167-FE0A0735955E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{77E4720B-E69B-49A8-B167-FE0A0735955E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{77E4720B-E69B-49A8-B167-FE0A0735955E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{77E4720B-E69B-49A8-B167-FE0A0735955E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{554DE11C-4C35-459F-9878-B7A93AA8FDA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU

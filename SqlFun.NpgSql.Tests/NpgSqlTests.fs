@@ -29,7 +29,7 @@ type TestQueries() =
 
 [<TestFixture>]
 type NpgSqlTests() = 
-    
+
     [<Test>]
     member this.``Simple queries to PostgreSQL return valid results``() =
         let b = TestQueries.getBlog 1 |> run

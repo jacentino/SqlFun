@@ -27,7 +27,7 @@ type LoggedSqlTests() =
 
     [<Test>]
     member this.``Invalid queries are logged with source line information``() = 
-        let report = Diagnostics.buildReport InvalidQueries.compilationErrors
+        let report = Diagnostics.buildReport InvalidQueries.compilationErrors        
         Assert.True(report.Contains("\\SqlFun\\SqlFun.Tests\\LoggedSqlTests.fs, line: 15"))
         Assert.True(report.Contains("\\SqlFun\\SqlFun.Tests\\LoggedSqlTests.fs, line: 18"))
 

@@ -121,5 +121,5 @@ type BulkCopy<'Rec>() =
             for r in records do
                 writer.StartRow()
                 recordWriter.Invoke(writer, r)
-            writer.Close()
+            writer.Complete()
         }
