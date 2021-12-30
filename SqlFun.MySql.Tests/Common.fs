@@ -13,6 +13,8 @@ module Common =
 
     let run f = DbAction.run createConnection f
 
+    let runAsync f = AsyncDb.run createConnection f
+
     let sql commandText = sql generatorConfig commandText
 
     let proc name = proc generatorConfig name

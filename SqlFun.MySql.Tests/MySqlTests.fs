@@ -12,6 +12,9 @@ type TestQueries() =
     static member getBlog: int -> DbAction<Blog> = 
         sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from blog where id = @id"
 
+    static member getBlogAsync: int -> AsyncDb<Blog> = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from blog where id = @id"
+
     static member spInsertBlog: Blog -> DbAction<unit> = 
         proc "addblog"
         >> DbAction.map resultOnly
@@ -31,6 +34,11 @@ type MySqlTests() =
     [<Test>]
     member this.``Simple queries to MySql return valid results``() =
         let b = TestQueries.getBlog 1 |> run
+        Assert.AreEqual(1, b.id)
+
+    [<Test>]
+    member this.``Async queries to MySql return valid results``() =
+        let b = TestQueries.getBlogAsync 1 |> runAsync |> Async.RunSynchronously
         Assert.AreEqual(1, b.id)
 
     [<Test>]
