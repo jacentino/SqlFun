@@ -5,7 +5,6 @@ open Data
 open Common
 open NUnit.Framework
 open SqlFun.Transforms
-open System.Diagnostics
 open System
 
 type TestQueries() =    
