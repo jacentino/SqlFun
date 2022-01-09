@@ -64,7 +64,24 @@ module Composite =
             member this.Combine (template: 't) : 'q = this.Combine template
             
 
-
+    /// <summary>
+    /// Adds parameters from list as hierarchical tuple to a composite query.
+    /// </summary>    
+    /// <param name="expand">
+    /// Function transforming template.
+    /// </param>
+    /// <param name="items">
+    /// Query parameters.
+    /// </param>
+    /// <param name="next">
+    /// The next query part in a composition.
+    /// </param>
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
+    /// <typeparam name="'e">
+    /// The type of an element.
+    /// </typeparam>
     let transformWithList expand items next = asyncdb {
         let! nextP = next
         return TransformWithListQueryPart(expand, items, nextP) :> IQueryPart<'t>
@@ -74,6 +91,12 @@ module Composite =
     /// Expands query template with a specified function without adding any parameters 
     /// and changing query function type.
     /// </summary>
+    /// <param name="expand">
+    /// Function transforming template.
+    /// </param>
+    /// <param name="next">
+    /// The next query part in a composition.
+    /// </param>
     /// <typeparam name="'t">
     /// The type of a template.
     /// </typeparam>
@@ -82,6 +105,19 @@ module Composite =
             member this.Combine template = 
                 next.Combine <| expand template
 
+    /// <summary>
+    /// Expands query template with a specified function without adding any parameters 
+    /// and changing query function type.
+    /// </summary>
+    /// <param name="expand">
+    /// Function transforming template.
+    /// </param>
+    /// <param name="next">
+    /// The next query part in a composition.
+    /// </param>
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
     let transformWithText expand next = asyncdb {
         let! nextP = next
         return TransformWithTextQueryPart(expand, nextP) :> IQueryPart<'t>
@@ -90,6 +126,21 @@ module Composite =
     /// <summary>
     /// Expands template and applies a specified value.
     /// </summary>
+    /// <summary>
+    /// Expands template and applies a specified value.
+    /// </summary>
+    /// <param name="expand">
+    /// The template expansion function.
+    /// </param>
+    /// <param name="value">
+    /// The query parameter value.
+    /// </param>
+    /// <param name="next">
+    /// The next transformation in a chain.
+    /// </param>
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
     /// <typeparam name="'t">
     /// The type of a template.
     /// </typeparam>
@@ -100,10 +151,57 @@ module Composite =
                 let f = next.Combine<'v -> 'q> exp
                 f value
 
+    /// <summary>
+    /// Expands template and applies a specified value.
+    /// </summary>
+    /// <param name="expand">
+    /// The template expansion function.
+    /// </param>
+    /// <param name="value">
+    /// The query parameter value.
+    /// </param>
+    /// <param name="next">
+    /// The next transformation in a chain.
+    /// </param>
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
     let transformWithValue expand value next = asyncdb {
         let! nextP = next
         return TransformWithValueQueryPart(expand, value, nextP) :> IQueryPart<'t>
     }
+
+    /// <summary>
+    /// Expands template and applies a specified value if.
+    /// </summary>
+    /// <param name="value">
+    /// The query arameter value.
+    /// </param>
+    /// <param name="transformWithValue">
+    /// The transformation function working on unwrapped value.
+    /// </param>
+    /// <param name="next">
+    /// The next transformation in a chain.
+    /// </param>
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
+    let transformOptionally (transformWithValue: 'v -> AsyncDb<IQueryPart<'t>> -> AsyncDb<IQueryPart<'t>>) (value: 'v option) (next: AsyncDb<IQueryPart<'t>>) = 
+        match value with
+        | Some v -> transformWithValue v next
+        | None -> next
+    
+    /// <summary>
+    /// Expands template and applies a specified optional value if the option is Some _.
+    /// </summary>
+    /// <param name="expand">
+    /// The template expansion function.
+    /// </param>
+    /// <typeparam name="'t">
+    /// The type of a template.
+    /// </typeparam>
+    let transformWithValueOption expand = 
+        transformOptionally (transformWithValue expand)
 
     /// <summary>
     /// Starts query composition chain by providing sql command template.
