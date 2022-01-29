@@ -686,39 +686,12 @@ type SqlQueryTests() =
     
     [<Test>]
     member this.``RelationshipBuilder fails with meaningful error message - no child key``() = 
-        let blogs = [{
-            id = 1
-            name = "Test blog 1"
-            title = "Test blog 1 title"
-            description= "Test blog 1 description"
-            owner = "me"
-            createdAt = DateTime.Today
-            modifiedAt = None
-            modifiedBy = None
-            posts = []
-        }]
-
-        let posts = []
-
-        let ex = Assert.Throws<Exception>(fun () -> Conventions.join<BlogWithPostsWithoutKeys, PostWithTagsWithoutKeys>(blogs, posts) |> ignore)
+        let ex = Assert.Throws<Exception>(fun () -> Conventions.join<BlogWithPostsWithoutKeys, PostWithTagsWithoutKeys> |> ignore)
         Assert.AreEqual("Can not determine key type for relation: BlogWithPostsWithoutKeys -> PostWithTagsWithoutKeys", ex.Message)
         
    
     [<Test>]
     member this.``RelationshipBuilder fails with meaningful error message - no parent key``() = 
-       let blogs = [{
-           name = "Test blog 1"
-           title = "Test blog 1 title"
-           description= "Test blog 1 description"
-           owner = "me"
-           createdAt = DateTime.Today
-           modifiedAt = None
-           modifiedBy = None
-           posts = []
-       }]
-
-       let posts = []
-
-       let ex = Assert.Throws<TypeInitializationException>(fun () -> Conventions.join<BlogWithPostsWithoutAnyIds, BlogChild<PostWithoutAnyIds>>(blogs, posts) |> ignore)
-       Assert.AreEqual("No key fields found in BlogWithPostsWithoutAnyIds type.", ex.InnerException.Message) 
+       let ex = Assert.Throws<TypeInitializationException>(fun () -> Conventions.join<BlogWithPostsWithoutAnyIds, BlogChild<PostWithoutAnyIds>> |> ignore)
+       Assert.AreEqual("No key fields found in BlogWithPostsWithoutAnyIds type.", ex.InnerException.InnerException.InnerException.Message) 
      

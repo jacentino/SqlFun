@@ -177,6 +177,10 @@ module Transforms =
 
         static let combiner = fun p c -> RelationshipBuilder<'Parent, 'Child>.combine (p, c)
 
+        static member ValidateGetters () =
+            parentKeyGetter |> ignore
+            childKeyGetter |> ignore
+
         static member join (p: 'Parent seq, cs: 'Child seq) = 
             Standard.join parentKeyGetter childKeyGetter combiner (p, cs)
     
@@ -246,7 +250,9 @@ module Transforms =
                 let children = Expression.Parameter(typeof<'Child seq>)
                 let joinMethod = builder.GetMethod("join", BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
                 let joiner = Expression.Lambda<Func<'Parent seq, 'Child seq, 'Parent seq>>(
-                                Expression.Call(null, joinMethod, parents, children), parents, children).Compile()                        
+                                Expression.Call(null, joinMethod, parents, children), parents, children).Compile()
+                let validator = builder.GetMethod("ValidateGetters", BindingFlags.Static ||| BindingFlags.Public ||| BindingFlags.NonPublic)
+                validator.Invoke (null, [||]) |> ignore
                 joiner.Invoke)
 
         static let fsharpCore = Assembly.Load("FSharp.Core")
@@ -334,9 +340,8 @@ module Transforms =
                     unwrappedChildKeyNames
                 
 
-        static member join (p: 'Parent seq, c: 'Child seq): 'Parent seq = 
-            let joiner = joinerOpt |> Option.defaultWith (fun () -> failwithf "Can not determine key type for relation: %s -> %s" typeof<'Parent>.Name typeof<'Child>.Name)
-            joiner (p, c)
+        static member join: 'Parent seq * 'Child seq -> 'Parent seq = 
+            joinerOpt |> Option.defaultWith (fun () -> failwithf "Can not determine key type for relation: %s -> %s" typeof<'Parent>.Name typeof<'Child>.Name)
 
         static member GetUnwrapChildExpression (child: Expression): Expression = 
             if isChildObjectWrapper child.Type then
@@ -441,33 +446,17 @@ module Transforms =
         /// - key in child record has {parent-name}Id or {parent-name}_id name,
         /// - parent has a property of child list type.
         ///</remarks>
-        /// <param name="p">
-        /// Perent sequence.
-        /// </param>
-        /// <param name="c">
-        /// Child sequence.
-        /// </param>
-        let join<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.join(p, c)
+        let inline join<'p, 'c> = RelationshipBuilder<'p, 'c>.join
 
         /// <summary>
         /// Combines a parent record with child record sequence.
         /// </summary>
-        /// <param name="p">
-        /// Parent record.
-        /// </param>
-        /// <param name="c">
-        /// Child record sequence.
-        /// </param>
-        let combine<'p, 'c>(p, c) = RelationshipBuilder<'p, 'c>.combine(p, c)
+        let combine<'p, 'c> = RelationshipBuilder<'p, 'c>.combine
 
         /// <summary>
         /// Builds parent record sequence from list of parent * child tuples.
         /// </summary>
-        /// <param name="pc">
-        /// Sequence of parent * child tuples.
-        /// </param>
-        let group<'p, 'c when 'p: equality>(pc) = 
-            pc |> Standard.group (RelationshipBuilder<'p, 'c>.combine |> curry)
+        let group<'p, 'c when 'p: equality> = Standard.group (RelationshipBuilder<'p, 'c>.combine |> curry)
 
 
     type private CopyBuilder<'Source, 'Target>() = 
