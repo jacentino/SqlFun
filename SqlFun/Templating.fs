@@ -179,7 +179,10 @@ module Templating =
     /// The target template.
     /// </param>
     let subtmplExists name subtmpl template = 
-        template.values.[name] |> List.contains subtmpl
+        template.values
+        |> Map.tryFind name
+        |> Option.defaultValue []
+        |> List.contains subtmpl
         
     /// <summary>
     /// Determines, whether the value exists in a specified hole.
@@ -194,4 +197,7 @@ module Templating =
     /// The target template.
     /// </param>
     let valueExists name value template = 
-        template.values.[name] |> List.exists (stringify >> (=) value)
+        template.values 
+        |> Map.tryFind name 
+        |> Option.defaultValue []
+        |> List.exists (stringify >> (=) value)

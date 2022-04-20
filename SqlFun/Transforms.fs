@@ -178,8 +178,7 @@ module Transforms =
         static let combiner = fun p c -> RelationshipBuilder<'Parent, 'Child>.combine (p, c)
 
         static member ValidateGetters () =
-            parentKeyGetter |> ignore
-            childKeyGetter |> ignore
+            ()
 
         static member join (p: 'Parent seq, cs: 'Child seq) = 
             Standard.join parentKeyGetter childKeyGetter combiner (p, cs)

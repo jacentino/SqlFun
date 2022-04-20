@@ -241,18 +241,14 @@ module Composite =
     /// <summary> 
     /// Generates query function, caches it, and invokes
     /// </summary>
-    /// <param name="ctx">
-    /// The data context.
-    /// </param>
     /// <param name="cmd">
     /// Expanded sql template with some placeholders.
     /// </param>
     /// <param name="generator">
     /// The function, that generates a caller of an sql command.
     /// </param>
-    let buildAndRunQuery (ctx: IDataContext) (cmd: string) (generator: string -> IDataContext -> 'q): 'q =
-        let f = CommandCache<IDataContext -> 'q>.GetOrAdd cmd generator
-        f ctx
+    let buildAndMemoizeQuery (generator: string -> 'q) (cmd: string): 'q =
+        CommandCache<'q>.GetOrAdd cmd generator
 
     /// <summary>
     /// The part responsible for generating and launching a query.
@@ -273,6 +269,6 @@ module Composite =
         interface IQueryPart<'t> with
             override this.Combine (template: 't) : 'q =
                 let generator = sql config
-                buildAndRunQuery ctx (stringify template) generator
+                buildAndMemoizeQuery generator (stringify template) ctx 
 
 
