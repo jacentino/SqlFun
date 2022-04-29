@@ -239,9 +239,9 @@ The last step is to specify SQL template:
 let selectPosts (next: QueryPart): Post list = 
     next |> withTemplate "select p.id, p.blogId, p.name, p.title, p.content, 
                                  p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status
-                          from post p
+                          from post p {% raw %}
                           {{WHERE-CLAUSE}}
-                          {{ORDER-BY-CLAUSE}}"
+                          {{ORDER-BY-CLAUSE}}" {% endraw %}
 ```
 And then, we can compose parts:
 ```fsharp 
