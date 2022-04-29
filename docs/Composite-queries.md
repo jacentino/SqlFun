@@ -21,11 +21,9 @@ A template is a string with placholders, denoted as names in double braces {{PLA
 
 ```fsharp
 let template = "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy 
-                from Post 
-                {% raw %}
+                from Post {% raw %}
                 {{WHERE-CLAUSE}} 
-                {{ORDER-BY-CALUSE}}"
-                {% endraw %}
+                {{ORDER-BY-CALUSE}}" {% endraw %}
 ```
 The `expandTemplate placeholder clause separator value template` function substitutes placeholder with some text, potentially more, than once, adding separators between substitutions and a clause before a first item, e.g:
 
