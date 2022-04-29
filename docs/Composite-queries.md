@@ -124,9 +124,9 @@ let sortPostsBy orders template =
 let findPosts (criteria: PostSearchCriteria list) (order: PostSortOrder) = 
     let template = "select p.id, p.blogId, p.name, p.title, p.content, 
                            p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status
-                    from post p
+                    from post p  {% raw %}
                     {{WHERE-CLAUSE}}
-                    {{ORDER-BY-CLAUSE}}"
+                    {{ORDER-BY-CLAUSE}}"  {% endraw %}
     let query = template |> filterPosts criteria |> sortPostsBy order |> cleanupTemplate
     buildAndMemoizeQuery sql query criteria
 ```
