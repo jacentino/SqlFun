@@ -14,9 +14,126 @@ order by case
          end
 ```
 The ugly truth is, that whenever a `@param is null` or `order by case` is used, **the query optimizer abandons use of indexes** (at least when we use MS SQL).  
-With SqlFun, it's easy to replace parameter-based ordering with dynamic SQL generation, since the command is an ordinary string, but managing changeable `where` clause is harder, because the query function must be provided with variable parameter list.
+## Templating
 
-SqlFun provides a simple mechanism of composition, based on recursive function type definition. The composition blocks are classes implementing following interface:
+With SqlFun, it's easy to change the query with dynamic SQL generation, since the command is an ordinary string. It even provides simple templating module, based on ordinary string manipulation.
+A template is a string with placholders, denoted as names in double braces {{PLACEHOLDER-NAME}}, e.g.:
+
+```fsharp
+let template = "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy 
+                from Post 
+                {{WHERE-CLAUSE}} 
+                {{ORDER-BY-CALUSE}}"
+```
+The `expandTemplate placeholder clause separator value template` function substitutes placeholder with some text, potentially more, than once, adding separators between substitutions and a clause before a first item, e.g:
+
+```fsharp
+let templateWithWhereExpanded = 
+    template 
+    |> expandTemplate "WHERE-CLAUSE" "where " " and " "author = @author"
+    |> expandTemplate "WHERE-CLAUSE" "where " " and " "createdAt >= @date"
+```
+
+The `cleanupTemplate template` function removes remaining placeholders from template, making it valid sql command:
+
+```fsharp
+let command = cleanupTemplate templateWithWhereExpanded 
+```
+
+It's a good habit to define some small templating DSL before implementing template transformations, e.g.:
+
+```fsharp
+let expandWhere = expandTemplate "WHERE-CLAUSE" "where " " and "
+let expandOrderBy = expandTemplate "ORDER-BY-CLAUSE" "order by " ", "
+```
+
+It greatly improves conciseness and readibility:
+
+```fsharp
+let templateWithWhereExpanded = template |> expandWhere "author = @author" |> expandWhere "createdAt >= @date"
+```
+
+## Records of options
+With templates, we can generate queries with different number of parameters, depending on data provided, e.g. we can add conditions to the where clause only for parameters that are not ``None``.
+
+Simplest way of managing changeable parameter list is to define our search criteria as a record of options. It allows to take advantage of parameter matching by name (not positionally), e.g.:
+
+```fsharp 
+type PostCriteria =
+    {
+        Title: string option
+        Content: string option
+        Author: string option
+        CreatedAfter: DateTime option
+        CreatedBefore: DateTime option
+    }
+```
+
+The sort order descriptor can be defined like this:
+
+```fsharp
+type SortDirection = 
+    | Asc
+    | Desc
+
+type SortColumn = 
+    | Title
+    | CreationDate
+    | Author
+
+type PostSortOrder = SortColumn * SortDirection
+```
+
+Now, we can generate a query from a template, adding parameters containing values:
+
+```fsharp
+let filterPosts (criteria: PostSearchCriteria list) template = 
+    let template = if criteria.Title.IsSome 
+                   then template |> expandWhere "title like '%' + @title + '%'" 
+                   else template
+    let template = if criteria.Content.IsSome 
+                   then template |> expandWhere "content like '%' + @content + '%'" 
+                   else template
+    let template = if criteria.Author.IsSome 
+                   then template |> expandWhere "author = @author" 
+                   else template
+    let template = if criteria.CreatedBefore.IsSome 
+                   then template |> expandWhere "createdAt < @createdBefore" 
+                   else template
+    let template = if criteria.CreatedAfter.IsSome 
+                   then template |> expandWhere "createdAt > @createdAfter" 
+                   else template
+    template
+
+let getOrderSql (col, dir) = 
+    let name = match col with
+                | Title -> "title"
+                | CreationDate -> "createdAt"
+                | Author -> "author"
+    match dir with
+    | Asc -> name
+    | Desc -> name + " desc"
+
+let sortPostsBy orders template = 
+    if not (List.isEmpty orders) then
+        let cols = orders |> Seq.map getOrderSql |> String.concat ", "
+        template |> expandOrderBy cols
+    else 
+        template
+
+let findPosts (criteria: PostSearchCriteria list) (order: PostSortOrder) = 
+    let template = "select p.id, p.blogId, p.name, p.title, p.content, 
+                           p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status
+                    from post p
+                    {{WHERE-CLAUSE}}
+                    {{ORDER-BY-CLAUSE}}"
+    let query = template |> filterPosts criteria |> sortPostsBy order |> cleanupTemplate
+    buildAndMemoizeQuery sql query criteria
+```
+
+## Query Parts
+
+There is also another mechanism of composition, based on recursive function type definition. The composition blocks are classes implementing following interface:
 ```fsharp 
 type IQueryPart<'t> = 
     abstract member Combine: 't-> 'q
