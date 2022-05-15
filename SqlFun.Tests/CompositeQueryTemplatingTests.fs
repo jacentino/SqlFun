@@ -6,7 +6,7 @@ open Data
 open Common
 open System
 open Composite
-open Templating
+open Templating.Advanced
 
 open FsCheck
 

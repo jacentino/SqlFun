@@ -250,6 +250,21 @@ module Composite =
     let buildAndMemoizeQuery (generator: string -> 'q) (cmd: string): 'q =
         CommandCache<'q>.GetOrAdd cmd generator
 
+    /// <summary> 
+    /// Generates query function, caches it, and invokes
+    /// </summary>
+    /// <param name="generator">
+    /// The function, that generates a caller of an sql command.
+    /// </param>
+    /// <param name="args">
+    /// Arguments to be passed to the query.
+    /// </param>
+    /// <param name="cmd">
+    /// Expanded sql template with some placeholders.
+    /// </param>
+    let buildAndExecuteQuery generator args cmd =
+         buildAndMemoizeQuery generator cmd args
+
     /// <summary>
     /// The part responsible for generating and launching a query.
     /// </summary>
