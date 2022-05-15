@@ -60,44 +60,42 @@ module CompositeQueries =
     let rec filterPosts (criteria: PostCriteria) (next: AsyncDb<IQueryPart<_>>) = 
             match criteria with
             | { TitleContains = Some title }  ->
-                let intermediate = filterPosts { criteria with TitleContains = None } next
-                transformWithValue (expandWhere "title like '%' + @title + '%'") title intermediate
+                filterPosts { criteria with TitleContains = None } next
+                |> transformWithValue (expandWhere "title like '%' + @title + '%'") title 
             | { ContentContains = Some content }  ->
-                let intermediate = filterPosts { criteria with ContentContains = None } next
-                transformWithValue (expandWhere "content like '%' + @content + '%'") content intermediate
+                filterPosts { criteria with ContentContains = None } next
+                |> transformWithValue (expandWhere "content like '%' + @content + '%'") content 
             | { AuthorIs = Some author } ->
-                let intermediate = filterPosts { criteria with AuthorIs = None } next
-                transformWithValue (expandWhere "author = @author") author intermediate
+                filterPosts { criteria with AuthorIs = None } next
+                |> transformWithValue (expandWhere "author = @author") author 
             | { HasTag = Some tag } ->
-                let intermediate = filterPosts { criteria with HasTag = None } next
-                transformWithValue (expandWhere "t1.name = @tag1"
-                                    >> expandJoins "join tag t1 on t1.postId = p.id" 
-                                    >> expandGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status")
-                                    tag
-                                    intermediate
+                filterPosts { criteria with HasTag = None } next
+                |> transformWithValue 
+                    (expandWhere "t1.name = @tag1"
+                     >> expandJoins "join tag t1 on t1.postId = p.id" 
+                     >> expandGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status")
+                    tag                                    
             | { HasOneOfTags = tags } when not (tags |> List.isEmpty) ->
-                let condition = tags |> Seq.mapi (fun i _ -> "t1n.name = @tag1N" + string(i)) |> String.concat " or "
-                let intermediate = filterPosts { criteria with HasOneOfTags = [] } next
-                transformWithList (expandWhere ("(" + condition + ")")
-                              >> expandJoins "join tag t1n on t1n.postId = p.id" 
-                              >> expandGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status")
-                             tags
-                             intermediate
+                filterPosts { criteria with HasOneOfTags = [] } next
+                |> transformWithList 
+                    (expandWhere ("(" + (tags |> Seq.mapi (fun i _ -> "t1n.name = @tag1N" + string(i)) |> String.concat " or ") + ")")
+                     >> expandJoins "join tag t1n on t1n.postId = p.id" 
+                     >> expandGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status")
+                    tags                             
             | { HasAllTags = tags } when not (tags |> List.isEmpty)  ->
-                let condition = tags |> Seq.mapi (fun i _ -> "tnn.name = @tagNN" + string(i)) |> String.concat " or "
-                let intermediate = filterPosts { criteria with HasAllTags = [] } next
-                transformWithList (expandWhere ("(" + condition + ")")
-                              >> expandJoins "join tag tnn on tnn.postId = p.id" 
-                              >> expandGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status"
-                              >> expandHaving ("count(tnn.name) = " + string(tags |> List.length)))
-                             tags
-                             intermediate
+                filterPosts { criteria with HasAllTags = [] } next
+                |> transformWithList 
+                    (expandWhere ("(" + (tags |> Seq.mapi (fun i _ -> "tnn.name = @tagNN" + string(i)) |> String.concat " or ") + ")")
+                     >> expandJoins "join tag tnn on tnn.postId = p.id" 
+                     >> expandGroupBy "p.id, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status"
+                     >> expandHaving ("count(tnn.name) = " + string(tags |> List.length)))
+                    tags
             | { CreatedAfter = Some date } -> 
-                let intermediate = filterPosts { criteria with CreatedAfter = None } next
-                transformWithValue (expandWhere "createdAt >= @afterDate") date intermediate
+                filterPosts { criteria with CreatedAfter = None } next
+                |> transformWithValue (expandWhere "createdAt >= @afterDate") date 
             | { CreatedBefore = Some date } -> 
-                let intermediate = filterPosts { criteria with CreatedBefore = None } next
-                transformWithValue (expandWhere "createdAt <= @beforeDate") date intermediate
+                filterPosts { criteria with CreatedBefore = None } next
+                |> transformWithValue (expandWhere "createdAt <= @beforeDate") date 
             | _ -> next
         
     let getOrderSql (col, dir) = 
