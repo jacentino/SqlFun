@@ -372,12 +372,6 @@ module ResultBuilder =
         let getter = buildColumnAccessor reader colType 0 returnType
         Expression.Lambda(getter, reader)
 
-    let private cycleRB (rb: RowBuilder -> RowBuilder): RowBuilder = 
-        let next: Ref<RowBuilder> = ref (fun _ _ _ _ _ -> null)
-        let first = (fun reader metadata prefix name retType -> rb !next reader metadata prefix name retType)
-        next := first
-        first
-
     let commonCollectionResultBuilders = 
         [   typedefof<list<_>>.Name, "BuildListResult"
             typedefof<Set<_>>.Name, "BuildSetResult"
@@ -403,7 +397,8 @@ module ResultBuilder =
             Expression.Call([| returnType |], (methodName + if isAsync then "Async" else ""), resultBuilder)
 
         let buildOneResultSet collectionResultBuilders metadata returnType = 
-            let buildRow = buildRow (cycleRB rowBuilder)
+            let rec cycle reader metadata prefix name retType = rowBuilder cycle reader metadata prefix name retType
+            let buildRow = buildRow cycle
             match returnType with
             | Unit ->
                 let result = if isAsync then Expression.UnitAsyncConstant else Expression.UnitConstant           

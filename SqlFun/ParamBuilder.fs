@@ -219,14 +219,8 @@ module ParamBuilder =
         | _ ->
             [], paramDefs, t
     
-    let private cyclePB (pb: ParamBuilder -> ParamBuilder): ParamBuilder = 
-        let next: Ref<ParamBuilder> = ref (fun _ _ _ _ -> [])
-        let first = (fun prefix name expr names -> pb !next prefix name expr names)
-        next := first
-        first
-
-
-    let buildParamDefs pb t paramNames = 
-        buildParamDefsInternal (cyclePB pb) t paramNames []
+    let buildParamDefs (pb: ParamBuilder -> ParamBuilder) t paramNames = 
+        let rec cycle prefix name expr names = pb cycle prefix name expr names
+        buildParamDefsInternal (cycle) t paramNames []
 
  
