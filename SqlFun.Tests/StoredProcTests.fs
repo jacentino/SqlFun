@@ -8,6 +8,7 @@ open SqlFun.Transforms
 open SqlFun.Transforms.Standard
 open Common
 open System
+open System.Diagnostics
 
 type StoredProcs() = 
         
@@ -33,6 +34,13 @@ type StoredProcs() =
         static member FindPostsStreamAsync: (PostSearchCriteria * SignatureSearchCriteria) -> IDataContext -> Post ResultStream Async =
             proc "FindPosts"
             >> AsyncDb.map resultOnly
+
+        static member LongRunning: unit -> AsyncDb<unit> = 
+            proc "LongRunning"
+            >> AsyncDb.map resultOnly
+
+        static member Counter: unit -> AsyncDb<int> = 
+            sql "select Value from Counter"
 
 
 [<TestFixture>]
@@ -132,3 +140,25 @@ type StoredProcTests() =
             |> runAsync 
             |> Async.RunSynchronously
         Assert.AreEqual("Yet another sql framework", p.title)
+
+    [<Test>]
+    member this.``Cancellation tokens work as expected``() =         
+        let cts = new Threading.CancellationTokenSource()
+        let mutable elapsed = TimeSpan.FromSeconds 0.0
+        let before = StoredProcs.Counter() |> runAsync |> Async.RunSynchronously
+        Async.Start(
+            asyncdb {                
+                let sw = Stopwatch()
+                sw.Start()
+                do! StoredProcs.LongRunning() 
+                sw.Stop()
+                elapsed <- sw.Elapsed
+            }
+            |> runAsync, 
+            cts.Token)
+        cts.Cancel()
+        Threading.Thread.Sleep(12000)
+        Assert.Less(elapsed, TimeSpan.FromSeconds 10.0)
+        let after = StoredProcs.Counter() |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual(before, after)
+        
