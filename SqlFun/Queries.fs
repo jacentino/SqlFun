@@ -90,7 +90,8 @@ module Queries =
                 setTransaction command transaction
                 setTimeout command commandTimeout
                 assignParams.Invoke(command) |> ignore
-                use! reader = Async.AwaitTask(command.ExecuteReaderAsync())
+                let! ct = Async.CancellationToken
+                use! reader = Async.AwaitTask(command.ExecuteReaderAsync ct)
                 return! buildResult.Invoke(reader)
             }
 
@@ -112,7 +113,8 @@ module Queries =
                 setTimeout command commandTimeout
                 assignParams.Invoke(command) |> ignore
                 let retValParam = addRetValParam command addReturnParameter
-                use! reader = Async.AwaitTask(command.ExecuteReaderAsync())
+                let! ct = Async.CancellationToken
+                use! reader = Async.AwaitTask(command.ExecuteReaderAsync ct)
                 let! result = buildResult.Invoke(reader)
                 return (if retValParam.Value = null then 0 else retValParam.Value :?> int), buildOutParams.Invoke(command), result                   
             }

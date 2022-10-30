@@ -155,7 +155,8 @@ module ResultBuilder =
 
         static member BuildStreamResultAsync (resultBuilder: Func<IDataReader, 't>) = 
             Func<DbCommand, Async<'t ResultStream>>(fun (command: DbCommand) -> async {
-                let! reader = Async.AwaitTask(command.ExecuteReaderAsync())
+                let! ct = Async.CancellationToken
+                let! reader = Async.AwaitTask(command.ExecuteReaderAsync ct)
                 return new ResultStream<'t>(reader, resultBuilder.Invoke)
             })                
             

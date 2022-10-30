@@ -35,7 +35,11 @@ type StoredProcs() =
             proc "FindPosts"
             >> AsyncDb.map resultOnly
 
-        static member LongRunning: unit -> AsyncDb<unit> = 
+        static member LongRunning: unit -> AsyncDb<int> = 
+            proc "LongRunning"
+            >> AsyncDb.map resultOnly
+
+        static member LongRunningStream: unit -> AsyncDb<ResultStream<int>> = 
             proc "LongRunning"
             >> AsyncDb.map resultOnly
 
@@ -150,15 +154,39 @@ type StoredProcTests() =
             asyncdb {                
                 let sw = Stopwatch()
                 sw.Start()
-                do! StoredProcs.LongRunning() 
+                let! _ = StoredProcs.LongRunning() 
                 sw.Stop()
                 elapsed <- sw.Elapsed
             }
             |> runAsync, 
             cts.Token)
+        Threading.Thread.Sleep(1000)
         cts.Cancel()
-        Threading.Thread.Sleep(12000)
+        Threading.Thread.Sleep(11000)
         Assert.Less(elapsed, TimeSpan.FromSeconds 10.0)
         let after = StoredProcs.Counter() |> runAsync |> Async.RunSynchronously
         Assert.AreEqual(before, after)
         
+    [<Test>]
+    member this.``Cancellation tokens work as expected for stream results``() =         
+        let cts = new Threading.CancellationTokenSource()
+        let mutable elapsed = TimeSpan.FromSeconds 0.0
+        let before = StoredProcs.Counter() |> runAsync |> Async.RunSynchronously
+        Async.Start(
+            asyncdb {                
+                let sw = Stopwatch()
+                sw.Start()
+                use! rs = StoredProcs.LongRunningStream() 
+                for v in rs do ()
+                sw.Stop()
+                elapsed <- sw.Elapsed
+            }
+            |> runAsync, 
+            cts.Token)
+        Threading.Thread.Sleep(1000)
+        cts.Cancel()
+        Threading.Thread.Sleep(11000)
+        Assert.Less(elapsed, TimeSpan.FromSeconds 10.0)
+        let after = StoredProcs.Counter() |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual(before, after)
+    

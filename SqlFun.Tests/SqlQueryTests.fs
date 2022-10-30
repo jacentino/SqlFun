@@ -9,6 +9,7 @@ open SqlFun.Transforms.Standard
 open Common
 open System
 open System.IO
+open System.Diagnostics
 
 type TestQueries() =    
 
@@ -250,6 +251,19 @@ type TestQueries() =
 
     static member getUsers: IDataContext -> UserProfile list = 
         sql "select id, name, email, avatar from UserProfile"
+
+    static member longRunning: unit -> AsyncDb<unit> = 
+        sql "waitfor delay '00:00:10.00';
+        	 update Counter set Value = Value + 1"
+
+    static member longRunningStream: unit -> AsyncDb<ResultStream<int>> = 
+        sql "waitfor delay '00:00:10.00';
+        	 update Counter set Value = Value + 1;
+             select * from Counter"
+    
+    static member counter: unit -> AsyncDb<int> = 
+        sql "select Value from Counter"
+
 
 [<TestFixture>]
 type SqlQueryTests() = 
@@ -695,3 +709,47 @@ type SqlQueryTests() =
        let ex = Assert.Throws<TypeInitializationException>(fun () -> Conventions.join<BlogWithPostsWithoutAnyIds, BlogChild<PostWithoutAnyIds>> |> ignore)
        Assert.AreEqual("No key fields found in BlogWithPostsWithoutAnyIds type.", ex.InnerException.InnerException.InnerException.Message) 
      
+    [<Test>]
+    member this.``Cancellation tokens work as expected``() =         
+        let cts = new Threading.CancellationTokenSource()
+        let mutable elapsed = TimeSpan.FromSeconds 0.0
+        let before = TestQueries.counter() |> runAsync |> Async.RunSynchronously
+        Async.Start(
+            asyncdb {                
+                let sw = Stopwatch()
+                sw.Start()
+                let! _ = TestQueries.longRunning() 
+                sw.Stop()
+                elapsed <- sw.Elapsed
+            }
+            |> runAsync, 
+            cts.Token)
+        Threading.Thread.Sleep(1000)
+        cts.Cancel()
+        Threading.Thread.Sleep(11000)
+        Assert.Less(elapsed, TimeSpan.FromSeconds 10.0)
+        let after = TestQueries.counter() |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual(before, after)
+
+    [<Test>]
+    member this.``Cancellation tokens work as expected for stream result``() =         
+        let cts = new Threading.CancellationTokenSource()
+        let mutable elapsed = TimeSpan.FromSeconds 0.0
+        let before = TestQueries.counter() |> runAsync |> Async.RunSynchronously
+        Async.Start(
+            asyncdb {                
+                let sw = Stopwatch()
+                sw.Start()
+                use! rs = TestQueries.longRunningStream() 
+                for v in rs do ()
+                sw.Stop()
+                elapsed <- sw.Elapsed
+            }
+            |> runAsync, 
+            cts.Token)
+        Threading.Thread.Sleep(1000)
+        cts.Cancel()
+        Threading.Thread.Sleep(11000)
+        Assert.Less(elapsed, TimeSpan.FromSeconds 10.0)
+        let after = TestQueries.counter() |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual(before, after)
