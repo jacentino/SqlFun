@@ -26,7 +26,7 @@ There are also extensions for MS SQL ([[1]](https://www.nuget.org/packages/SqlFu
 
 ## Supported databases
 In its core SqlFun does not use any features specific to some db provider, so it works with any ADO.NET provider. 
-The only limitation is properly working commands executed in `SchemaOnly` mode.
+The only limitation is possibility of execution of commands in `SchemaOnly` mode.
 
 It was tested against MS SqlServer, PostgreSQL, Oracle, MySQL and SQLite.
 
@@ -36,6 +36,9 @@ There are four extensions, enabling provider-specific features:
 * the extension for Oracle, adding some adaptations, like binding parameters by name, and allowing to use array parameters
 * the extension for SQLite, that allows to use date and time values
 
+Not all databases manage `SchemaOnly` behavior properly.
+* MySQL, PostgreSQL and Oracle performs well only for queries that return some results - commands not returning any are executed as with `Default` behavior
+* MS SQL doesn't recognize temporary tables in `SchemaOnly` executions, although, you can use table variables instead
 
 ## How it works
 Most of us think about data access code as a separate layer. We don't like to spread SQL queries across all the application.
