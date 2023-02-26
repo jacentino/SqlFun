@@ -36,6 +36,7 @@ There are four extensions, enabling provider-specific features:
 * the extension for Oracle, adding some adaptations, like binding parameters by name, and allowing to use array parameters
 * the extension for SQLite, that allows to use date and time values
 
+## Limitations
 Not all databases manage `SchemaOnly` behavior properly:
 * MySQL, PostgreSQL and Oracle performs well only for queries that return some results - commands not returning any are executed as with `Default` behavior
 * MS SQL doesn't recognize temporary tables in `SchemaOnly` executions, although, you can use table variables instead
