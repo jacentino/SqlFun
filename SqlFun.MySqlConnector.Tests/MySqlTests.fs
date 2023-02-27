@@ -1,63 +1,79 @@
-﻿namespace SqlFun.NpgSql.Tests
+﻿namespace SqlFun.MySql.Tests
 
 open SqlFun
 open Data
 open Common
 open NUnit.Framework
 open SqlFun.Transforms
-open SqlFun.NpgSql
-open System.Diagnostics
+open SqlFun.MySql.Connector
 open System
+open System.Diagnostics
 open System.IO
 
 type TestQueries() =    
  
-    static member getBlog: int -> IDataContext -> Blog = 
-        sql "select blogid, name, title, description, owner, createdAt, modifiedAt, modifiedBy from blog where blogid = @id"
+    static member getBlog: int -> DbAction<Blog> = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from blog where id = @id"
 
-    static member spGetBlog: int -> IDataContext -> Blog = 
+    static member getBlogAsync: int -> AsyncDb<Blog> = 
+        sql "select id, name, title, description, owner, createdAt, modifiedAt, modifiedBy from blog where id = @id"
+
+    static member spInsertBlog: Blog -> DbAction<unit> = 
+        proc "addblog"
+        >> DbAction.map resultOnly
+        
+    static member spGetBlog: int -> DbAction<Blog> = 
         proc "getblog"
         >> DbAction.map resultOnly
         
-    static member getPosts: int array -> IDataContext -> Post list = 
-        sql "select p.postid, p.blogId, p.name, p.title, p.content, p.author, p.createdAt, p.modifiedAt, p.modifiedBy, p.status
-             from post p join unnest(@ids) ids on p.postid = ids"
-
     static member insertBlog: Blog -> DbAction<unit> =
-        sql "insert into blog (blogid, name, title, description, owner, createdAt, modifiedAt, modifiedBy) values (@blogId, @name, @title, @description, @owner, @createdAt, @modifiedAt, @modifiedBy)"
-
-    static member insertBlogAutoInc: Blog -> DbAction<unit> =
-        sql "insert into blog (blogid, name, title, description, owner, createdAt, modifiedAt, modifiedBy) 
-             values (2, @name, @title, @description, @owner, @createdAt, @modifiedAt, @modifiedBy);
-             select 2"
+        sql "insert into blog (id, name, title, description, owner, createdAt, modifiedAt, modifiedBy) values (@id, @name, @title, @description, @owner, @createdAt, @modifiedAt, @modifiedBy)"
 
 
 [<TestFixture>]
-type NpgSqlTests() = 
+type MySqlTests() = 
+
 
     [<Test>]
-    member this.``Simple queries to PostgreSQL return valid results``() =
+    member this.``Simple queries to MySql return valid results``() =
         let b = TestQueries.getBlog 1 |> run
-        Assert.AreEqual(1, b.blogId)
+        Assert.AreEqual(1, b.id)
 
     [<Test>]
-    member this.``Stored procedure calls to PostgreSQL return valid results``() =
+    member this.``Async queries to MySql return valid results``() =
+        let b = TestQueries.getBlogAsync 1 |> runAsync |> Async.RunSynchronously
+        Assert.AreEqual(1, b.id)
+
+    [<Test>]
+    member this.``Stored procedure calls to MySql return valid results``() =
         let b = TestQueries.spGetBlog 1 |> run
-        Assert.AreEqual(1, b.blogId)
+        Assert.AreEqual(1, b.id)
 
     [<Test>]
-    member this.``Queries to PostgreSQL using array parameters return valid results``() = 
-        let l = TestQueries.getPosts [| 1; 2 |] |> run
-        Assert.AreEqual(2, l |> List.length)
+    member this.``Stored procedure calls to MySql work as expected``() =
+
+        Tooling.deleteAllButFirstBlog |> run
+
+        TestQueries.spInsertBlog {
+            id = 4
+            name = "test-blog-4"
+            title = "Testing simple insert 4"
+            description = "Added to check if inserts work properly."
+            owner = "jacentino"
+            createdAt = DateTime.Now
+            modifiedAt = None
+            modifiedBy = None
+            posts = []
+        }  |> run
 
     
     [<Test>]
-    member this.``Inserts to PostgrSQL work as expected``() =    
+    member this.``Inserts to MySql work as expected``() =    
 
         Tooling.deleteAllButFirstBlog |> run
 
         TestQueries.insertBlog {
-            blogId = 4
+            id = 4
             name = "test-blog-4"
             title = "Testing simple insert 4"
             description = "Added to check if inserts work properly."
@@ -68,7 +84,7 @@ type NpgSqlTests() =
             posts = []
         } |> run
 
-
+    
     [<Test>]
     member this.``BulkCopy inserts records without subrecords``() = 
 
@@ -77,7 +93,7 @@ type NpgSqlTests() =
         let blogsToAdd = 
             [  for i in 2..200 do
                 yield {
-                    blogId = i
+                    id = i
                     name = sprintf "blog-%d" i
                     title = sprintf "Blog no %d" i
                     description = sprintf "Just another blog, added for test - %d" i
@@ -91,7 +107,7 @@ type NpgSqlTests() =
 
         let sw = Stopwatch()
         sw.Start()
-        BulkCopy.WriteToServer blogsToAdd |> runAsync |> Async.RunSynchronously
+        let result = BulkCopy.WriteToServer blogsToAdd |> runAsync |> Async.RunSynchronously
         sw.Stop()
         printfn "Elapsed time %O" sw.Elapsed
         
@@ -113,12 +129,5 @@ type NpgSqlTests() =
                 avatar = File.ReadAllBytes(Path.Combine(assemblyFolder, "jacenty.jpg"))
             }
         ]
-        Assert.DoesNotThrow(fun () -> BulkCopy.WriteToServer users |> runAsync |> Async.RunSynchronously)
+        Assert.DoesNotThrow(fun () -> BulkCopy.WriteToServer users |> runAsync |> Async.RunSynchronously |> ignore)
  
-    [<Test>]
-    member this.``SchemaOnly works as expected``() = 
-        Tooling.deleteAllButFirstBlog |> run
-        TestQueries.insertBlogAutoInc |> ignore
-        let numOfBlogs = Tooling.getNumberOfBlogs |> run
-        Assert.AreEqual(1, numOfBlogs)
-    

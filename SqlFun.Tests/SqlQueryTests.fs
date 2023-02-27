@@ -264,7 +264,7 @@ type TestQueries() =
     static member counter: unit -> AsyncDb<int> = 
         sql "select Value from Counter"
 
-
+    
 [<TestFixture>]
 type SqlQueryTests() = 
 
@@ -753,3 +753,4 @@ type SqlQueryTests() =
         Assert.Less(elapsed, TimeSpan.FromSeconds 10.0)
         let after = TestQueries.counter() |> runAsync |> Async.RunSynchronously
         Assert.AreEqual(before, after)
+

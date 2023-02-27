@@ -347,7 +347,9 @@ module Queries =
         let makeDiagnosticCall (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) = 
             use connection = createConnection()
             connection.Open()
+            use transaction = connection.BeginTransaction()
             use command = createCommand(connection)
+            command.Transaction <- transaction
             command.CommandText <- commandText
             for _, _, buildParam, fakeVal in paramDefs do
                 buildParam fakeVal command |> ignore

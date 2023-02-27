@@ -1,4 +1,4 @@
-﻿namespace SqlFun.Tests.AssemblyInfo
+﻿namespace SqlFun.MySql.Connector.AssemblyInfo
 
 open System.Reflection
 open System.Runtime.CompilerServices
@@ -7,12 +7,12 @@ open System.Runtime.InteropServices
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[<assembly: AssemblyTitle("SqlFun")>]
+[<assembly: AssemblyTitle("SqlFun.MySqlConnector")>]
 [<assembly: AssemblyDescription("")>]
 [<assembly: AssemblyConfiguration("")>]
 [<assembly: AssemblyCompany("")>]
-[<assembly: AssemblyProduct("SqlFun")>]
-[<assembly: AssemblyCopyright("Copyright © 2017")>]
+[<assembly: AssemblyProduct("SqlFun.MySqlConnector")>]
+[<assembly: AssemblyCopyright("Copyright ©  2023")>]
 [<assembly: AssemblyTrademark("")>]
 [<assembly: AssemblyCulture("")>]
 
@@ -22,7 +22,7 @@ open System.Runtime.InteropServices
 [<assembly: ComVisible(false)>]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[<assembly: Guid("194ea1bf-80f6-405c-8986-a4fef7cdfaa3")>]
+[<assembly: Guid("8127fffb-5a24-49d5-ac31-e8afaeec72c1")>]
 
 // Version information for an assembly consists of the following four values:
 // 
