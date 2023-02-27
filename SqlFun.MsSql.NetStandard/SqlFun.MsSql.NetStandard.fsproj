@@ -9,7 +9,7 @@
     <Compile Include="..\SqlFun\MsSql.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.Data.SqlClient" Version="4.6.0" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.5" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SqlFun.NetStandard\SqlFun.NetStandard.fsproj" />
