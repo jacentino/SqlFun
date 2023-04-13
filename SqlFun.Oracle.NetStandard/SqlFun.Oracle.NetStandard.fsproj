@@ -14,7 +14,7 @@
     <Compile Include="..\SqlFun.Oracle\Oracle.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.18.5" />
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="3.21.90" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SqlFun.NetStandard\SqlFun.NetStandard.fsproj" />
