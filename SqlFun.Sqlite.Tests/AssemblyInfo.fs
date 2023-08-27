@@ -1,7 +1,6 @@
-﻿namespace SqlFun.NpgSql.Tests.AssemblyInfo
+﻿namespace SqlFun.Sqlite.Tests.AssemblyInfo
 
 open System.Reflection
-open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 
 // General Information about an assembly is controlled through the following 

@@ -1,4 +1,4 @@
-﻿namespace SqlFun.Sqlite.Tests
+﻿namespace SqlFun.MsDataSqlite.Tests
 
 open SqlFun
 open Common
@@ -18,7 +18,7 @@ type TestQueries() =
              values (@id, @blogId, @name, @title, @content, @author, @createdAt, @modifiedAt, @modifiedBy, @status)"
 
 [<TestFixture>]
-type SqliteTests() = 
+type MsDataSqliteTests() = 
     
     [<Test>]
     member this.``Simple queries to Sqlite return valid results``() = 

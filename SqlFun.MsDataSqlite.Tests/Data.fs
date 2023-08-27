@@ -1,4 +1,4 @@
-﻿namespace SqlFun.Sqlite.Tests
+﻿namespace SqlFun.MsDataSqlite.Tests
 
 open SqlFun
 

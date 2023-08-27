@@ -65,3 +65,13 @@ module Sqlite =
             paramBuilder = dateTimeToStrParamBuilder <+> config.paramBuilder
             rowBuilder = dateTimeFromStrRowBuilder <+> config.rowBuilder
         }
+
+    /// <summary>
+    /// Adds Miscrosoft.Data.Sqlite -specific config entries.
+    /// </summary>
+    /// <param name="config">
+    /// The initial config.
+    /// </param>
+    let useMicrosoftDataSqlite (config: GeneratorConfig) = 
+        { config with makeDiagnosticCalls = false }
+        
