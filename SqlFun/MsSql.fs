@@ -69,6 +69,36 @@ module MsSql =
                                         Expression.Constant(0),
                                         Expression.ArrayLength(valueExpr)) 
                                     :> Expression
+#if NET60
+                              | t when t = typeof<DateOnly> ->
+                                    let valueExpr = Expression.Property(root, p)
+                                    let expr = Expression.Invoke(Expression.Constant(Func<DateOnly, DateTime>(fun v -> v.ToDateTime(TimeOnly.MinValue))), valueExpr) :> Expression
+                                    let setter = getSetter expr.Type
+                                    Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), expr) :> Expression
+                              | t when t = typeof<DateOnly option> ->
+                                    let valueExpr = Expression.Property(root, p)
+                                    let expr = Expression.Invoke(Expression.Constant(Func<DateOnly option, DateTime option>(Option.map (fun v -> v.ToDateTime(TimeOnly.MinValue)))), valueExpr) :> Expression
+                                    let optExpr = getOptValue expr
+                                    let setter = getSetter optExpr.Type
+                                    Expression.IfThen(
+                                        Expression.Call(getIsSome expr.Type, expr),
+                                            Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), optExpr))
+                                    :> Expression
+                              | t when t = typeof<TimeOnly> ->
+                                    let valueExpr = Expression.Property(root, p)
+                                    let expr = Expression.Invoke(Expression.Constant(Func<TimeOnly, TimeSpan>(fun v -> v.ToTimeSpan())), valueExpr) :> Expression
+                                    let setter = getSetter expr.Type
+                                    Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), expr) :> Expression
+                              | t when t = typeof<TimeOnly option> ->
+                                    let valueExpr = Expression.Property(root, p)
+                                    let expr = Expression.Invoke(Expression.Constant(Func<TimeOnly option, TimeSpan option>(Option.map (fun v -> v.ToTimeSpan()))), valueExpr) :> Expression
+                                    let optExpr = getOptValue expr
+                                    let setter = getSetter optExpr.Type
+                                    Expression.IfThen(
+                                        Expression.Call(getIsSome expr.Type, expr),
+                                            Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), optExpr))
+                                    :> Expression
+#endif
                               | SimpleType -> 
                                     let valueExpr = convertIfEnum (Expression.Property(root, p))
                                     let setter = getSetter valueExpr.Type
@@ -95,7 +125,7 @@ module MsSql =
             then Expression.UnitConstant :> Expression
             else exprs |> Expression.Block :> Expression
                                                                                     
-    let private createMetaData name typeName (maxLen: int64) (precision: byte) (scale: byte) = 
+    let private createMetaData name (typeName: string) (maxLen: int64) (precision: byte) (scale: byte) = 
         let dbType = Enum.Parse(typeof<SqlDbType>, typeName, true) :?> SqlDbType
         match dbType with
         | SqlDbType.Char 

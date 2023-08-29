@@ -206,6 +206,20 @@ module ParamBuilder =
             getParamExpressions customPB prefix name expr paramNames
         | Unit ->
             []
+#if NET60
+        | t when t = typeof<DateOnly> ->
+            let expr = Expression.Invoke(Expression.Constant(Func<DateOnly, DateTime>(fun v -> v.ToDateTime(TimeOnly.MinValue))), expr) :> Expression
+            getParamExpressions customPB prefix name expr paramNames
+        | t when t = typeof<DateOnly option> ->
+            let expr = Expression.Invoke(Expression.Constant(Func<DateOnly option, DateTime option>(Option.map (fun v -> v.ToDateTime(TimeOnly.MinValue)))), expr) :> Expression
+            getParamExpressions customPB prefix name expr paramNames
+        | t when t = typeof<TimeOnly> ->
+            let expr = Expression.Invoke(Expression.Constant(Func<TimeOnly, TimeSpan>(fun v -> v.ToTimeSpan())), expr) :> Expression
+            getParamExpressions customPB prefix name expr paramNames
+        | t when t = typeof<TimeOnly option> ->
+            let expr = Expression.Invoke(Expression.Constant(Func<TimeOnly option, TimeSpan option>(Option.map (fun v -> v.ToTimeSpan()))), expr) :> Expression
+            getParamExpressions customPB prefix name expr paramNames
+#endif
         | _ ->
             [prefix + name, expr, buildInParam (prefix + name, expr), getFakeValue expr.Type]
 

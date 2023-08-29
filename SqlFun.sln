@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31205.134
+# Visual Studio Version 17
+VisualStudioVersion = 17.7.34018.315
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun", "SqlFun\SqlFun.fsproj", "{B89762F1-5025-4766-B1B8-F8F1CB1FD4D8}"
 EndProject
@@ -35,7 +35,13 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.MySqlConnector.Tests
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.MySqlConnector", "SqlFun.MySqlConnector\SqlFun.MySqlConnector.fsproj", "{31CBCFF2-46A6-4283-BB23-175CA3C48F9F}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.MsDataSqlite.Tests", "SqlFun.MsDataSqlite.Tests\SqlFun.MsDataSqlite.Tests.fsproj", "{C79BD77D-3C0B-462E-865C-DA77E7A9BE26}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.MsDataSqlite.Tests", "SqlFun.MsDataSqlite.Tests\SqlFun.MsDataSqlite.Tests.fsproj", "{C79BD77D-3C0B-462E-865C-DA77E7A9BE26}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Net6", "SqlFun.Net6\SqlFun.Net6.fsproj", "{4994E429-300B-412D-922D-5BAC1405EE83}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Net6.Tests", "SqlFun.Net6.Tests\SqlFun.Net6.Tests.fsproj", "{CA8B8FAB-3BAC-4783-8DE0-E1ACA73F6A22}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.MsDataSql.Net6", "SqlFun.MsDataSql.Net6\SqlFun.MsDataSql.Net6.fsproj", "{B5810CEF-E622-4673-BE1C-8F63D540883C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -110,6 +116,18 @@ Global
 		{C79BD77D-3C0B-462E-865C-DA77E7A9BE26}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C79BD77D-3C0B-462E-865C-DA77E7A9BE26}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C79BD77D-3C0B-462E-865C-DA77E7A9BE26}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4994E429-300B-412D-922D-5BAC1405EE83}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4994E429-300B-412D-922D-5BAC1405EE83}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4994E429-300B-412D-922D-5BAC1405EE83}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4994E429-300B-412D-922D-5BAC1405EE83}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA8B8FAB-3BAC-4783-8DE0-E1ACA73F6A22}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA8B8FAB-3BAC-4783-8DE0-E1ACA73F6A22}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA8B8FAB-3BAC-4783-8DE0-E1ACA73F6A22}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA8B8FAB-3BAC-4783-8DE0-E1ACA73F6A22}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5810CEF-E622-4673-BE1C-8F63D540883C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5810CEF-E622-4673-BE1C-8F63D540883C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5810CEF-E622-4673-BE1C-8F63D540883C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5810CEF-E622-4673-BE1C-8F63D540883C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

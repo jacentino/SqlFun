@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DefineConstants>NET60</DefineConstants>
+    <AssemblyName>SqlFun</AssemblyName>
+    <RootNamespace>SqlFun</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\SqlFun\AssemblyInfo.fs" />
+    <Compile Include="..\SqlFun\ExpressionExtensions.fs" />
+    <Compile Include="..\SqlFun\CompileTimeException.fs" />
+    <Compile Include="..\SqlFun\Attributes.fs" />
+    <Compile Include="..\SqlFun\Types.fs" />
+    <Compile Include="..\SqlFun\DataContext.fs" />
+    <Compile Include="..\SqlFun\DbBuilder.fs" />
+    <Compile Include="..\SqlFun\ParamBuilder.fs" />
+    <Compile Include="..\SqlFun\ResultBuilder.fs" />
+    <Compile Include="..\SqlFun\GeneratorConfig.fs" />
+    <Compile Include="..\SqlFun\Queries.fs" />
+    <Compile Include="..\SqlFun\Diagnostics.fs" />
+    <Compile Include="..\SqlFun\Transforms.fs" />
+    <Compile Include="..\SqlFun\MySql.fs" />
+    <Compile Include="..\SqlFun\Sqlite.fs" />
+    <Compile Include="..\SqlFun\Crud.fs" />
+    <Compile Include="..\SqlFun\Composite.fs" />
+    <Compile Include="..\SqlFun\Templating.fs" />
+    <Compile Include="..\SqlFun\Testing.fs" />
+  </ItemGroup>
+
+</Project>
