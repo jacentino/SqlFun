@@ -27,6 +27,7 @@ module Config =
         elif t = typeof<bool> then NpgsqlDbType.Boolean
         elif t = typeof<decimal> then NpgsqlDbType.Numeric
         elif t = typeof<DateTime> then NpgsqlDbType.Timestamp
+        elif t = typeof<TimeSpan> then NpgsqlDbType.Interval
 #if NET60
         elif t = typeof<DateOnly> then NpgsqlDbType.Timestamp
         elif t = typeof<TimeOnly> then NpgsqlDbType.Timestamp

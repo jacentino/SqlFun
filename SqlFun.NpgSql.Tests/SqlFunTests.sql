@@ -131,7 +131,8 @@ CREATE TABLE comment (
     parentid integer,
     content character varying(8000) NOT NULL,
     author character varying(20) NOT NULL,
-    createdat timestamp without time zone
+    createdat timestamp without time zone,
+    creationtime interval
 );
 
 
@@ -283,7 +284,7 @@ SELECT pg_catalog.setval('blog_id_seq', 1, true);
 COPY comment (commentid, postid, parentid, content, author, createdat) FROM stdin;
 1	1	\N	Great, informative article!	joeblack	2017-06-01 00:00:00
 2	1	1	Thank you!	jacenty	2017-06-01 00:00:00
-3	1	2	You're welcome!	joeblack	2017-06-01 00:00:00
+3	1	2	You''re welcome!	joeblack	2017-06-01 00:00:00
 \.
 
 
@@ -304,7 +305,7 @@ SELECT pg_catalog.setval('comment_id_seq', 3, true);
 
 COPY post (postid, blogid, name, title, content, author, createdat, modifiedat, modifiedby, status) FROM stdin;
 1	1	another-sql-framework	Yet another sql framework	There are so many solutions for this problem. What is the case for another one?	jacenty	2017-06-01 00:00:00	\N	\N	P
-2	1	whats-wrong-with-existing-f	What's wrong with existing frameworks	Shortly - they not align with functional paradigm.	jacenty	2017-06-01 00:00:00	\N	\N	P
+2	1	whats-wrong-with-existing-f	What''s wrong with existing frameworks	Shortly - they not align with functional paradigm.	jacenty	2017-06-01 00:00:00	\N	\N	P
 \.
 
 --

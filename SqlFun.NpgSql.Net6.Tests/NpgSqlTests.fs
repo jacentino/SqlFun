@@ -31,6 +31,10 @@ type TestQueries() =
              values (2, @name, @title, @description, @owner, @createdAt, @modifiedAt, @modifiedBy);
              select 2"
 
+    static member insertComment: Comment -> DbAction<unit> = 
+        sql "insert into comment (postId, parentId, content, author, createdAt, creationTime)
+             values (@postId, @parentId, @content, @author, @createdAt, @creationTime)"
+
 
 [<TestFixture>]
 type NpgSqlTests() = 
@@ -68,6 +72,24 @@ type NpgSqlTests() =
             posts = []
         } |> run
 
+    [<Test>]
+    member this.``Inserts handle TimeOnly fields correctly``() = 
+
+        Tooling.deleteAllComments |> run
+
+        let commentToAdd = 
+            {
+                commentId = 0
+                postId = 1
+                parentId = None
+                content = "Some meaningful comment"
+                author = "jacenty"
+                createdAt = DateOnly.FromDateTime DateTime.Today
+                creationTime = TimeOnly.FromDateTime DateTime.Now
+            }
+
+        TestQueries.insertComment commentToAdd |> run
+
 
     [<Test>]
     member this.``BulkCopy inserts records without subrecords``() = 
@@ -83,7 +105,7 @@ type NpgSqlTests() =
                     description = sprintf "Just another blog, added for test - %d" i
                     owner = "jacenty"
                     createdAt = DateOnly.FromDateTime DateTime.Today
-                    modifiedAt = Some (DateOnly.FromDateTime DateTime.Today)
+                    modifiedAt = Some (DateOnly.FromDateTime DateTime.Now)
                     modifiedBy = None
                     posts = []          
                 }
@@ -98,6 +120,26 @@ type NpgSqlTests() =
         let numOfBlogs = Tooling.getNumberOfBlogs |> run        
         Tooling.deleteAllButFirstBlog |> run
         Assert.AreEqual(200, numOfBlogs)
+
+
+    [<Test>]
+    member this.``BulkCopy handles TimeOnly fields correctly``() = 
+
+        Tooling.deleteAllComments |> run
+
+        let commentToAdd = 
+            {
+                commentId = 0
+                postId = 1
+                parentId = None
+                content = "Some meaningful comment"
+                author = "jacenty"
+                createdAt = DateOnly.FromDateTime DateTime.Today
+                creationTime = TimeOnly.FromDateTime DateTime.Now
+            }
+
+        BulkCopy.WriteToServer [commentToAdd] |> runAsync |> Async.RunSynchronously
+    
 
     [<Test>]
     member this.``BulkCopy handles byte array fields properly``() = 

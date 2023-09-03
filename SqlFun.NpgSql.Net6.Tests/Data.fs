@@ -11,6 +11,17 @@ module Data =
         | [<EnumValue("P")>] Published = 1
         | [<EnumValue("A")>] Archived = 2
 
+    
+    type Comment = {
+        commentId: int
+        postId: int
+        parentId: int option
+        content: string
+        author: string
+        createdAt: DateOnly
+        creationTime: TimeOnly
+    }
+
     type Post = {
         postId: int
         blogId: int
@@ -54,3 +65,6 @@ module Tooling =
 
     let deleteAllUsers: IDataContext -> unit = 
         sql "delete from userprofile"
+
+    let deleteAllComments: IDataContext -> unit = 
+        sql "delete from comment"
