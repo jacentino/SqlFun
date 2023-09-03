@@ -56,6 +56,27 @@ type BulkCopy<'Rec>() =
     
     static let getIsSome (t: Type) = t.GetMethod("get_IsSome", BindingFlags.Public ||| BindingFlags.Static)
 
+    static let simpleValueAssign (root: Expression, p: PropertyInfo, enclosingOptionIsSome, writer, convert) = 
+        let valueExpr = convert (Expression.Property(root, p)) :> Expression
+        let npgType = Expression.Constant(getNpgSqlDbType valueExpr.Type)
+        let write = writeMethod.MakeGenericMethod(valueExpr.Type)
+        Expression.IfThenElse(
+            enclosingOptionIsSome,
+            Expression.Call (writer, write, valueExpr, npgType),
+            Expression.Call (writer, writeNullMethod))
+        :> Expression
+
+    static let simpleValueOptionAssign (root: Expression, p: PropertyInfo, enclosingOptionIsSome, writer, convert) = 
+        let valueExpr = Expression.Property(root, p)
+        let optValueExpr = convert (Expression.Property (valueExpr, "Value")) :> Expression
+        let npgType = Expression.Constant(getNpgSqlDbType optValueExpr.Type)
+        let write = writeMethod.MakeGenericMethod(optValueExpr.Type)
+        Expression.IfThenElse(
+            Expression.And(enclosingOptionIsSome, Expression.Call(getIsSome valueExpr.Type, valueExpr)),
+            Expression.Call (writer, write, optValueExpr, npgType),
+            Expression.Call(writer, writeNullMethod))
+        :> Expression
+
     static let rec getWriteExpr (writer: Expression) (enclosingOptionIsSome: Expression) (root: Expression) = 
         match root.Type with
         | Tuple elts -> 
@@ -68,25 +89,20 @@ type BulkCopy<'Rec>() =
                     if not (isCollectionType p.PropertyType) then
                         yield
                             match p.PropertyType with
+#if NET60
+                            | t when t = typeof<DateOnly> -> 
+                                simpleValueAssign (root, p, enclosingOptionIsSome, writer, fun valueExpr -> Expression.Invoke(Expression.Constant(Func<DateOnly, DateTime>(fun v -> v.ToDateTime(TimeOnly.MinValue))), valueExpr))
+                            | t when t = typeof<DateOnly option> -> 
+                                simpleValueOptionAssign (root, p, enclosingOptionIsSome, writer, fun valueExpr -> Expression.Invoke(Expression.Constant(Func<DateOnly, DateTime>(fun v -> v.ToDateTime(TimeOnly.MinValue))), valueExpr))
+                            | t when t = typeof<TimeOnly> -> 
+                                simpleValueAssign (root, p, enclosingOptionIsSome, writer, fun valueExpr -> Expression.Invoke(Expression.Constant(Func<TimeOnly, TimeSpan>(fun v -> v.ToTimeSpan())), valueExpr))
+                            | t when t = typeof<TimeOnly option> -> 
+                                simpleValueOptionAssign (root, p, enclosingOptionIsSome, writer, fun valueExpr -> Expression.Invoke(Expression.Constant(Func<TimeOnly, TimeSpan>(fun v -> v.ToTimeSpan())), valueExpr))
+#endif
                             | SimpleType -> 
-                                let valueExpr = convertIfEnum (Expression.Property(root, p))
-                                let npgType = Expression.Constant(getNpgSqlDbType valueExpr.Type)
-                                let write = writeMethod.MakeGenericMethod(valueExpr.Type)
-                                Expression.IfThenElse(
-                                    enclosingOptionIsSome,
-                                    Expression.Call (writer, write, valueExpr, npgType),
-                                    Expression.Call (writer, writeNullMethod))
-                                :> Expression
+                                simpleValueAssign (root, p, enclosingOptionIsSome, writer, convertIfEnum)
                             | SimpleTypeOption ->
-                                let valueExpr = Expression.Property(root, p)
-                                let optValueExpr = convertIfEnum (Expression.Property (valueExpr, "Value"))
-                                let npgType = Expression.Constant(getNpgSqlDbType optValueExpr.Type)
-                                let write = writeMethod.MakeGenericMethod(optValueExpr.Type)
-                                Expression.IfThenElse(
-                                    Expression.And(enclosingOptionIsSome, Expression.Call(getIsSome valueExpr.Type, valueExpr)),
-                                    Expression.Call (writer, write, optValueExpr, npgType),
-                                    Expression.Call(writer, writeNullMethod))
-                                :> Expression
+                                simpleValueOptionAssign (root, p, enclosingOptionIsSome, writer, convertIfEnum)
                             | OptionOf _ ->
                                 let valueExpr = Expression.Property(root, p)
                                 let optValueExpr = Expression.Property (valueExpr, "Value")

@@ -1,4 +1,4 @@
-﻿namespace SqlFun.Tests.AssemblyInfo
+﻿namespace SqlFun.AssemblyInfo
 
 open System.Reflection
 open System.Runtime.CompilerServices
@@ -34,8 +34,8 @@ open System.Runtime.InteropServices
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [<assembly: AssemblyVersion("1.0.*")>]
-[<assembly: AssemblyVersion("2.3.0.*")>]
-[<assembly: AssemblyFileVersion("2.3.0.*")>]
+[<assembly: AssemblyVersion("2.4.0.*")>]
+[<assembly: AssemblyFileVersion("2.4.0.*")>]
 
 do
     ()

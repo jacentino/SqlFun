@@ -31,7 +31,11 @@ module Types =
         else None
 
     let isSimpleType (t: Type) = 
-        t.IsPrimitive || t.IsEnum || t = typeof<string> || t = typeof<DateTime> || t = typeof<Decimal> || t = typeof<byte[]> || t = typeof<Guid>
+        t.IsPrimitive || t.IsEnum || t = typeof<string> || t = typeof<DateTime> || 
+#if NET60
+        t = typeof<DateOnly> || t = typeof<TimeOnly> || 
+#endif
+        t = typeof<Decimal> || t = typeof<byte[]> || t = typeof<Guid>
 
     let (|SimpleType|_|) (t: Type) = 
         if isSimpleType t then Some () else None

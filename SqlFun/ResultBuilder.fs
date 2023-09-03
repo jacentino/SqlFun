@@ -219,6 +219,20 @@ module ResultBuilder =
                 |> Seq.fold (fun cexpr (e, v) -> Expression.Condition(comparer v, Expression.Constant(e), cexpr) :> Expression) exprAsEnum
             else 
                 Expression.Call([| targetType |], "IntToEnum", expr) :> Expression
+#if NET60
+        | _ when targetType = typeof<DateOnly> ->
+            let convertExpr = Expression.Constant(Func<DateTime, DateOnly>(DateOnly.FromDateTime))
+            Expression.Invoke(convertExpr, expr) :> Expression
+        | _ when targetType = typeof<DateOnly option> ->
+            let convertExpr = Expression.Constant(Func<DateTime option, DateOnly option>(Option.map DateOnly.FromDateTime))
+            Expression.Invoke(convertExpr, expr) :> Expression
+        | _ when targetType = typeof<TimeOnly> ->
+            let convertExpr = Expression.Constant(Func<DateTime, TimeOnly>(TimeOnly.FromDateTime))
+            Expression.Invoke(convertExpr, expr) :> Expression
+        | _ when targetType = typeof<DateOnly option> ->
+            let convertExpr = Expression.Constant(Func<DateTime option, TimeOnly option>(Option.map TimeOnly.FromDateTime))
+            Expression.Invoke(convertExpr, expr) :> Expression
+#endif
         | _ when targetType = colType ->
             expr
         | _ -> Expression.Convert(expr, targetType) :> Expression

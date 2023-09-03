@@ -46,6 +46,21 @@ module MsSql =
 
     let private getOptValue expr = Expression.Property (expr, "Value")
 
+    let private simpleValueAssign (positions: Map<string, int>, root: Expression, p: PropertyInfo, record: Expression, convert: Expression -> #Expression) : Expression = 
+        let expr = convert (Expression.Property(root, p))
+        let setter = getSetter expr.Type
+        Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), expr) :> Expression
+
+    let private simpleValueOptionAssign (positions: Map<string, int>, root: Expression, p: PropertyInfo, record: Expression, convert: Expression -> #Expression) : Expression = 
+        let expr = Expression.Property(root, p)
+        let optExpr = convert (getOptValue expr) :> Expression
+        let setter = getSetter optExpr.Type
+        Expression.IfThen(
+            Expression.Call(getIsSome expr.Type, expr),
+                Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), optExpr))
+        :> Expression
+
+
     let rec private getUpdateExpr (positions: Map<string, int>) (record: Expression) (root: Expression): Expression = 
         match root.Type with
         | Tuple elts -> 
@@ -69,18 +84,20 @@ module MsSql =
                                         Expression.Constant(0),
                                         Expression.ArrayLength(valueExpr)) 
                                     :> Expression
+#if NET60
+                              | t when t = typeof<DateOnly> ->
+                                    simpleValueAssign (positions, root, p, record, fun valueExpr -> Expression.Invoke(Expression.Constant(Func<DateOnly, DateTime>(fun v -> v.ToDateTime(TimeOnly.MinValue))), valueExpr))
+                              | t when t = typeof<DateOnly option> ->
+                                    simpleValueOptionAssign(positions, root, p, record, fun valueExpr -> Expression.Invoke(Expression.Constant(Func<DateOnly, DateTime>(fun v -> v.ToDateTime(TimeOnly.MinValue))), valueExpr))
+                              | t when t = typeof<TimeOnly> ->
+                                    simpleValueAssign (positions, root, p, record, fun valueExpr -> Expression.Invoke(Expression.Constant(Func<TimeOnly, TimeSpan>(fun v -> v.ToTimeSpan())), valueExpr))
+                              | t when t = typeof<TimeOnly option> ->
+                                    simpleValueOptionAssign(positions, root, p, record, fun valueExpr -> Expression.Invoke(Expression.Constant(Func<TimeOnly, TimeSpan>(fun v -> v.ToTimeSpan())), valueExpr))
+#endif
                               | SimpleType -> 
-                                    let valueExpr = convertIfEnum (Expression.Property(root, p))
-                                    let setter = getSetter valueExpr.Type
-                                    Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), valueExpr) :> Expression
+                                    simpleValueAssign (positions, root, p, record, convertIfEnum)
                               | SimpleTypeOption ->
-                                    let valueExpr = Expression.Property(root, p)
-                                    let optValueExpr = convertIfEnum (getOptValue valueExpr)
-                                    let setter = getSetter optValueExpr.Type
-                                    Expression.IfThen(
-                                        Expression.Call(getIsSome valueExpr.Type, valueExpr),
-                                            Expression.Call (record, setter, Expression.Constant(positions.[p.Name]), optValueExpr))
-                                    :> Expression
+                                    simpleValueOptionAssign (positions, root, p, record, convertIfEnum)
                               | OptionOf _ ->
                                     let valueExpr = Expression.Property(root, p)
                                     let optValueExpr = getOptValue valueExpr
@@ -95,7 +112,7 @@ module MsSql =
             then Expression.UnitConstant :> Expression
             else exprs |> Expression.Block :> Expression
                                                                                     
-    let private createMetaData name typeName (maxLen: int64) (precision: byte) (scale: byte) = 
+    let private createMetaData name (typeName: string) (maxLen: int64) (precision: byte) (scale: byte) = 
         let dbType = Enum.Parse(typeof<SqlDbType>, typeName, true) :?> SqlDbType
         match dbType with
         | SqlDbType.Char 
