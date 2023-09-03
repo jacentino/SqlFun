@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>SqlFun.NpgSql</AssemblyName>
+    <DefineConstants>NET60</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\SqlFun.NpgSql\AssemblyInfo.fs" Link="AssemblyInfo.fs" />
+    <Compile Include="..\SqlFun.NpgSql\NpgSql.fs" Link="NpgSql.fs" />
+    <Compile Include="..\SqlFun.NpgSql\BulkCopy.fs" Link="BulkCopy.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SqlFun.Net6\SqlFun.Net6.fsproj" />
+  </ItemGroup>
+
+</Project>

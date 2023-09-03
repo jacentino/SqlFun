@@ -268,7 +268,8 @@ module Tooling =
     
     let cleanup: IDataContext -> unit = 
         sql "delete from post where id > 2;
-             delete from tag where postId = 2
+             delete from tag where postId = 2;
+             delete from comment where id > 3;
              delete from UserProfile where id <> 'jacenty'"
 
     let getNumberOfPosts: IDataContext -> int = 

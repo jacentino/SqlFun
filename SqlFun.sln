@@ -37,11 +37,21 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.MySqlConnector", "Sq
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.MsDataSqlite.Tests", "SqlFun.MsDataSqlite.Tests\SqlFun.MsDataSqlite.Tests.fsproj", "{C79BD77D-3C0B-462E-865C-DA77E7A9BE26}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Net6", "SqlFun.Net6\SqlFun.Net6.fsproj", "{4994E429-300B-412D-922D-5BAC1405EE83}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.Net6", "SqlFun.Net6\SqlFun.Net6.fsproj", "{4994E429-300B-412D-922D-5BAC1405EE83}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Net6.Tests", "SqlFun.Net6.Tests\SqlFun.Net6.Tests.fsproj", "{CA8B8FAB-3BAC-4783-8DE0-E1ACA73F6A22}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.Net6.Tests", "SqlFun.Net6.Tests\SqlFun.Net6.Tests.fsproj", "{CA8B8FAB-3BAC-4783-8DE0-E1ACA73F6A22}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.MsDataSql.Net6", "SqlFun.MsDataSql.Net6\SqlFun.MsDataSql.Net6.fsproj", "{B5810CEF-E622-4673-BE1C-8F63D540883C}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.MsDataSql.Net6", "SqlFun.MsDataSql.Net6\SqlFun.MsDataSql.Net6.fsproj", "{B5810CEF-E622-4673-BE1C-8F63D540883C}"
+EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SqlFun.NpgSql.Net6", "SqlFun.NpgSql.Net6\SqlFun.NpgSql.Net6.fsproj", "{6CA79CAC-D25E-4B30-83F0-12C6935C9D5A}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.MySqlConnector.Net6", "SqlFun.MySqlConnector.Net6\SqlFun.MySqlConnector.Net6.fsproj", "{AFBC24C9-99E3-4054-B72C-B437C28539E8}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.Oracle.Net6", "SqlFun.Oracle.Net6\SqlFun.Oracle.Net6.fsproj", "{A15795EB-224D-4B6C-97BE-D225ED318B4D}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.NpgSql.Net6.Tests", "SqlFun.NpgSql.Net6.Tests\SqlFun.NpgSql.Net6.Tests.fsproj", "{4B1864DE-C00E-413A-BB42-C8E10EADCA58}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlFun.MySqlConnector.Net6.Tests", "SqlFun.MySqlConnector.Net6.Tests\SqlFun.MySqlConnector.Net6.Tests.fsproj", "{83AD3396-1234-433E-9398-F169E375728E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -128,6 +138,26 @@ Global
 		{B5810CEF-E622-4673-BE1C-8F63D540883C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B5810CEF-E622-4673-BE1C-8F63D540883C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B5810CEF-E622-4673-BE1C-8F63D540883C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6CA79CAC-D25E-4B30-83F0-12C6935C9D5A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6CA79CAC-D25E-4B30-83F0-12C6935C9D5A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6CA79CAC-D25E-4B30-83F0-12C6935C9D5A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6CA79CAC-D25E-4B30-83F0-12C6935C9D5A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AFBC24C9-99E3-4054-B72C-B437C28539E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AFBC24C9-99E3-4054-B72C-B437C28539E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AFBC24C9-99E3-4054-B72C-B437C28539E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AFBC24C9-99E3-4054-B72C-B437C28539E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A15795EB-224D-4B6C-97BE-D225ED318B4D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A15795EB-224D-4B6C-97BE-D225ED318B4D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A15795EB-224D-4B6C-97BE-D225ED318B4D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A15795EB-224D-4B6C-97BE-D225ED318B4D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B1864DE-C00E-413A-BB42-C8E10EADCA58}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B1864DE-C00E-413A-BB42-C8E10EADCA58}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B1864DE-C00E-413A-BB42-C8E10EADCA58}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B1864DE-C00E-413A-BB42-C8E10EADCA58}.Release|Any CPU.Build.0 = Release|Any CPU
+		{83AD3396-1234-433E-9398-F169E375728E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83AD3396-1234-433E-9398-F169E375728E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83AD3396-1234-433E-9398-F169E375728E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83AD3396-1234-433E-9398-F169E375728E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

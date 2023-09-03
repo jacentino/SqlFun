@@ -30,7 +30,11 @@ type BulkCopy<'Rec>() =
         for name, dataType, nullable in getFields typeof<'Rec> do
             let col = dt.Columns.Add()    
             col.ColumnName <- name
-            col.DataType <- if dataType.IsEnum then typeof<int> else dataType
+            col.DataType <- 
+                if dataType.IsEnum then 
+                    typeof<int> 
+                else 
+                    dataType
             col.AllowDBNull <- nullable
         dt
 
