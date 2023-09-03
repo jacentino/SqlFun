@@ -6,7 +6,7 @@
     <AssemblyName>SqlFun.MsDataSql</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\SqlFun\AssemblyInfo.fs" />
+    <Compile Include="..\SqlFun.MsDataSql.Net6\AssemblyInfo.fs" Link="AssemblyInfo.fs" />
     <Compile Include="..\SqlFun\MsSql.fs" />
   </ItemGroup>
   <ItemGroup>
