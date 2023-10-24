@@ -96,10 +96,10 @@ module ComputationBuilder =
         /// <param name="f">Function transforming a value, returning a monad.</param>
         /// <param name="v">Value wrapped in a monad.</param>
         /// <param name="ctx">The database context.</param>
-        let bind (f: 't1 -> AsyncDb<'t2>) (x: AsyncDb<'t1>): AsyncDb<'t2> =
+        let bind (f: 't1 -> AsyncDb<'t2>) (v: AsyncDb<'t1>): AsyncDb<'t2> =
             fun ctx -> async {
-                let! v = x ctx
-                return! (f v) ctx
+                let! x = v ctx
+                return! (f x) ctx
             }
 
 
