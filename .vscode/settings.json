@@ -1,0 +1,7 @@
+{
+	"[fsharp]": {
+		"editor.insertSpaces": true,
+		"editor.tabSize": 4
+	},
+	"files.trimTrailingWhitespace": false
+}
