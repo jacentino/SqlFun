@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>SqlFun.Oracle</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DocumentationFile>bin\Debug\netstandard2.0\SqlFun.Oracle.XML</DocumentationFile>
+    <DocumentationFile>bin\Debug\netstandard2.1\SqlFun.Oracle.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DocumentationFile>bin\Release\netstandard2.0\SqlFun.Oracle.XML</DocumentationFile>
+    <DocumentationFile>bin\Release\netstandard2.1\SqlFun.Oracle.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\SqlFun.Oracle\AssemblyInfo.fs" />
