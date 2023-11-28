@@ -19,6 +19,15 @@ module ComputationBuilder =
             v >> f
 
         /// <summary>
+        /// Function transforming value inside a monad, and flattening the result.
+        /// </summary>
+        /// <param name="f">Function transforming a value, returning a monad.</param>
+        /// <param name="v">Value wrapped in a monad.</param>
+        /// <param name="ctx">The database context.</param>
+        let bind (f: 't1 -> DbAction<'t2>) (v: DbAction<'t1>): DbAction<'t2>= 
+            fun ctx -> (f <| v ctx) ctx  
+
+        /// <summary>
         /// Wraps a database operation in a transaction.
         /// </summary>
         /// <param name="f">
