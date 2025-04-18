@@ -358,7 +358,9 @@ module Queries =
         let getResultMetadata (paramDefs: (string * Expression * (obj -> IDbCommand -> int) * obj) list) = 
             use connection = createConnection()
             connection.Open()
+            use transaction = connection.BeginTransaction()
             use command = createCommand(connection)
+            command.Transaction <- transaction
             command.CommandText <- commandText
             for _, expr, buildParam, fakeVal in paramDefs do
                 buildParam fakeVal command |> ignore

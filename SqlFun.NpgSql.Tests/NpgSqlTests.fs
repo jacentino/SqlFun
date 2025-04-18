@@ -26,7 +26,7 @@ type TestQueries() =
     static member insertBlog: Blog -> DbAction<unit> =
         sql "insert into blog (blogid, name, title, description, owner, createdAt, modifiedAt, modifiedBy) values (@blogId, @name, @title, @description, @owner, @createdAt, @modifiedAt, @modifiedBy)"
 
-    static member insertBlogAutoInc: Blog -> DbAction<unit> =
+    static member insertBlogAutoInc: Blog -> DbAction<int> =
         sql "insert into blog (blogid, name, title, description, owner, createdAt, modifiedAt, modifiedBy) 
              values (2, @name, @title, @description, @owner, @createdAt, @modifiedAt, @modifiedBy);
              select 2"
