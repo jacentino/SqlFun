@@ -10,6 +10,7 @@ open Common
 open System
 open System.IO
 open System.Diagnostics
+open FSharp.Control
 
 type TestQueries() =    
 
@@ -229,7 +230,6 @@ type TestQueries() =
              post p join tag t on t.postId = p.id
              where t.name in (@tagName)
              group by id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status"
-
 
     static member getPostAndItsCommentsResultStream: int -> IDataContext -> (Post * Comment ResultStream) = 
         sql "select id, blogId, name, title, content, author, createdAt, modifiedAt, modifiedBy, status from post where id = @id;

@@ -330,7 +330,8 @@ module Queries =
 
 
     let private isResultStream (t: Type) = 
-        t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<ResultStream<_>>
+        t.IsGenericType && 
+        (t.GetGenericTypeDefinition() = typedefof<ResultStream<_>> || t.GetGenericTypeDefinition() = typedefof<AsyncResultStream<_>>)
 
     let private generateSqlCommandCaller 
             (createConnection: unit -> IDbConnection) 

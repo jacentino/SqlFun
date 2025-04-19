@@ -4,6 +4,7 @@
 open System
 open System.Reflection
 open FSharp.Reflection
+open FSharp.Control
 
 module Types = 
 
@@ -64,7 +65,8 @@ module Types =
         if isSimpleTypeOption t then Some () else None
 
     let isCollectionType (t: Type) = 
-        typeof<System.Collections.IEnumerable>.IsAssignableFrom(t) && t <> typeof<string> && t <> typeof<byte[]>
+        (typeof<System.Collections.IEnumerable>.IsAssignableFrom(t) && t <> typeof<string> && t <> typeof<byte[]>) ||
+        t.GetInterface("IAsyncEnumerable`1") <> null
 
     let (|CollectionOf|_|) (t: Type) = 
         if t = typeof<byte[]> 
@@ -72,6 +74,8 @@ module Types =
         elif t.IsArray 
         then Some <| t.GetElementType()
         elif typeof<System.Collections.IEnumerable>.IsAssignableFrom(t) && t <> typeof<string> 
+        then Some <| t.GetGenericArguments().[0]
+        elif t.GetInterface("IAsyncEnumerable`1") <> null
         then Some <| t.GetGenericArguments().[0]
         else None
 

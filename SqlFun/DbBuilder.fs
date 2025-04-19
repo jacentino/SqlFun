@@ -1,6 +1,7 @@
 ﻿namespace SqlFun
 
 open System.Data
+open FSharp.Control
 
 [<AutoOpen>]
 module ComputationBuilder = 
@@ -111,6 +112,11 @@ module ComputationBuilder =
                 return! (f x) ctx
             }
 
+        /// <summary>
+        /// Lift the async value to AsyncDb.
+        /// </summary>
+        /// <param name="v">Async value to be lifted.</param>
+        let fromAsync (v: Async<'T>) (_: IDataContext) = v
 
         /// <summary>
         /// Wraps a database operation in a transaction asynchronously.
@@ -207,6 +213,11 @@ module ComputationBuilder =
             member this.Combine(x: AsyncDb<'t1>, y: AsyncDb<'t2>): AsyncDb<'t2> = this.Bind(x, fun x' -> y)
             member this.Delay(f: unit-> IDataContext -> 't Async) = fun ctx -> async { return! f () ctx }
             member this.For (items: seq<'t>,  f: 't -> AsyncDb<unit>): AsyncDb<unit> = 
+                fun ctx -> async {
+                    for x in items do 
+                        do! f x ctx
+                }
+            member this.For (items: AsyncSeq<'t>,  f: 't -> AsyncDb<unit>): AsyncDb<unit> = 
                 fun ctx -> async {
                     for x in items do 
                         do! f x ctx

@@ -1,5 +1,7 @@
 ﻿namespace SqlFun.Net6.Tests
 
+open SqlFun.GeneratorConfig
+
 module Common =
     open Microsoft.Data.SqlClient
     open System.Configuration
@@ -12,7 +14,9 @@ module Common =
         let config = ConfigurationManager.OpenExeConfiguration(System.Reflection.Assembly.GetExecutingAssembly().Location)
         new SqlConnection(config.ConnectionStrings.ConnectionStrings.["SqlFunTests"].ConnectionString)
 
-    let generatorConfig = createDefaultConfig createConnection
+    let generatorConfig = 
+        createDefaultConfig createConnection
+        |> useCollectionParameters
         
     let run f = AsyncDb.run createConnection f
 

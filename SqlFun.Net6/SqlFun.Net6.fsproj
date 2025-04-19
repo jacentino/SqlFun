@@ -30,4 +30,8 @@
     <Compile Include="..\SqlFun\Testing.fs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="FSharp.Control.AsyncSeq" Version="3.2.1" />
+  </ItemGroup>
+
 </Project>

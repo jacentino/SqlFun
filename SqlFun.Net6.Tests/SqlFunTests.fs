@@ -6,6 +6,7 @@ open System
 open SqlFun
 open Common
 open Data
+open FSharp.Control
 
 module TestQueries = 
 
@@ -35,6 +36,13 @@ module TestQueries =
 
     let getComments: int -> AsyncDb<Comment2 list> = 
         sql "select id, postId, parentId, content, author, createdAt from Comment where id = @id"
+
+    let getSomePostsByTagsAsyncWithAsyncStream: string list -> IDataContext -> Post AsyncResultStream Async = 
+        sql "select id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status from 
+             post p join tag t on t.postId = p.id
+             where t.name in (@tagName)
+             group by id, blogId, p.name, title, content, author, createdAt, modifiedAt, modifiedBy, status"
+
 
 module Net6Tests = 
 
@@ -134,4 +142,31 @@ module Net6Tests =
     let ``TimeOnly values can be used as columns`` () =
         TestQueries.getComments 1
         |> run |> Async.RunSynchronously |> ignore
-
+            
+    [<Test>]
+    let ``Query results can be async sequences``() =
+        asyncdb {
+            use! ps = TestQueries.getSomePostsByTagsAsyncWithAsyncStream ["framework"; "options"]
+            let! p = ps |> AsyncSeq.toListAsync |> AsyncDb.fromAsync
+            Assert.IsNotEmpty(p)
+        } |> run |> Async.RunSynchronously
+           
+    [<Test>]
+    let ``Async sequences can be passed to for loop in AsyncDb``() =
+        asyncdb {
+            use! ps = TestQueries.getSomePostsByTagsAsyncWithAsyncStream ["framework"; "options"]
+            for p in ps do
+                printf "%A" p
+        } |> run |> Async.RunSynchronously
+           
+    [<Test>]
+    let ``Async sequences can be iterated only once``() =
+        Assert.Throws<AggregateException>(fun () ->
+            asyncdb {
+                use! ps = TestQueries.getSomePostsByTagsAsyncWithAsyncStream ["framework"; "options"]
+                for p in ps do
+                    printf "%A" p
+                for p in ps do
+                    printf "%A" p
+            } |> run |> Async.RunSynchronously
+        ) |> ignore

@@ -7,6 +7,7 @@ open System.Data
 open Microsoft.FSharp.Reflection
 open System.Threading.Tasks
 open System.Reflection
+open FSharp.Control
 
 open SqlFun.Types
 open SqlFun.ExpressionExtensions
@@ -32,6 +33,27 @@ type ResultStream<'t>(reader: IDataReader, builder: IDataReader -> 't) =
             data.GetEnumerator()
         member __.GetEnumerator(): Collections.IEnumerator = 
             (data :> Collections.IEnumerable).GetEnumerator() 
+
+    interface IDisposable with
+        member __.Dispose(): unit = 
+            reader.Dispose()
+
+/// <summary>
+/// Builds result sequence row by row, as client code requests data.
+/// Allows to read very large datasets without consuming too much memory.
+/// Keeps open data reader until the data is read to end or the stream object is disposed.
+/// The code reading from ResultStream must be placed in context of open connection.
+/// Can not be used in multi-result queries or as record fields.
+/// </summary>
+type AsyncResultStream<'t>(reader: IDataReader, builder: IDataReader -> 't) = 
+
+    let data = asyncSeq {
+        use dbReader = reader :?> DbDataReader
+        while! dbReader.ReadAsync() |> Async.AwaitTask do yield builder reader
+    }
+
+    interface AsyncSeq<'t> with
+        member __.GetEnumerator() = data.GetEnumerator()
 
     interface IDisposable with
         member __.Dispose(): unit = 
@@ -158,6 +180,13 @@ module ResultBuilder =
                 let! ct = Async.CancellationToken
                 let! reader = Async.AwaitTask(command.ExecuteReaderAsync ct)
                 return new ResultStream<'t>(reader, resultBuilder.Invoke)
+            })                
+
+        static member BuildAsyncStreamResultAsync (resultBuilder: Func<IDataReader, 't>) = 
+            Func<DbCommand, Async<'t AsyncResultStream>>(fun (command: DbCommand) -> async {
+                let! ct = Async.CancellationToken
+                let! reader = Async.AwaitTask(command.ExecuteReaderAsync ct)
+                return new AsyncResultStream<'t>(reader, resultBuilder.Invoke)
             })                
             
 
@@ -396,7 +425,9 @@ module ResultBuilder =
     let multiResultCollectionBuilders = commonCollectionResultBuilders
 
     let singleResultCollectionBuilders = 
-        commonCollectionResultBuilders |> Map.add typedefof<ResultStream<_>>.Name "BuildStreamResult"
+        commonCollectionResultBuilders 
+        |> Map.add typedefof<ResultStream<_>>.Name "BuildStreamResult"
+        |> Map.add typedefof<AsyncResultStream<_>>.Name "BuildAsyncStreamResult"
 
     let private getCollectionResultBuilderName availableBuilders (collectionType: Type) = 
         if collectionType.IsArray then 
