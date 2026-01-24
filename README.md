@@ -6,7 +6,7 @@ DbFun is based on the same idea, but is more robust and feature-rich:
 * more database-specific extensions available
 * more type mappings supported, e.g. discriminated union support
 * better templating support
-* better internal design, promoting custom type mappings, etc...
+* better internal design, promoting custom type mappings and other extensions
 * better code-generation diagnostics
 
 ## Introduction
